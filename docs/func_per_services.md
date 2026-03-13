@@ -9,6 +9,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Entry point duy nhất của toàn bộ hệ thống
 
 ### Chức năng chính:
+
 - Entry point cho toàn bộ hệ thống
 - Routing request đến đúng service (HTTP proxy / gRPC call)
 - Rate limiting (per user, per endpoint, per role)
@@ -28,6 +29,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Quản lý xác thực, phân quyền và JWT lifecycle
 
 ### Chức năng chính:
+
 - **Đăng nhập**: Username/password → JWT access + refresh token
 - **Đăng ký**: Chỉ Admin được phép tạo
 - **Refresh token rotation**: Cấp lại access token khi hết hạn
@@ -50,6 +52,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Quản lý thông tin người dùng, nhân viên và trạng thái tài khoản
 
 ### Chức năng chính:
+
 - **Xem thông tin**: User xem của mình, Admin xem tất cả
 - **Cập nhật profile**: Tên, email, department, avatar
 - **Tìm kiếm nhân viên**: Admin/Manager tìm theo tên, phòng ban, role
@@ -60,6 +63,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 - **Danh sách nhân viên**: Phân trang, lọc, sắp xếp
 
 ### Event Publishing (RabbitMQ):
+
 - `User.status.changed` → Auth Service invalidate token
 - `User.revoked` → Tất cả services cleanup
 
@@ -70,6 +74,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Xử lý câu hỏi từ người dùng và sinh câu trả lời từ tài liệu
 
 ### Chức năng chính:
+
 - **Query Processing**:
   - Nhận câu hỏi từ user (qua API Gateway)
   - Query rewriting / reformulation (tối ưu câu hỏi cho search)
@@ -94,6 +99,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Thực hiện semantic search trên vector embeddings
 
 ### Chức năng chính:
+
 - **Semantic Search**:
   - Nhận query embedding từ AI Q&A service (hoặc nhận text rồi tự embed)
   - Thực hiện similarity search (cosine similarity / inner product)
@@ -112,6 +118,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Quản lý kho tri thức nội bộ - upload, xử lý, và index tài liệu
 
 ### Chức năng chính:
+
 - **Document Upload**:
   - Hỗ trợ: PDF, DOCX, XLSX, images
   - Validation: type, size limit 50MB, optional virus scan
@@ -142,6 +149,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Quản lý metadata, trạng thái, và quyền truy cập tài liệu
 
 ### Chức năng chính:
+
 - **Metadata Management**:
   - Tiêu đề, mô tả, tags, document_type
   - Ngày hiệu lực (effective_date) / ngày hết hạn (expire_date)
@@ -166,6 +174,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Thu thập feedback người dùng và cung cấp analytics
 
 ### Chức năng chính:
+
 - **Feedback Collection**: Like/dislike + optional comment
 - **Unanswered Questions**: Consume event từ RabbitMQ
 - **Statistics**:
@@ -189,6 +198,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 **Vai trò**: Giao diện web cho người dùng
 
 ### Công nghệ:
+
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
@@ -199,6 +209,7 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 ## Quy Ước Chung
 
 ### Event Publishing (RabbitMQ)
+
 - `User.status.changed`: Auth Service listen để invalidate token
 - `User.revoked`: Tất cả services listen để cleanup
 - `Document.uploaded`: Knowledge Service publish
@@ -206,7 +217,9 @@ Tài liệu này mô tả vai trò, chức năng chính và trách nhiệm của
 - `Unanswered.question`: AI Service publish → Feedback Service consume
 
 ### API Response Format
+
 Tất cả services trả về response chuẩn:
+
 ```json
 {
   "success": true,
@@ -217,6 +230,7 @@ Tất cả services trả về response chuẩn:
 ```
 
 ### Error Handling
+
 - Standardized error codes
 - Structured error responses
 - Proper HTTP status codes
