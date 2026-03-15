@@ -7,16 +7,6 @@ import lombok.*;
 import java.time.Instant;
 import java.util.UUID;
 
-
-
-/**
- * Entity lưu lịch sử đăng nhập của người dùng.
- *
- * Bảng: core.login_history
- *
- * Dùng để: - Audit security - Phát hiện login bất thường - Phân tích hành vi người dùng - Điều tra
- * sự cố bảo mật
- */
 @Entity
 @Table(name = "login_history", schema = "core")
 @Getter
