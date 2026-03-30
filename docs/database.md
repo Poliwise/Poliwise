@@ -206,27 +206,28 @@ Hệ thống sử dụng **5 schema chính** để quản lý các chức năng 
 
 | Cột                 | Kiểu      | Mô tả                     |
 | ------------------- | --------- | ------------------------- |
-| `id`                | UUID      | ID tài liệu (Primary Key) |
-| `original_filename` | VARCHAR   | Tên file gốc              |
-| `file_type`         | ENUM      | Loại file                 |
-| `file_size_bytes`   | BIGINT    | Kích thước file (bytes)   |
-| `mime_type`         | VARCHAR   | MIME type                 |
-| `file_key`          | VARCHAR   | Key lưu trữ               |
-| `bucket_name`       | VARCHAR   | Bucket lưu trữ            |
-| `status`            | ENUM      | Trạng thái xử lý          |
-| `current_version`   | INT       | Phiên bản hiện tại        |
-| `extracted_text`    | TEXT      | Text đã trích xuất        |
-| `page_count`        | INT       | Số trang                  |
-| `word_count`        | INT       | Số từ                     |
-| `language`          | VARCHAR   | Ngôn ngữ                  |
-| `ocr_required`      | BOOLEAN   | Cần OCR hay không         |
-| `chunking_strategy` | ENUM      | Chiến lược chia chunk     |
-| `chunk_size`        | INT       | Kích thước chunk          |
-| `chunk_overlap`     | INT       | Overlap giữa chunks       |
-| `embedding_model`   | ENUM      | Model embedding sử dụng   |
-| `uploaded_by`       | UUID      | Người upload              |
-| `created_at`        | TIMESTAMP | Ngày tạo                  |
-| `updated_at`        | TIMESTAMP | Ngày cập nhật             |
+`id`                | UUID      | ID tài liệu (Primary Key) |
+`original_filename` | VARCHAR   | Tên file gốc              |
+`file_type`         | VARCHAR   | Loại file (extension/type) |
+`file_size_bytes`   | BIGINT    | Kích thước file (bytes)   |
+`mime_type`         | VARCHAR   | MIME type                 |
+`file_key`          | VARCHAR   | Key lưu trữ               |
+`bucket_name`       | VARCHAR   | Bucket lưu trữ            |
+`status`            | VARCHAR   | Trạng thái xử lý          |
+`current_version`   | INT       | Phiên bản hiện tại        |
+`extracted_text`    | TEXT      | Text đã trích xuất        |
+`page_count`        | INT       | Số trang                  |
+`word_count`        | INT       | Số từ                     |
+`language`          | VARCHAR   | Ngôn ngữ                  |
+`ocr_required`      | BOOLEAN   | Cần OCR hay không (mặc định FALSE) |
+`chunking_strategy` | VARCHAR   | Chiến lược chia chunk     |
+`chunk_size`        | INT       | Kích thước chunk (số ký tự) |
+`chunk_overlap`     | INT       | Overlap giữa chunks       |
+`embedding_model`   | VARCHAR   | Model embedding sử dụng   |
+`embedding_dimension` | INT     | Số chiều embedding (nếu có) |
+`uploaded_by`       | UUID      | Người upload              |
+`created_at`        | TIMESTAMP | Ngày tạo (mặc định NOW()) |
+`updated_at`        | TIMESTAMP | Ngày cập nhật (mặc định NOW()) |
 
 ### 📌 knowledge.document_versions
 
@@ -234,40 +235,51 @@ Hệ thống sử dụng **5 schema chính** để quản lý các chức năng 
 
 | Cột               | Kiểu      | Mô tả                      |
 | ----------------- | --------- | -------------------------- |
-| `id`              | UUID      | ID phiên bản (Primary Key) |
-| `document_id`     | UUID      | FK tới documents           |
-| `version_number`  | INT       | Số phiên bản               |
-| `file_key`        | VARCHAR   | Key lưu trữ                |
-| `file_size_bytes` | BIGINT    | Kích thước file            |
-| `changelog`       | TEXT      | Nhật ký thay đổi           |
-| `extracted_text`  | TEXT      | Text đã trích xuất         |
-| `created_by`      | UUID      | Người tạo phiên bản        |
-| `created_at`      | TIMESTAMP | Ngày tạo                   |
+`id`              | UUID      | ID phiên bản (Primary Key) |
+`document_id`     | UUID      | FK tới documents           |
+`version_number`  | INT       | Số phiên bản               |
+`file_key`        | VARCHAR   | Key lưu trữ                |
+`file_size_bytes` | BIGINT    | Kích thước file            |
+`changelog`       | TEXT      | Nhật ký thay đổi           |
+`extracted_text`  | TEXT      | Text đã trích xuất         |
+`is_current`      | BOOLEAN   | Có đang là phiên bản hiện hành hay không (cho RAG) |
+`created_by`      | UUID      | Người tạo phiên bản        |
+`created_at`      | TIMESTAMP | Ngày tạo (mặc định NOW()) |
 
 ### 📌 knowledge.chunks
 
-**Các đoạn text được chia để embedding**
+**Các đoạn text được chia để embedding (core schema — nâng cấp)**
 
-| Cột                   | Kiểu      | Mô tả                     |
-| --------------------- | --------- | ------------------------- |
-| `id`                  | UUID      | ID chunk (Primary Key)    |
-| `document_id`         | UUID      | FK tới documents          |
-| `document_version`    | INT       | Phiên bản tài liệu        |
-| `chunk_index`         | INT       | Chỉ số chunk              |
-| `content`             | TEXT      | Nội dung chunk            |
-| `content_length`      | INT       | Độ dài nội dung           |
-| `token_count`         | INT       | Số token                  |
-| `page_number`         | INT       | Số trang                  |
-| `start_char_index`    | INT       | Vị trí ký tự bắt đầu      |
-| `end_char_index`      | INT       | Vị trí ký tự kết thúc     |
-| `embedding_model`     | ENUM      | Model embedding           |
-| `embedding_dimension` | INT       | Số chiều embedding        |
-| `vector_indexed`      | BOOLEAN   | Đã index vector hay không |
-| `vector_id`           | VARCHAR   | ID vector                 |
-| `department_id`       | UUID      | Phòng ban (sao chép)      |
-| `document_type`       | VARCHAR   | Loại tài liệu (sao chép)  |
-| `metadata`            | JSONB     | Metadata bổ sung          |
-| `created_at`          | TIMESTAMP | Ngày tạo                  |
+| Cột                   | Kiểu            | Mô tả                                                                 |
+| --------------------- | --------------- | -------------------------------------------------------------------- |
+| `id`                  | UUID            | ID chunk (Primary Key)                                                |
+| `document_id`         | UUID            | FK tới `knowledge.documents`                                          |
+| `document_version_id` | UUID            | FK tới `knowledge.document_versions` (phiên bản chunk thuộc về)       |
+| `is_latest`           | BOOLEAN         | Đánh dấu chunk là bản mới nhất cho vị trí/chunk cụ thể               |
+| `chunk_type`          | VARCHAR         | `parent` / `child` — loại chunk (parent chứa summary/structure)      |
+| `parent_chunk_id`     | UUID            | FK tới chunk cha (nếu có)                                             |
+| `section_title`       | VARCHAR         | Tiêu đề section/nút cấu trúc (ví dụ: "Chương 1")                    |
+| `section_level`       | INT             | Cấp độ section (heading level)                                        |
+| `section_path`        | JSONB           | Đường dẫn cấu trúc, ví dụ `["Chương 1","Điều 3","Khoản 2"]`      |
+| `content`             | TEXT            | Nội dung chunk (bắt buộc)                                             |
+| `summary`             | TEXT            | Tóm tắt/ngắn gọn (dùng cho parent chunk)                              |
+| `chunk_index`         | INT             | Chỉ số/chỉ thứ tự chunk trong tài liệu                                 |
+| `page_number`         | INT             | Số trang (nếu áp dụng)                                                 |
+| `start_char_index`    | INT             | Vị trí ký tự bắt đầu trong tài liệu gốc                                |
+| `end_char_index`      | INT             | Vị trí ký tự kết thúc                                                   |
+| `token_count`         | INT             | Số token (ước tính)                                                     |
+| `embedding_model`     | VARCHAR         | Model embedding đã dùng (ví dụ: text-embedding-xxx)                     |
+| `embedding_dimension` | INT             | Số chiều embedding                                                       |
+| `embedding`           | TEXT            | Embedding dưới dạng text (tùy chọn, debug/audit)                        |
+| `embedding_vector`    | vector(1024)    | Vector thực tế (pgvector) — kích thước có thể điều chỉnh theo model     |
+| `allowed_roles`       | TEXT[]          | Danh sách role được phép truy cập chunk                                 |
+| `allowed_departments` | UUID[]          | Danh sách department được phép truy cập chunk                            |
+| `access_level`        | VARCHAR         | PUBLIC / INTERNAL / CONFIDENTIAL                                        |
+| `metadata`            | JSONB           | Metadata linh hoạt bổ sung (source, confidence, tags...)                |
+| `created_at`          | TIMESTAMP       | Ngày tạo (mặc định NOW())                                                |
+| `parent_chunk_id_fk`  | -               | FOREIGN KEY constraints: `document_id` -> documents, `document_version_id` -> document_versions, `parent_chunk_id` -> chunks |
+
+Note: `embedding_vector` uses the `pgvector` extension; kích thước (`1024`) là ví dụ và nên điều chỉnh theo model embedding thực tế.
 
 ### 📌 knowledge.processing_jobs
 
