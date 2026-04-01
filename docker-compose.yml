@@ -1,0 +1,291 @@
+services:
+  # ============================================================
+  # Infrastructure
+  # ============================================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: poliwise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poliwise
+      POSTGRES_PASSWORD: poliwise_secure_password
+      POSTGRES_DB: poliwise
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poliwise"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - poliwise
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: poliwise-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: poliwise
+      RABBITMQ_DEFAULT_PASS: poliwise_secure_password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - poliwise
+
+  # ============================================================
+  # Microservices
+  # ============================================================
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: poliwise-auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=core
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      AUTH_JWT_SECRET: change-me-in-production
+      AUTH_JWT_ISSUER: poliwise-auth-service
+      AUTH_ACCESS_TOKEN_TTL: PT15M
+      AUTH_REFRESH_TOKEN_TTL: P7D
+      AUTH_MAX_FAILED_ATTEMPTS: 5
+      AUTH_LOCK_DURATION: PT15M
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - poliwise
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: poliwise-user-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - poliwise
+
+  knowledge-service:
+    build:
+      context: ./services/knowledge-service
+      dockerfile: Dockerfile
+    container_name: poliwise-knowledge-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=knowledge
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - poliwise
+
+  metadata-service:
+    build:
+      context: ./services/metadata-service
+      dockerfile: Dockerfile
+    container_name: poliwise-metadata-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - poliwise
+
+  feedback-service:
+    build:
+      context: ./services/feedback-service
+      dockerfile: Dockerfile
+    container_name: poliwise-feedback-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
+      SPRING_DATASOURCE_USERNAME: poliwise
+      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: poliwise
+      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - poliwise
+
+  # ============================================================
+  # API Gateway
+  # ============================================================
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: poliwise-api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      JWT_SECRET: change-me-in-production
+      CORS_ORIGIN: http://localhost:3001
+      AUTH_SERVICE_URL: http://auth-service:8081
+      USER_SERVICE_URL: http://user-service:8082
+      KNOWLEDGE_SERVICE_URL: http://knowledge-service:8083
+      METADATA_SERVICE_URL: http://metadata-service:8084
+      FEEDBACK_SERVICE_URL: http://feedback-service:8085
+      THROTTLE_TTL: 60000
+      THROTTLE_LIMIT_USER: 100
+      THROTTLE_LIMIT_MANAGER: 200
+      THROTTLE_LIMIT_ADMIN: 500
+      THROTTLE_LIMIT_PUBLIC: 20
+      CIRCUIT_BREAKER_TIMEOUT: 30000
+      CIRCUIT_BREAKER_VOLUME_THRESHOLD: 10
+      LOG_LEVEL: info
+    ports:
+      - "3000:3000"
+    depends_on:
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      knowledge-service:
+        condition: service_started
+      metadata-service:
+        condition: service_started
+      feedback-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - poliwise
+
+  # ============================================================
+  # Frontend
+  # ============================================================
+
+  frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile
+    container_name: poliwise-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - "3001:3001"
+    depends_on:
+      api-gateway:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - poliwise
+
+networks:
+  poliwise:
+    name: poliwise-network
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:

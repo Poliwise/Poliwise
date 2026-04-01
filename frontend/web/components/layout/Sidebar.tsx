@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import {
   MessageSquare,
   BookOpen,
@@ -10,16 +9,14 @@ import {
   Settings,
   User,
   X,
-  ChevronLeft,
   LogOut,
   Shield,
   FileText,
   Users,
   Tags,
   Brain,
-  LayoutDashboard,
 } from 'lucide-react';
-import { useAuthStore, useUserRole } from '@/store';
+import { useUserRole } from '@/store';
 import { UserRole } from '@/types';
 import styles from './Sidebar.module.css';
 
@@ -83,7 +80,6 @@ const adminItems: NavItem[] = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuthStore();
   const userRole = useUserRole();
 
   const filteredNavItems = navItems.filter(

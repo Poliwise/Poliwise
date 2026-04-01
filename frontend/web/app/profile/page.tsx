@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { User, Mail, Building, Shield, Clock, LogOut, Loader2, Save } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { User, Mail, Building, Shield, Clock, Loader2, Save } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
@@ -18,11 +18,7 @@ export default function ProfilePage() {
     department: '',
   });
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     try {
       const profile = await api.users.getMe();
@@ -32,12 +28,16 @@ export default function ProfilePage() {
         department: profile.departmentName || '',
       });
       updateUser(profile);
-    } catch (error) {
-      console.error('Failed to load profile:', error);
+    } catch (err) {
+      console.error('Failed to load profile:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateUser]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +46,8 @@ export default function ProfilePage() {
       await api.users.updateMe(formData);
       updateUser(formData);
       alert('Cập nhật thành công!');
-    } catch (error) {
-      console.error('Failed to update profile:', error);
+    } catch {
+      console.error('Failed to update profile:');
       alert('Cập nhật thất bại!');
     } finally {
       setSaving(false);

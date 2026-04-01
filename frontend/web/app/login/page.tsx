@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -44,11 +45,12 @@ export default function LoginPage() {
       }
 
       router.push('/');
-    } catch (err: any) {
-      if (err.response?.data?.error?.message) {
-        setError(err.response.data.error.message);
-      } else if (err.message) {
-        setError(err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      if (error.response?.data?.error?.message) {
+        setError(error.response.data.error.message);
+      } else if (error.message) {
+        setError(error.message);
       } else {
         setError('Đã xảy ra lỗi. Vui lòng thử lại.');
       }
@@ -118,9 +120,9 @@ export default function LoginPage() {
           </div>
 
           <div className={styles.actions}>
-            <Link href="/forgot-password" className={styles.forgotLink}>
+            <NextLink href="/forgot-password" className={styles.forgotLink}>
               Quên mật khẩu?
-            </Link>
+            </NextLink>
           </div>
 
           <button

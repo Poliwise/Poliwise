@@ -19,7 +19,7 @@ export interface Chunk {
   documentType: string;
   effectiveDate: Date;
   expiryDate?: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

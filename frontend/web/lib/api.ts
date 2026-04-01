@@ -73,7 +73,7 @@ class ApiClient {
               // Retry original request
               originalRequest.headers.Authorization = `Bearer ${response.accessToken}`;
               return this.client(originalRequest);
-            } catch (refreshError) {
+            } catch {
               // Refresh failed, logout
               this.auth.logout();
               window.location.href = '/login';

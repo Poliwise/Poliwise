@@ -10,10 +10,10 @@ export interface ProcessingJob {
   completedAt?: Date;
   success: boolean;
   errorMessage?: string;
-  errorDetails?: Record<string, any>;
+  errorDetails?: Record<string, unknown>;
   retryCount: number;
   maxRetries: number;
-  outputMetrics?: Record<string, any>;
+  outputMetrics?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

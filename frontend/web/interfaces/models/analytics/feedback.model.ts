@@ -9,7 +9,7 @@ export interface Feedback {
   comment?: string;
   questionText: string;
   answerText: string;
-  sourcesUsed?: Record<string, any>;
+  sourcesUsed?: Record<string, unknown>;
   userDepartmentId: string;
   userRole: string;
   createdAt: Date;

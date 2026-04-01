@@ -8,7 +8,7 @@ export interface PopularQuestion {
   lastAskedAt: Date;
   totalLikes: number;
   totalDislikes: number;
-  commonSourceDocuments?: Record<string, any>;
+  commonSourceDocuments?: Record<string, unknown>;
   detectedCategory?: string;
   detectedDepartmentId?: string;
   createdAt: Date;
