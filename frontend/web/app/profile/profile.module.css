@@ -1,0 +1,222 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+  color: var(--muted-foreground);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 0.25rem;
+}
+
+.header p {
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.profileCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  height: fit-content;
+}
+
+.avatarSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, var(--primary), #818cf8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.userInfo h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 0.5rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badgeAdmin {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.badgeManager {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.badgeUser {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.infoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.infoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.infoItem > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.infoLabel {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.infoValue {
+  font-size: 0.9375rem;
+  color: var(--foreground);
+}
+
+.formCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.formCard h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 1.5rem;
+}
+
+.formGroup {
+  margin-bottom: 1.25rem;
+}
+
+.formGroup label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  margin-bottom: 0.5rem;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.disabledInput {
+  background: var(--muted) !important;
+  cursor: not-allowed;
+}
+
+.formActions {
+  margin-top: 1.5rem;
+}
+
+.saveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.saveButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.saveButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+  }
+}
