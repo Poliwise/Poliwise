@@ -1,36 +1,196 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Poliwise Frontend - Hướng Dẫn Cài Đặt
 
-## Getting Started
-
-First, run the development server:
+## Cài đặt Dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd frontend/web
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dependencies đã được thêm vào `package.json`:
+- `lucide-react` - Icon library
+- `clsx` - Utility cho class names
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Chạy Development Server
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm dev
+```
 
-## Learn More
+Frontend sẽ chạy tại: `http://localhost:3001`
 
-To learn more about Next.js, take a look at the following resources:
+## Build Production
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm build
+pnpm start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Cấu Trúc Pages
 
-## Deploy on Vercel
+```
+app/
+├── layout.tsx              # Root layout
+├── globals.css             # Global styles với CSS variables
+├── page.tsx               # Trang chủ - Chat AI
+├── login/
+│   ├── page.tsx          # Trang đăng nhập
+│   └── login.module.css
+├── documents/
+│   ├── page.tsx          # Trang danh sách tài liệu
+│   └── documents.module.css
+├── analytics/
+│   ├── page.tsx          # Trang phân tích (Manager+)
+│   └── analytics.module.css
+├── profile/
+│   ├── page.tsx          # Trang cá nhân
+│   └── profile.module.css
+└── admin/
+    └── users/
+        ├── page.tsx      # Quản lý người dùng (Admin)
+        └── admin-users.module.css
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Components
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+components/
+├── layout/
+│   ├── Header.tsx         # Header với navigation
+│   ├── Sidebar.tsx        # Sidebar menu
+│   ├── MainLayout.tsx     # Layout wrapper
+│   └── *.module.css
+```
+
+## Stores (Zustand)
+
+```
+store/
+├── auth-store.ts          # Auth state management
+├── ui-store.ts            # UI state (sidebar, theme)
+└── index.ts
+```
+
+## API Client
+
+```
+lib/
+└── api.ts                 # Axios client với interceptors
+```
+
+## Types
+
+```
+types/
+├── auth.ts               # Auth types
+├── document.ts           # Document & Metadata types
+├── ai.ts                 # AI conversation types
+├── analytics.ts          # Analytics types
+└── index.ts
+```
+
+## Environment Variables
+
+Tạo file `.env.local` trong `frontend/web/`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000
+```
+
+## API Endpoints Coverage
+
+### Auth Service (Proxy → auth-service:8081)
+| Method | Endpoint | Status |
+|--------|----------|--------|
+| POST | `/api/v1/auth/login` | ✅ |
+| POST | `/api/v1/auth/register` | ✅ |
+| POST | `/api/v1/auth/refresh` | ✅ |
+| POST | `/api/v1/auth/logout` | ✅ |
+| POST | `/api/v1/auth/logout-all` | ✅ |
+| GET | `/api/v1/auth/sessions` | ✅ |
+
+### User Service (Proxy → user-service:8082)
+| Method | Endpoint | Status |
+|--------|----------|--------|
+| GET | `/api/v1/users/me` | ✅ |
+| GET | `/api/v1/users/{id}` | ✅ |
+| PUT | `/api/v1/users/me` | ✅ |
+| GET | `/api/v1/users` | ✅ |
+| PATCH | `/api/v1/users/me/status` | ✅ |
+| DELETE | `/api/v1/users/{id}` | ✅ |
+
+### Documents (Proxy → knowledge-service:8083)
+| Method | Endpoint | Status |
+|--------|----------|--------|
+| GET | `/api/v1/documents` | ✅ |
+| GET | `/api/v1/documents/{id}` | ✅ |
+| POST | `/api/v1/documents/upload` | ✅ |
+| DELETE | `/api/v1/documents/{id}` | ✅ |
+
+### Analytics (Proxy → feedback-service:8085)
+| Method | Endpoint | Status |
+|--------|----------|--------|
+| GET | `/api/v1/analytics/dashboard` | ✅ |
+| GET | `/api/v1/ai/history` | ✅ |
+| POST | `/api/v1/ai/ask` | ✅ |
+| POST | `/api/v1/feedback` | ✅ |
+
+## Features
+
+### Chat AI Interface
+- Giao diện chat với AI
+- Hiển thị nguồn tham khảo
+- Like/Dislike feedback
+- Lịch sử hội thoại
+- Gợi ý câu hỏi
+
+### Knowledge Base
+- Danh sách tài liệu (grid/list view)
+- Tìm kiếm theo tên
+- Filter theo trạng thái
+- Phân trang
+- Upload tài liệu (Admin)
+
+### Analytics Dashboard
+- Stats cards (câu hỏi, satisfaction, tài liệu, users)
+- Charts placeholder
+- Top questions
+- Top documents
+- Feedback summary
+
+### Admin Panel
+- Quản lý người dùng
+- Thay đổi trạng thái tài khoản
+- Phân quyền (Admin/Manager/User)
+
+### Profile
+- Xem thông tin cá nhân
+- Cập nhật profile
+
+## Design System
+
+### Colors (CSS Variables)
+```css
+--primary: #4f46e5
+--primary-foreground: #ffffff
+--background: #ffffff (dark: #0f172a)
+--foreground: #0f172a (dark: #f8fafc)
+--muted: #f1f5f9 (dark: #1e293b)
+--border: #e2e8f0 (dark: #334155)
+--destructive: #ef4444
+--success: #10b981
+```
+
+### Icons
+Sử dụng `lucide-react` cho tất cả icons:
+- `MessageSquare` - Chat
+- `BookOpen` - Documents
+- `BarChart3` - Analytics
+- `User` - Profile
+- `Settings` - Settings
+- `Shield` - Admin
+- `LogOut` - Logout
+- `Search` - Search
+- `Upload` - Upload
+- `Download` - Download
+- ...v.v
