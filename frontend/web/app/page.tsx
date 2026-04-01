@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, User, Bot, ThumbsUp, ThumbsDown, Copy, Check, ExternalLink, FileText, Clock, MessageSquare } from 'lucide-react';
+import { Send, Loader2, User, Bot, ThumbsUp, ThumbsDown, Copy, Check, FileText, Clock, MessageSquare } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
-import type { Conversation, Source, FeedbackType } from '@/types';
+import type { Source, FeedbackType } from '@/types';
 import styles from './chat.module.css';
 
 interface Message {
@@ -71,7 +71,7 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((m) => (m.id === 'loading' ? assistantMessage : m))
       );
-    } catch (error) {
+    } catch {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === 'loading'
@@ -107,7 +107,7 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, feedback: type } : m))
       );
-    } catch (error) {
+    } catch {
       console.error('Failed to submit feedback');
     }
   };

@@ -5,7 +5,7 @@ export interface Message {
   conversationId: string;
   role: MessageRole;
   content: string;
-  sources?: Record<string, any>;
+  sources?: Record<string, unknown>;
   modelUsed?: string;
   tokensPrompt: number;
   tokensCompletion: number;

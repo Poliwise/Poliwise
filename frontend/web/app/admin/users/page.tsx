@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Users,
   Search,
   Shield,
   UserX,
@@ -16,6 +15,7 @@ import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { UserRole, AccountStatus } from '@/types';
+import type { User } from '@/types';
 import styles from './admin-users.module.css';
 
 const roleLabels: Record<UserRole, string> = {
@@ -39,11 +39,28 @@ const statusBadgeClass: Record<AccountStatus, string> = {
 export default function AdminUsersPage() {
   const isAdmin = useIsAdmin();
   const router = useRouter();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await api.users.search({
+        page,
+        limit: 10,
+        search: search || undefined,
+      });
+      setUsers(result.data);
+      setTotalPages(result.pagination.totalPages);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -51,41 +68,14 @@ export default function AdminUsersPage() {
       return;
     }
     loadUsers();
-  }, [isAdmin, page, search]);
-
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await api.users.search({
-        page,
-        limit: 10,
-        search: search || undefined,
-      });
-      setUsers(response.data);
-      setTotalPages(response.pagination.totalPages);
-    } catch (error) {
-      console.error('Failed to load users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isAdmin, loadUsers, router]);
 
   const handleStatusChange = async (userId: string, status: AccountStatus) => {
     try {
       await api.users.updateStatus(userId, status);
       loadUsers();
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
-  };
-
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa người dùng này?')) return;
-    try {
-      await api.users.delete(userId);
-      loadUsers();
-    } catch (error) {
-      console.error('Failed to delete user:', error);
+    } catch (err) {
+      console.error('Failed to update status:', err);
     }
   };
 

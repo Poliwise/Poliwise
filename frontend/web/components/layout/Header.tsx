@@ -14,7 +14,7 @@ import {
   ChevronDown,
   Shield,
 } from 'lucide-react';
-import { useAuthStore, useUserRole, useIsManager } from '@/store';
+import { useAuthStore, useIsManager } from '@/store';
 import { api } from '@/lib/api';
 import { UserRole } from '@/types';
 import styles from './Header.module.css';

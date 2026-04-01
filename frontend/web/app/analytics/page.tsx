@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart3,
@@ -12,9 +12,7 @@ import {
   ThumbsDown,
   Download,
   Loader2,
-  Calendar,
   ArrowUp,
-  ArrowDown,
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
@@ -22,12 +20,26 @@ import { useIsManager } from '@/store';
 import type { DashboardStats } from '@/types';
 import styles from './analytics.module.css';
 
+type Period = 'today' | 'week' | 'month';
+
 export default function AnalyticsPage() {
   const isManager = useIsManager();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [period, setPeriod] = useState<Period>('today');
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.analytics.getDashboard();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to load analytics:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isManager) {
@@ -35,17 +47,15 @@ export default function AnalyticsPage() {
       return;
     }
     loadStats();
-  }, [isManager]);
+  }, [isManager, loadStats, router]);
 
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-      const data = await api.analytics.getDashboard();
-      setStats(data);
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
-    } finally {
-      setLoading(false);
+  const getStatValue = (key: keyof DashboardStats) => {
+    if (!stats) return 0;
+    switch (key) {
+      case 'questionsToday':
+        return period === 'today' ? stats.questionsToday : period === 'week' ? stats.questionsThisWeek : stats.questionsThisMonth;
+      default:
+        return stats[key] as number;
     }
   };
 
@@ -60,16 +70,6 @@ export default function AnalyticsPage() {
     );
   }
 
-  const getStatValue = (key: keyof DashboardStats) => {
-    if (!stats) return 0;
-    switch (key) {
-      case 'questionsToday':
-        return period === 'today' ? stats.questionsToday : period === 'week' ? stats.questionsThisWeek : stats.questionsThisMonth;
-      default:
-        return stats[key] as number;
-    }
-  };
-
   return (
     <MainLayout>
       <div className={styles.container}>
@@ -81,7 +81,7 @@ export default function AnalyticsPage() {
           <div className={styles.actions}>
             <select
               value={period}
-              onChange={(e) => setPeriod(e.target.value as any)}
+              onChange={(e) => setPeriod(e.target.value as Period)}
               className={styles.periodSelect}
             >
               <option value="today">Hôm nay</option>
@@ -156,7 +156,6 @@ export default function AnalyticsPage() {
 
         {/* Charts Section */}
         <div className={styles.chartsGrid}>
-          {/* Placeholder for Chart */}
           <div className={styles.chartCard}>
             <div className={styles.chartHeader}>
               <h3>Số câu hỏi theo thời gian</h3>
@@ -168,7 +167,6 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Placeholder for Pie Chart */}
           <div className={styles.chartCard}>
             <div className={styles.chartHeader}>
               <h3>Phân bố theo phòng ban</h3>
@@ -183,7 +181,6 @@ export default function AnalyticsPage() {
 
         {/* Top Lists */}
         <div className={styles.listsGrid}>
-          {/* Top Questions */}
           <div className={styles.listCard}>
             <div className={styles.listHeader}>
               <h3>Câu hỏi phổ biến</h3>
@@ -202,7 +199,6 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Top Documents */}
           <div className={styles.listCard}>
             <div className={styles.listHeader}>
               <h3>Tài liệu được trích dẫn nhiều</h3>

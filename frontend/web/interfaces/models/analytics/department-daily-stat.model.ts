@@ -6,6 +6,6 @@ export interface DepartmentDailyStat {
   uniqueUsers: number;
   likes: number;
   dislikes: number;
-  topCategories?: Record<string, any>;
+  topCategories?: Record<string, unknown>;
   computedAt: Date;
 }

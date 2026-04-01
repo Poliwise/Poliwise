@@ -9,13 +9,13 @@ export interface AuditLog {
   resourceType: ResourceType;
   resourceId: string;
   resourceName: string;
-  oldValue?: Record<string, any>;
-  newValue?: Record<string, any>;
+  oldValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
   changedFields?: string[];
   ipAddress: string;
   userAgent: string;
   traceId: string;
   serviceName: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
 }

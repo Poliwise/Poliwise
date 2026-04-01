@@ -1,25 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   FileText,
   Download,
   Upload,
-  Filter,
   Grid,
   List,
   ChevronLeft,
   ChevronRight,
   Calendar,
-  Building,
   Tag,
   Loader2,
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
-import { useAuthStore, useIsAdmin } from '@/store';
-import { Document, DocumentStatus, FileType } from '@/types';
+import { useIsAdmin } from '@/store';
+import { Document, DocumentStatus } from '@/types';
 import styles from './documents.module.css';
 
 const statusColors: Record<DocumentStatus, { bg: string; text: string }> = {
@@ -37,7 +35,6 @@ const statusLabels: Record<DocumentStatus, string> = {
 };
 
 export default function DocumentsPage() {
-  const { user } = useAuthStore();
   const isAdmin = useIsAdmin();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,13 +43,8 @@ export default function DocumentsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showUpload, setShowUpload] = useState(false);
 
-  useEffect(() => {
-    loadDocuments();
-  }, [page, search, statusFilter]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.documents.getAll({
@@ -63,12 +55,16 @@ export default function DocumentsPage() {
       });
       setDocuments(response.data);
       setTotalPages(response.pagination.totalPages);
-    } catch (error) {
-      console.error('Failed to load documents:', error);
+    } catch (err) {
+      console.error('Failed to load documents:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, statusFilter]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -81,7 +77,7 @@ export default function DocumentsPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getFileIcon = (fileType: FileType) => {
+  const getFileIcon = () => {
     return <FileText size={24} />;
   };
 
@@ -97,7 +93,6 @@ export default function DocumentsPage() {
           {isAdmin && (
             <button
               className={styles.uploadButton}
-              onClick={() => setShowUpload(true)}
             >
               <Upload size={18} />
               <span>Tải lên</span>
@@ -163,7 +158,7 @@ export default function DocumentsPage() {
             {documents.map((doc) => (
               <div key={doc.id} className={styles.documentCard}>
                 <div className={styles.documentIcon}>
-                  {getFileIcon(doc.fileType)}
+                  {getFileIcon()}
                 </div>
                 <div className={styles.documentInfo}>
                   <h3 className={styles.documentTitle}>{doc.title}</h3>

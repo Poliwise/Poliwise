@@ -5,7 +5,7 @@ export interface UnansweredQuestion {
   conversationId: string;
   question: string;
   questionNormalized: string;
-  attemptedContext?: Record<string, any>;
+  attemptedContext?: Record<string, unknown>;
   searchQuery: string;
   topSimilarityScore: number;
   userDepartmentId: string;

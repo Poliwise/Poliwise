@@ -7,7 +7,7 @@ export interface ReportExport {
   dateFrom: Date;
   dateTo: Date;
   departmentId?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   format: ExportFormat;
   fileKey: string;
   fileSizeBytes: number;
