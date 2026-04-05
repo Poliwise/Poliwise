@@ -118,6 +118,18 @@ export class ProxyService {
         );
       });
 
+      breaker.on('success', () => {
+        this.logger.debug(`Circuit breaker success for ${serviceName}`);
+      });
+
+      breaker.on('failure', () => {
+        this.logger.error(`Circuit breaker failure for ${serviceName}`);
+      });
+
+      breaker.on('timeout', () => {
+        this.logger.warn(`Circuit breaker timeout for ${serviceName}`);
+      });
+
       this.circuitBreakers.set(serviceName, breaker);
     }
   }
@@ -141,10 +153,13 @@ export class ProxyService {
     };
 
     try {
+      this.logger.debug(`Forwarding request to ${context.url} with method ${context.method}`);
       const response = await this.axiosInstance.request(config);
-      return response.data;
+      this.logger.debug(`Response from ${context.url}: status=${response.status}, data=${JSON.stringify(response.data)}`);
+      return { _proxied: true, data: response.data, statusCode: response.status };
     } catch (error) {
       const axiosError = error as AxiosError;
+      this.logger.error(`Service call failed: ${axiosError.message}`, axiosError.stack);
       throw new Error(`Service call failed: ${axiosError.message}`);
     }
   }
@@ -219,7 +234,7 @@ export class ProxyService {
     };
 
     return from(this.axiosInstance.request(config)).pipe(
-      map((response) => response.data),
+      map((response) => ({ _proxied: true, data: response.data, statusCode: response.status })),
       catchError((error: AxiosError) => {
         const traceId = context.headers[TRACE_ID_HEADER] || undefined;
         if (

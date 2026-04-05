@@ -1,7 +1,6 @@
 import {
   Controller,
   Post,
-  Get,
   Req,
   UseGuards,
   HttpCode,
@@ -11,69 +10,18 @@ import {
 import type { Request } from 'express';
 import { ProxyService, ServiceName } from './proxy.service';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { Roles, Public } from '../common/decorators';
+import { Roles } from '../common/decorators';
 import { UserRole } from '../common/interfaces';
+
+/** Path + query: dùng request.path (không gồm ?) để ghép URL downstream đúng. */
+function downstreamDocumentsPath(request: Request): string {
+  const relative = request.path.replace(/^\/api\/v1\/documents/, '') || '/';
+  return '/api/v1/documents' + (relative === '/' ? '' : relative);
+}
 
 @Controller('api/v1')
 export class ProxyController {
   constructor(private readonly proxyService: ProxyService) {}
-
-  // ===== Auth Endpoints =====
-  // POST /api/v1/auth/login - Public endpoint
-  @Public()
-  @Post('auth/login')
-  @HttpCode(HttpStatus.OK)
-  handleAuthLogin(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/auth', '');
-    return this.proxyService.forward(ServiceName.AUTH, request, path);
-  }
-
-  // POST /api/v1/auth/register - Public endpoint
-  @Public()
-  @Post('auth/register')
-  @HttpCode(HttpStatus.CREATED)
-  handleAuthRegister(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/auth', '');
-    return this.proxyService.forward(ServiceName.AUTH, request, path);
-  }
-
-  // POST /api/v1/auth/refresh - Public endpoint (token refresh)
-  @Public()
-  @Post('auth/refresh')
-  @HttpCode(HttpStatus.OK)
-  handleAuthRefresh(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/auth', '');
-    return this.proxyService.forward(ServiceName.AUTH, request, path);
-  }
-
-  // POST /api/v1/auth/logout - Authenticated endpoint
-  @UseGuards(JwtAuthGuard)
-  @Post('auth/logout')
-  @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleAuthLogout(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/auth', '');
-    return this.proxyService.forward(ServiceName.AUTH, request, path);
-  }
-
-  // POST /api/v1/auth/logout-all - Authenticated endpoint
-  @UseGuards(JwtAuthGuard)
-  @Post('auth/logout-all')
-  @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleAuthLogoutAll(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/auth', '');
-    return this.proxyService.forward(ServiceName.AUTH, request, path);
-  }
-
-  // GET /api/v1/auth/sessions - Authenticated endpoint
-  @UseGuards(JwtAuthGuard)
-  @Get('auth/sessions')
-  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleAuthSessions(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/auth', '');
-    return this.proxyService.forward(ServiceName.AUTH, request, path);
-  }
 
   // ===== User Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -85,20 +33,38 @@ export class ProxyController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('documents/*')
+  @All('documents')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleDocuments(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/documents', '');
-    return this.proxyService.forward(ServiceName.KNOWLEDGE, request, path);
+  handleDocumentsRoot(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
   }
 
+  /** Đăng ký trước `documents/*` để POST upload chỉ áp dụng role ADMIN. */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('documents/upload')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   handleDocumentUpload(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/documents', '');
-    return this.proxyService.forward(ServiceName.KNOWLEDGE, request, path);
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('documents/*')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleDocumentsNested(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
