@@ -3,6 +3,24 @@ import { useAuthStore } from '@/store/auth-store';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+function parseRefreshTokens(body: unknown): { accessToken: string; refreshToken: string } {
+  const root = body as Record<string, unknown> | null;
+  if (!root || typeof root !== 'object') {
+    throw new Error('Invalid refresh response');
+  }
+  const payload =
+    'data' in root &&
+    root.data &&
+    typeof root.data === 'object' &&
+    'accessToken' in (root.data as object)
+      ? (root.data as { accessToken: string; refreshToken: string })
+      : (root as { accessToken: string; refreshToken: string });
+  if (!payload?.accessToken || !payload?.refreshToken) {
+    throw new Error('Invalid refresh response');
+  }
+  return payload;
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -43,11 +61,20 @@ class ApiClient {
           try {
             const refreshToken = useAuthStore.getState().refreshToken;
             if (refreshToken) {
-              const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-                refreshToken,
-              });
+              const userId =
+                useAuthStore.getState().user?.userId ||
+                (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
+              const response = await axios.post(
+                `${API_BASE_URL}/api/v1/auth/refresh`,
+                { refreshToken },
+                {
+                  headers: userId ? { 'X-User-Id': userId } : undefined,
+                },
+              );
 
-              const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+              const { accessToken, refreshToken: newRefreshToken } = parseRefreshTokens(
+                response.data,
+              );
               useAuthStore.getState().setTokens(accessToken, newRefreshToken);
 
               if (originalRequest.headers) {

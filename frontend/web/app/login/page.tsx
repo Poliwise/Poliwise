@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
+import { AccountStatus } from '@/types';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -34,7 +35,7 @@ export default function LoginPage() {
         username: response.user.username,
         email: response.user.email,
         role: response.user.role,
-        status: 'ACTIVE',
+        status: AccountStatus.ACTIVE,
         department: null,
       });
 

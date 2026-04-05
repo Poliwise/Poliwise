@@ -16,7 +16,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
-      <main className="pt-[var(--header-height)] min-h-screen">
+      <main className="pt-[var(--header-height)] min-h-screen md:ml-[var(--sidebar-width)]">
         {children}
       </main>
     </div>

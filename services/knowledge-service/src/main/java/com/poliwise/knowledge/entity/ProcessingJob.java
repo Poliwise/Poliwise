@@ -27,11 +27,11 @@ public class ProcessingJob {
     @Column(name = "document_id", nullable = false)
     private UUID documentId;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "job_type", columnDefinition = "knowledge.processing_step")
     private ProcessingStep jobType;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", columnDefinition = "knowledge.processing_status")
     private ProcessingStatus status;
 
