@@ -4,6 +4,8 @@ import com.poliwise.metadata.enums.AccessLevel;
 import com.poliwise.metadata.enums.DocumentStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -40,7 +42,7 @@ public class DocumentMetadata {
     @Column(name = "department_id")
     private UUID departmentId;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "access_level", columnDefinition = "metadata.access_level")
     private AccessLevel accessLevel;
 
@@ -50,7 +52,7 @@ public class DocumentMetadata {
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", columnDefinition = "metadata.document_status")
     private DocumentStatus status;
 

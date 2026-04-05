@@ -5,7 +5,8 @@ import { Send, Loader2, User, Bot, ThumbsUp, ThumbsDown, Copy, Check, FileText, 
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
-import type { Source, FeedbackType } from '@/types';
+import type { Source } from '@/types';
+import { FeedbackType } from '@/types/ai';
 import styles from './chat.module.css';
 
 interface Message {
@@ -218,15 +219,15 @@ export default function ChatPage() {
                         {message.role === 'assistant' && (
                           <div className={styles.messageActions}>
                             <button
-                              className={`${styles.actionButton} ${message.feedback === 'LIKE' ? styles.active : ''}`}
-                              onClick={() => handleFeedback(message.id, 'LIKE')}
+                              className={`${styles.actionButton} ${message.feedback === FeedbackType.LIKE ? styles.active : ''}`}
+                              onClick={() => handleFeedback(message.id, FeedbackType.LIKE)}
                               title="Hữu ích"
                             >
                               <ThumbsUp size={16} />
                             </button>
                             <button
-                              className={`${styles.actionButton} ${message.feedback === 'DISLIKE' ? styles.active : ''}`}
-                              onClick={() => handleFeedback(message.id, 'DISLIKE')}
+                              className={`${styles.actionButton} ${message.feedback === FeedbackType.DISLIKE ? styles.active : ''}`}
+                              onClick={() => handleFeedback(message.id, FeedbackType.DISLIKE)}
                               title="Không hữu ích"
                             >
                               <ThumbsDown size={16} />

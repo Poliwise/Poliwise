@@ -25,7 +25,7 @@ public class ReportExport {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "report_type", columnDefinition = "analytics.report_type")
     private ReportType reportType;
 
@@ -45,7 +45,7 @@ public class ReportExport {
     @Column(name = "filters", columnDefinition = "jsonb")
     private Map<String, Object> filters;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "format", columnDefinition = "analytics.export_format")
     private ExportFormat format;
 

@@ -32,7 +32,7 @@ public class Feedback {
     @Column(name = "conversation_id")
     private UUID conversationId;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "type", columnDefinition = "analytics.feedback_type")
     private FeedbackType type;
 

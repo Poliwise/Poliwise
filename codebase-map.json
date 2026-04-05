@@ -1,0 +1,2069 @@
+{
+  "meta": {
+    "generated": "2026-04-05",
+    "project": "Poliwise",
+    "totalFiles": 257,
+    "languages": ["TypeScript", "JavaScript", "Java", "CSS", "SQL", "YAML", "Markdown"]
+  },
+
+  "files": [
+    {
+      "path": "frontend/web/services/api-client.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Axios client wrapper với interceptors cho auth và logging"
+    },
+    {
+      "path": "frontend/web/services/auth.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Authentication service - login, logout, token refresh, sessions"
+    },
+    {
+      "path": "frontend/web/services/ai.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "AI chat service - messages, conversations, history"
+    },
+    {
+      "path": "frontend/web/services/knowledge.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Document management - upload, download, search, versions"
+    },
+    {
+      "path": "frontend/web/services/user.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "User profile management - profile CRUD, status, department"
+    },
+    {
+      "path": "frontend/web/services/analytics.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Analytics service - stats, reports, exports"
+    },
+    {
+      "path": "frontend/web/services/feedback.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Feedback service - submit, search, unanswered questions"
+    },
+    {
+      "path": "frontend/web/services/index.ts",
+      "type": "barrel",
+      "language": "typescript",
+      "description": "Service barrel exports"
+    },
+    {
+      "path": "frontend/web/store/auth-store.ts",
+      "type": "store",
+      "language": "typescript",
+      "description": "Zustand auth store - user state, tokens, role helpers"
+    },
+    {
+      "path": "frontend/web/store/index.ts",
+      "type": "barrel",
+      "language": "typescript",
+      "description": "Store barrel exports"
+    },
+    {
+      "path": "frontend/web/lib/api.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Legacy API client với typed endpoints cho all services"
+    },
+    {
+      "path": "frontend/web/app/page.tsx",
+      "type": "page",
+      "language": "typescript",
+      "route": "/",
+      "description": "Chat page - main AI Q&A interface"
+    },
+    {
+      "path": "frontend/web/app/login/page.tsx",
+      "type": "page",
+      "language": "typescript",
+      "route": "/login",
+      "description": "Login page với form validation"
+    },
+    {
+      "path": "frontend/web/app/documents/page.tsx",
+      "type": "page",
+      "language": "typescript",
+      "route": "/documents",
+      "description": "Documents listing page với grid/list view"
+    },
+    {
+      "path": "frontend/web/app/profile/page.tsx",
+      "type": "page",
+      "language": "typescript",
+      "route": "/profile",
+      "description": "User profile page"
+    },
+    {
+      "path": "frontend/web/app/analytics/page.tsx",
+      "type": "page",
+      "language": "typescript",
+      "route": "/analytics",
+      "description": "Analytics dashboard page với charts"
+    },
+    {
+      "path": "frontend/web/app/admin/users/page.tsx",
+      "type": "page",
+      "language": "typescript",
+      "route": "/admin/users",
+      "description": "Admin user management page"
+    },
+    {
+      "path": "frontend/web/app/layout.tsx",
+      "type": "layout",
+      "language": "typescript",
+      "description": "Root layout với metadata"
+    },
+    {
+      "path": "frontend/web/app/chat.module.css",
+      "type": "style",
+      "language": "css",
+      "description": "Chat page CSS styles"
+    },
+    {
+      "path": "frontend/web/components/layout/MainLayout.tsx",
+      "type": "component",
+      "language": "typescript",
+      "description": "Main layout wrapper - Header + Sidebar"
+    },
+    {
+      "path": "frontend/web/components/layout/Header.tsx",
+      "type": "component",
+      "language": "typescript",
+      "description": "Top header với user menu và navigation"
+    },
+    {
+      "path": "frontend/web/components/layout/Sidebar.tsx",
+      "type": "component",
+      "language": "typescript",
+      "description": "Side navigation với role-based menu items"
+    },
+    {
+      "path": "frontend/web/components/layout/index.ts",
+      "type": "barrel",
+      "language": "typescript",
+      "description": "Layout components barrel exports"
+    },
+    {
+      "path": "frontend/web/components/ui/loading/LoadingScreen.tsx",
+      "type": "component",
+      "language": "typescript",
+      "description": "Animated loading screen"
+    },
+    {
+      "path": "frontend/web/components/common/Sidebar.tsx",
+      "type": "component",
+      "language": "typescript",
+      "description": "Common sidebar component"
+    },
+    {
+      "path": "frontend/web/components/common/Header.tsx",
+      "type": "component",
+      "language": "typescript",
+      "description": "Common header component"
+    },
+    {
+      "path": "frontend/web/types/auth.ts",
+      "type": "types",
+      "language": "typescript",
+      "description": "Auth types - User, LoginRequest, Session, etc."
+    },
+    {
+      "path": "frontend/web/types/ai.ts",
+      "type": "types",
+      "language": "typescript",
+      "description": "AI types - QuestionRequest, Conversation, Message"
+    },
+    {
+      "path": "frontend/web/types/document.ts",
+      "type": "types",
+      "language": "typescript",
+      "description": "Document types - Document, Version, Metadata"
+    },
+    {
+      "path": "frontend/web/types/analytics.ts",
+      "type": "types",
+      "language": "typescript",
+      "description": "Analytics types - DashboardStats, ExportJob"
+    },
+    {
+      "path": "frontend/web/types/index.ts",
+      "type": "barrel",
+      "language": "typescript",
+      "description": "Types barrel exports"
+    },
+    {
+      "path": "frontend/web/interfaces/enums/core/user-role.enum.ts",
+      "type": "enum",
+      "language": "typescript",
+      "values": ["USER", "MANAGER", "ADMIN"],
+      "description": "User role enum"
+    },
+    {
+      "path": "frontend/web/interfaces/enums/core/account-status.enum.ts",
+      "type": "enum",
+      "language": "typescript",
+      "values": ["ACTIVE", "DEACTIVATED", "REVOKED"],
+      "description": "Account status enum"
+    },
+    {
+      "path": "frontend/web/interfaces/enums/knowledge/file-type.enum.ts",
+      "type": "enum",
+      "language": "typescript",
+      "values": ["PDF", "DOCX", "XLSX", "PNG", "JPG"],
+      "description": "File type enum"
+    },
+    {
+      "path": "frontend/web/interfaces/enums/knowledge/processing-status.enum.ts",
+      "type": "enum",
+      "language": "typescript",
+      "values": ["PENDING", "PARSING", "CHUNKING", "EMBEDDING", "INDEXING", "READY", "FAILED"],
+      "description": "Processing status enum"
+    },
+    {
+      "path": "frontend/web/interfaces/enums/analytics/feedback-type.enum.ts",
+      "type": "enum",
+      "language": "typescript",
+      "values": ["LIKE", "DISLIKE"],
+      "description": "Feedback type enum"
+    },
+    {
+      "path": "frontend/web/interfaces/enums/metadata/access-level.enum.ts",
+      "type": "enum",
+      "language": "typescript",
+      "values": ["PUBLIC", "DEPARTMENT_ONLY", "RESTRICTED"],
+      "description": "Access level enum"
+    },
+    {
+      "path": "frontend/web/interfaces/models/core/user.model.ts",
+      "type": "interface",
+      "language": "typescript",
+      "description": "User model interface"
+    },
+    {
+      "path": "frontend/web/interfaces/models/knowledge/document.model.ts",
+      "type": "interface",
+      "language": "typescript",
+      "description": "Document model interface"
+    },
+    {
+      "path": "frontend/web/interfaces/models/conversation/conversation.model.ts",
+      "type": "interface",
+      "language": "typescript",
+      "description": "Conversation model interface"
+    },
+    {
+      "path": "frontend/web/interfaces/models/analytics/feedback.model.ts",
+      "type": "interface",
+      "language": "typescript",
+      "description": "Feedback model interface"
+    },
+    {
+      "path": "services/api-gateway/src/main.ts",
+      "type": "bootstrap",
+      "language": "typescript",
+      "description": "NestJS bootstrap - CORS, helmet, compression, global pipes/filters"
+    },
+    {
+      "path": "services/api-gateway/src/app.module.ts",
+      "type": "module",
+      "language": "typescript",
+      "description": "Root NestJS module - imports Auth, Proxy, Health modules"
+    },
+    {
+      "path": "services/api-gateway/src/app.controller.ts",
+      "type": "controller",
+      "language": "typescript",
+      "routes": ["GET /"],
+      "description": "Root controller - health check"
+    },
+    {
+      "path": "services/api-gateway/src/app.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "App service"
+    },
+    {
+      "path": "services/api-gateway/src/proxy/proxy.module.ts",
+      "type": "module",
+      "language": "typescript",
+      "description": "Proxy module for forwarding requests to microservices"
+    },
+    {
+      "path": "services/api-gateway/src/proxy/proxy.controller.ts",
+      "type": "controller",
+      "language": "typescript",
+      "routes": ["/api/v1/*"],
+      "description": "Gateway proxy controller - routes all /api/v1/* to microservices"
+    },
+    {
+      "path": "services/api-gateway/src/proxy/proxy.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "Proxy service - forward requests, circuit breaker, health checks"
+    },
+    {
+      "path": "services/api-gateway/src/auth/auth.module.ts",
+      "type": "module",
+      "language": "typescript",
+      "description": "Auth module - JWT strategy, guards"
+    },
+    {
+      "path": "services/api-gateway/src/auth/strategies/jwt.strategy.ts",
+      "type": "strategy",
+      "language": "typescript",
+      "description": "Passport JWT strategy"
+    },
+    {
+      "path": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "type": "service",
+      "language": "typescript",
+      "description": "JWT auth service - verify, decode, extract token"
+    },
+    {
+      "path": "services/api-gateway/src/common/guards/jwt-auth.guard.ts",
+      "type": "guard",
+      "language": "typescript",
+      "description": "JWT authentication guard"
+    },
+    {
+      "path": "services/api-gateway/src/common/guards/rbac.guard.ts",
+      "type": "guard",
+      "language": "typescript",
+      "description": "Role-based access control guard"
+    },
+    {
+      "path": "services/api-gateway/src/common/interceptors/logging.interceptor.ts",
+      "type": "interceptor",
+      "language": "typescript",
+      "description": "Request/response logging interceptor"
+    },
+    {
+      "path": "services/api-gateway/src/common/interceptors/trace-id.interceptor.ts",
+      "type": "interceptor",
+      "language": "typescript",
+      "description": "Trace ID interceptor for distributed tracing"
+    },
+    {
+      "path": "services/api-gateway/src/common/interceptors/response-transform.interceptor.ts",
+      "type": "interceptor",
+      "language": "typescript",
+      "description": "Response transformation interceptor"
+    },
+    {
+      "path": "services/api-gateway/src/common/interceptors/timeout.interceptor.ts",
+      "type": "interceptor",
+      "language": "typescript",
+      "description": "Request timeout interceptor"
+    },
+    {
+      "path": "services/api-gateway/src/common/interceptors/rate-limit.interceptor.ts",
+      "type": "interceptor",
+      "language": "typescript",
+      "description": "Rate limiting interceptor"
+    },
+    {
+      "path": "services/api-gateway/src/common/decorators/roles.decorator.ts",
+      "type": "decorator",
+      "language": "typescript",
+      "description": "@Roles() decorator for RBAC"
+    },
+    {
+      "path": "services/api-gateway/src/common/decorators/public.decorator.ts",
+      "type": "decorator",
+      "language": "typescript",
+      "description": "@Public() decorator to bypass auth"
+    },
+    {
+      "path": "services/api-gateway/src/common/decorators/current-user.decorator.ts",
+      "type": "decorator",
+      "language": "typescript",
+      "description": "@CurrentUser() decorator to inject user context"
+    },
+    {
+      "path": "services/api-gateway/src/common/dto/api-response.dto.ts",
+      "type": "dto",
+      "language": "typescript",
+      "description": "Standard API response wrapper"
+    },
+    {
+      "path": "services/api-gateway/src/common/dto/error-response.dto.ts",
+      "type": "dto",
+      "language": "typescript",
+      "description": "Error response DTO"
+    },
+    {
+      "path": "services/api-gateway/src/common/interfaces/user-context.interface.ts",
+      "type": "interface",
+      "language": "typescript",
+      "description": "User context interface"
+    },
+    {
+      "path": "services/api-gateway/src/common/interfaces/jwt-payload.interface.ts",
+      "type": "interface",
+      "language": "typescript",
+      "description": "JWT payload interface"
+    },
+    {
+      "path": "services/api-gateway/src/health/health.module.ts",
+      "type": "module",
+      "language": "typescript",
+      "description": "Health check module"
+    },
+    {
+      "path": "services/api-gateway/src/health/health.controller.ts",
+      "type": "controller",
+      "language": "typescript",
+      "routes": ["GET /health", "GET /health/live", "GET /health/ready", "GET /health/circuit-breakers"],
+      "description": "Health check endpoints"
+    },
+    {
+      "path": "services/api-gateway/src/health/indicators/services.indicator.ts",
+      "type": "indicator",
+      "language": "typescript",
+      "description": "Service health indicator"
+    },
+    {
+      "path": "services/api-gateway/src/config/configuration.ts",
+      "type": "config",
+      "language": "typescript",
+      "description": "Configuration - app, JWT, CORS, services, throttler, circuit breaker"
+    },
+    {
+      "path": "services/api-gateway/src/logging/winston.config.ts",
+      "type": "config",
+      "language": "typescript",
+      "description": "Winston logger configuration"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/controller/AuthController.java",
+      "type": "controller",
+      "language": "java",
+      "routes": ["POST /register", "POST /login", "POST /refresh", "POST /logout", "POST /logout-all", "GET /sessions"],
+      "description": "Authentication REST controller"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java",
+      "type": "service",
+      "language": "java",
+      "description": "Authentication business logic"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/service/JwtTokenProvider.java",
+      "type": "service",
+      "language": "java",
+      "description": "JWT token creation and validation"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/service/RefreshTokenService.java",
+      "type": "service",
+      "language": "java",
+      "description": "Refresh token rotation logic"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/entity/User.java",
+      "type": "entity",
+      "language": "java",
+      "table": "core.users",
+      "description": "User entity with JPA mappings"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/entity/LoginHistory.java",
+      "type": "entity",
+      "language": "java",
+      "description": "Login history tracking entity"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/entity/AccessTokenBlacklist.java",
+      "type": "entity",
+      "language": "java",
+      "description": "Token blacklist for logout"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/security/JwtAuthenticationFilter.java",
+      "type": "filter",
+      "language": "java",
+      "description": "JWT authentication filter"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/security/JwtAuthenticationEntryPoint.java",
+      "type": "security",
+      "language": "java",
+      "description": "Authentication entry point"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/enums/UserRole.java",
+      "type": "enum",
+      "language": "java",
+      "values": ["USER", "MANAGER", "ADMIN"],
+      "description": "User role enum"
+    },
+    {
+      "path": "services/auth-service/src/main/java/com/poliwise/auth/enums/AccountStatus.java",
+      "type": "enum",
+      "language": "java",
+      "values": ["ACTIVE", "DEACTIVATED", "REVOKED"],
+      "description": "Account status enum"
+    },
+    {
+      "path": "services/user-service/src/main/java/com/poliwise/user/controller/UserController.java",
+      "type": "controller",
+      "language": "java",
+      "routes": ["GET /me", "GET /{userId}", "PUT /me", "GET /me/status", "PATCH /me/department", "GET /", "PATCH /{userId}/status", "DELETE /{userId}"],
+      "description": "User management REST controller"
+    },
+    {
+      "path": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java",
+      "type": "service",
+      "language": "java",
+      "description": "User profile business logic"
+    },
+    {
+      "path": "services/user-service/src/main/java/com/poliwise/user/entity/User.java",
+      "type": "entity",
+      "language": "java",
+      "table": "core.users",
+      "description": "User entity"
+    },
+    {
+      "path": "services/user-service/src/main/java/com/poliwise/user/entity/UserProfile.java",
+      "type": "entity",
+      "language": "java",
+      "table": "core.user_profiles",
+      "description": "User profile entity"
+    },
+    {
+      "path": "services/user-service/src/main/java/com/poliwise/user/entity/Department.java",
+      "type": "entity",
+      "language": "java",
+      "table": "core.departments",
+      "description": "Department entity"
+    },
+    {
+      "path": "services/user-service/src/main/java/com/poliwise/user/event/UserEventPublisher.java",
+      "type": "event",
+      "language": "java",
+      "description": "Publishes User.status.changed and User.revoked events"
+    },
+    {
+      "path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/Document.java",
+      "type": "entity",
+      "language": "java",
+      "table": "knowledge.documents",
+      "description": "Document entity with processing pipeline fields"
+    },
+    {
+      "path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/DocumentVersion.java",
+      "type": "entity",
+      "language": "java",
+      "table": "knowledge.document_versions",
+      "description": "Document version entity"
+    },
+    {
+      "path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/ProcessingJob.java",
+      "type": "entity",
+      "language": "java",
+      "table": "knowledge.processing_jobs",
+      "description": "Processing job entity"
+    },
+    {
+      "path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/Chunk.java",
+      "type": "entity",
+      "language": "java",
+      "table": "knowledge.chunks",
+      "description": "Document chunk entity"
+    },
+    {
+      "path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentMetadata.java",
+      "type": "entity",
+      "language": "java",
+      "table": "metadata.document_metadata",
+      "description": "Document metadata entity"
+    },
+    {
+      "path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentAccessRule.java",
+      "type": "entity",
+      "language": "java",
+      "table": "metadata.document_access_rules",
+      "description": "Access control rule entity"
+    },
+    {
+      "path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/Category.java",
+      "type": "entity",
+      "language": "java",
+      "table": "metadata.categories",
+      "description": "Category entity"
+    },
+    {
+      "path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/Tag.java",
+      "type": "entity",
+      "language": "java",
+      "table": "metadata.tags",
+      "description": "Tag entity"
+    },
+    {
+      "path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentTag.java",
+      "type": "entity",
+      "language": "java",
+      "table": "metadata.document_tags",
+      "description": "Document-tag association entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/Feedback.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.feedbacks",
+      "description": "Feedback entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/UnansweredQuestion.java",
+      "type": "entity",
+      "language": "java",
+      "table": "conversation.unanswered_questions",
+      "description": "Unanswered question entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/AuditLog.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.audit_logs",
+      "description": "Audit log entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/DailyAggregate.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.daily_aggregates",
+      "description": "Daily aggregate entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/HourlyAggregate.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.hourly_aggregates",
+      "description": "Hourly aggregate entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/UsageStat.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.usage_stats",
+      "description": "Usage statistics entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/DocumentPopularity.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.document_popularity",
+      "description": "Document popularity tracking entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/PopularQuestion.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.popular_questions",
+      "description": "Popular question entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/DepartmentDailyStat.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.department_daily_stats",
+      "description": "Department daily statistics entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/ReportExport.java",
+      "type": "entity",
+      "language": "java",
+      "table": "analytics.report_exports",
+      "description": "Report export job entity"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/repository/FeedbackRepository.java",
+      "type": "repository",
+      "language": "java",
+      "description": "Feedback JPA repository"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/repository/UnansweredQuestionRepository.java",
+      "type": "repository",
+      "language": "java",
+      "description": "Unanswered question JPA repository"
+    },
+    {
+      "path": "services/feedback-service/src/main/java/com/poliwise/feedback/repository/AuditLogRepository.java",
+      "type": "repository",
+      "language": "java",
+      "description": "Audit log JPA repository"
+    },
+    {
+      "path": "docker-compose.yml",
+      "type": "config",
+      "language": "yaml",
+      "description": "Docker Compose - PostgreSQL, RabbitMQ, all microservices"
+    },
+    {
+      "path": "docs/func_per_services.md",
+      "type": "docs",
+      "language": "markdown",
+      "description": "Service responsibilities and event definitions"
+    },
+    {
+      "path": "docs/db_per_services.md",
+      "type": "docs",
+      "language": "markdown",
+      "description": "Database ownership per service"
+    },
+    {
+      "path": "docs/allow_per_role.md",
+      "type": "docs",
+      "language": "markdown",
+      "description": "RBAC role permissions matrix"
+    }
+  ],
+
+  "functions": [
+    {
+      "name": "ApiClient.get",
+      "file": "frontend/web/services/api-client.ts",
+      "signature": "get<T>(url: string, config?: AxiosRequestConfig): Promise<T>",
+      "description": "HTTP GET request"
+    },
+    {
+      "name": "ApiClient.post",
+      "file": "frontend/web/services/api-client.ts",
+      "signature": "post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>",
+      "description": "HTTP POST request"
+    },
+    {
+      "name": "ApiClient.upload",
+      "file": "frontend/web/services/api-client.ts",
+      "signature": "upload<T>(url: string, formData: FormData, onProgress?: (progress: number) => void): Promise<T>",
+      "description": "File upload with progress tracking"
+    },
+    {
+      "name": "AuthService.login",
+      "file": "frontend/web/services/auth.service.ts",
+      "signature": "login(credentials: LoginRequest): Promise<LoginResponse>",
+      "description": "Authenticate user and get tokens"
+    },
+    {
+      "name": "AuthService.register",
+      "file": "frontend/web/services/auth.service.ts",
+      "signature": "register(data: RegisterRequest): Promise<AuthUserView>",
+      "description": "Register new user"
+    },
+    {
+      "name": "AuthService.refreshToken",
+      "file": "frontend/web/services/auth.service.ts",
+      "signature": "refreshToken(token: string): Promise<TokenResponse>",
+      "description": "Refresh access token"
+    },
+    {
+      "name": "AuthService.logout",
+      "file": "frontend/web/services/auth.service.ts",
+      "signature": "logout(): Promise<void>",
+      "description": "Logout current session"
+    },
+    {
+      "name": "AuthService.logoutAll",
+      "file": "frontend/web/services/auth.service.ts",
+      "signature": "logoutAll(): Promise<void>",
+      "description": "Logout all sessions"
+    },
+    {
+      "name": "AuthService.getSessions",
+      "file": "frontend/web/services/auth.service.ts",
+      "signature": "getSessions(): Promise<Session[]>",
+      "description": "Get all active sessions"
+    },
+    {
+      "name": "AIService.sendMessage",
+      "file": "frontend/web/services/ai.service.ts",
+      "signature": "sendMessage(question: string, conversationId?: string): Promise<QuestionResponse>",
+      "description": "Send question to AI"
+    },
+    {
+      "name": "AIService.getConversations",
+      "file": "frontend/web/services/ai.service.ts",
+      "signature": "getConversations(params?: PaginationParams): Promise<PaginatedResponse<Conversation>>",
+      "description": "Get all conversations"
+    },
+    {
+      "name": "AIService.getMessages",
+      "file": "frontend/web/services/ai.service.ts",
+      "signature": "getMessages(conversationId: string): Promise<Message[]>",
+      "description": "Get messages for a conversation"
+    },
+    {
+      "name": "AIService.deleteConversation",
+      "file": "frontend/web/services/ai.service.ts",
+      "signature": "deleteConversation(conversationId: string): Promise<void>",
+      "description": "Delete a conversation"
+    },
+    {
+      "name": "AIService.clearHistory",
+      "file": "frontend/web/services/ai.service.ts",
+      "signature": "clearHistory(): Promise<void>",
+      "description": "Clear all conversation history"
+    },
+    {
+      "name": "AIService.markAsUnanswered",
+      "file": "frontend/web/services/ai.service.ts",
+      "signature": "markAsUnanswered(question: string): Promise<void>",
+      "description": "Mark question as unanswered"
+    },
+    {
+      "name": "KnowledgeService.getDocuments",
+      "file": "frontend/web/services/knowledge.service.ts",
+      "signature": "getDocuments(params?: DocumentQueryParams): Promise<PaginatedResponse<Document>>",
+      "description": "Get documents with filters"
+    },
+    {
+      "name": "KnowledgeService.uploadDocument",
+      "file": "frontend/web/services/knowledge.service.ts",
+      "signature": "uploadDocument(file: File, metadata?: UploadDocumentRequest): Promise<Document>",
+      "description": "Upload document with metadata"
+    },
+    {
+      "name": "KnowledgeService.updateDocument",
+      "file": "frontend/web/services/knowledge.service.ts",
+      "signature": "updateDocument(id: string, data: Partial<Document>): Promise<Document>",
+      "description": "Update document metadata"
+    },
+    {
+      "name": "KnowledgeService.deleteDocument",
+      "file": "frontend/web/services/knowledge.service.ts",
+      "signature": "deleteDocument(id: string): Promise<void>",
+      "description": "Delete document"
+    },
+    {
+      "name": "KnowledgeService.searchDocuments",
+      "file": "frontend/web/services/knowledge.service.ts",
+      "signature": "searchDocuments(query: string, filters?: DocumentSearchFilters): Promise<SearchResult[]>",
+      "description": "Search documents by content"
+    },
+    {
+      "name": "UserService.getMyProfile",
+      "file": "frontend/web/services/user.service.ts",
+      "signature": "getMyProfile(): Promise<User>",
+      "description": "Get current user profile"
+    },
+    {
+      "name": "UserService.updateMyProfile",
+      "file": "frontend/web/services/user.service.ts",
+      "signature": "updateMyProfile(data: UpdateProfileRequest): Promise<User>",
+      "description": "Update own profile"
+    },
+    {
+      "name": "UserService.searchUsers",
+      "file": "frontend/web/services/user.service.ts",
+      "signature": "searchUsers(params?: UserSearchParams): Promise<PaginatedResponse<User>>",
+      "description": "Search users (admin/manager)"
+    },
+    {
+      "name": "UserService.updateUserStatus",
+      "file": "frontend/web/services/user.service.ts",
+      "signature": "updateUserStatus(userId: string, status: AccountStatus): Promise<User>",
+      "description": "Change user status (admin only)"
+    },
+    {
+      "name": "AnalyticsService.getOverview",
+      "file": "frontend/web/services/analytics.service.ts",
+      "signature": "getOverview(params?: DateRangeParams): Promise<AnalyticsOverview>",
+      "description": "Get analytics overview"
+    },
+    {
+      "name": "AnalyticsService.getUsageStats",
+      "file": "frontend/web/services/analytics.service.ts",
+      "signature": "getUsageStats(params?: UsageStatsParams): Promise<UsageStatsResponse>",
+      "description": "Get usage statistics"
+    },
+    {
+      "name": "AnalyticsService.exportReport",
+      "file": "frontend/web/services/analytics.service.ts",
+      "signature": "exportReport(params: ExportReportParams): Promise<ExportJob>",
+      "description": "Export analytics report"
+    },
+    {
+      "name": "FeedbackService.submitFeedback",
+      "file": "frontend/web/services/feedback.service.ts",
+      "signature": "submitFeedback(data: SubmitFeedbackRequest): Promise<Feedback>",
+      "description": "Submit feedback on answer"
+    },
+    {
+      "name": "FeedbackService.getUnansweredQuestions",
+      "file": "frontend/web/services/feedback.service.ts",
+      "signature": "getUnansweredQuestions(params?: PaginationParams): Promise<PaginatedResponse<UnansweredQuestion>>",
+      "description": "Get unanswered questions"
+    },
+    {
+      "name": "FeedbackService.answerQuestion",
+      "file": "frontend/web/services/feedback.service.ts",
+      "signature": "answerQuestion(id: string, answer: string): Promise<UnansweredQuestion>",
+      "description": "Answer an unanswered question"
+    },
+    {
+      "name": "ProxyService.forward",
+      "file": "services/api-gateway/src/proxy/proxy.service.ts",
+      "signature": "forward(service: string, path: string, method: string, body: any, headers: any): Promise<any>",
+      "description": "Forward request to downstream service"
+    },
+    {
+      "name": "ProxyService.getServiceHealth",
+      "file": "services/api-gateway/src/proxy/proxy.service.ts",
+      "signature": "getServiceHealth(service: string): Promise<boolean>",
+      "description": "Check service health for circuit breaker"
+    },
+    {
+      "name": "JwtAuthService.verifyToken",
+      "file": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "signature": "verifyToken(token: string): Promise<IJwtPayload>",
+      "description": "Verify and decode JWT token"
+    },
+    {
+      "name": "JwtAuthService.isTokenExpired",
+      "file": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "signature": "isTokenExpired(token: string): boolean",
+      "description": "Check if token is expired"
+    },
+    {
+      "name": "JwtAuthService.buildUserContext",
+      "file": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "signature": "buildUserContext(payload: IJwtPayload): IUserContext",
+      "description": "Build user context from JWT payload"
+    },
+    {
+      "name": "JwtTokenProvider.createAccessToken",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/JwtTokenProvider.java",
+      "signature": "public String createAccessToken(User user)",
+      "description": "Create JWT access token"
+    },
+    {
+      "name": "JwtTokenProvider.verifyAccessToken",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/JwtTokenProvider.java",
+      "signature": "public Claims verifyAccessToken(String token)",
+      "description": "Verify JWT access token"
+    },
+    {
+      "name": "AuthService.register",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java",
+      "signature": "public AuthUserView register(RegisterRequest request)",
+      "description": "Register new user account"
+    },
+    {
+      "name": "AuthService.login",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java",
+      "signature": "public TokenResponse login(LoginRequest request, String ipAddress, String userAgent)",
+      "description": "Authenticate and return tokens"
+    },
+    {
+      "name": "AuthService.refresh",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java",
+      "signature": "public TokenResponse refresh(String refreshToken)",
+      "description": "Refresh access token"
+    },
+    {
+      "name": "RefreshTokenService.rotateToken",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/RefreshTokenService.java",
+      "signature": "public RefreshToken rotateToken(String userId, String deviceInfo)",
+      "description": "Rotate refresh token"
+    },
+    {
+      "name": "UserService.getProfile",
+      "file": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java",
+      "signature": "public UserProfile getProfile(String userId)",
+      "description": "Get user profile"
+    },
+    {
+      "name": "UserService.updateProfile",
+      "file": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java",
+      "signature": "public UserProfile updateProfile(String userId, UpdateProfileRequest request)",
+      "description": "Update user profile"
+    },
+    {
+      "name": "UserService.changeStatus",
+      "file": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java",
+      "signature": "public void changeStatus(String userId, AccountStatus status)",
+      "description": "Change user account status"
+    },
+    {
+      "name": "UserEventPublisher.publishStatusChanged",
+      "file": "services/user-service/src/main/java/com/poliwise/user/event/UserEventPublisher.java",
+      "signature": "public void publishStatusChanged(String userId, AccountStatus oldStatus, AccountStatus newStatus)",
+      "description": "Publish user status changed event"
+    }
+  ],
+
+  "classes": [
+    {
+      "name": "ApiClient",
+      "file": "frontend/web/services/api-client.ts",
+      "type": "service",
+      "description": "Axios HTTP client wrapper with interceptors"
+    },
+    {
+      "name": "AuthService",
+      "file": "frontend/web/services/auth.service.ts",
+      "type": "service",
+      "description": "Authentication service client"
+    },
+    {
+      "name": "AIService",
+      "file": "frontend/web/services/ai.service.ts",
+      "type": "service",
+      "description": "AI chat service client"
+    },
+    {
+      "name": "KnowledgeService",
+      "file": "frontend/web/services/knowledge.service.ts",
+      "type": "service",
+      "description": "Document management service client"
+    },
+    {
+      "name": "UserService",
+      "file": "frontend/web/services/user.service.ts",
+      "type": "service",
+      "description": "User profile service client"
+    },
+    {
+      "name": "AnalyticsService",
+      "file": "frontend/web/services/analytics.service.ts",
+      "type": "service",
+      "description": "Analytics service client"
+    },
+    {
+      "name": "FeedbackService",
+      "file": "frontend/web/services/feedback.service.ts",
+      "type": "service",
+      "description": "Feedback service client"
+    },
+    {
+      "name": "useAuthStore",
+      "file": "frontend/web/store/auth-store.ts",
+      "type": "store",
+      "description": "Zustand auth store"
+    },
+    {
+      "name": "ProxyService",
+      "file": "services/api-gateway/src/proxy/proxy.service.ts",
+      "type": "service",
+      "description": "API gateway proxy service"
+    },
+    {
+      "name": "JwtAuthService",
+      "file": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "type": "service",
+      "description": "JWT authentication service"
+    },
+    {
+      "name": "JwtStrategy",
+      "file": "services/api-gateway/src/auth/strategies/jwt.strategy.ts",
+      "type": "strategy",
+      "description": "Passport JWT strategy"
+    },
+    {
+      "name": "JwtAuthGuard",
+      "file": "services/api-gateway/src/common/guards/jwt-auth.guard.ts",
+      "type": "guard",
+      "description": "JWT authentication guard"
+    },
+    {
+      "name": "RolesGuard",
+      "file": "services/api-gateway/src/common/guards/rbac.guard.ts",
+      "type": "guard",
+      "description": "Role-based access control guard"
+    },
+    {
+      "name": "LoggingInterceptor",
+      "file": "services/api-gateway/src/common/interceptors/logging.interceptor.ts",
+      "type": "interceptor",
+      "description": "Request/response logging"
+    },
+    {
+      "name": "TraceIdInterceptor",
+      "file": "services/api-gateway/src/common/interceptors/trace-id.interceptor.ts",
+      "type": "interceptor",
+      "description": "Distributed tracing"
+    },
+    {
+      "name": "ResponseTransformInterceptor",
+      "file": "services/api-gateway/src/common/interceptors/response-transform.interceptor.ts",
+      "type": "interceptor",
+      "description": "Response transformation"
+    },
+    {
+      "name": "TimeoutInterceptor",
+      "file": "services/api-gateway/src/common/interceptors/timeout.interceptor.ts",
+      "type": "interceptor",
+      "description": "Request timeout"
+    },
+    {
+      "name": "RateLimitInterceptor",
+      "file": "services/api-gateway/src/common/interceptors/rate-limit.interceptor.ts",
+      "type": "interceptor",
+      "description": "Rate limiting"
+    },
+    {
+      "name": "AuthController",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/controller/AuthController.java",
+      "type": "controller",
+      "description": "Authentication REST controller"
+    },
+    {
+      "name": "AuthService",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java",
+      "type": "service",
+      "description": "Authentication business logic"
+    },
+    {
+      "name": "JwtTokenProvider",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/JwtTokenProvider.java",
+      "type": "service",
+      "description": "JWT token management"
+    },
+    {
+      "name": "RefreshTokenService",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/service/RefreshTokenService.java",
+      "type": "service",
+      "description": "Refresh token rotation"
+    },
+    {
+      "name": "JwtAuthenticationFilter",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/security/JwtAuthenticationFilter.java",
+      "type": "filter",
+      "description": "Spring Security JWT filter"
+    },
+    {
+      "name": "User",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/entity/User.java",
+      "type": "entity",
+      "description": "User JPA entity"
+    },
+    {
+      "name": "LoginHistory",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/entity/LoginHistory.java",
+      "type": "entity",
+      "description": "Login history entity"
+    },
+    {
+      "name": "AccessTokenBlacklist",
+      "file": "services/auth-service/src/main/java/com/poliwise/auth/entity/AccessTokenBlacklist.java",
+      "type": "entity",
+      "description": "Token blacklist entity"
+    },
+    {
+      "name": "UserController",
+      "file": "services/user-service/src/main/java/com/poliwise/user/controller/UserController.java",
+      "type": "controller",
+      "description": "User management REST controller"
+    },
+    {
+      "name": "UserService",
+      "file": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java",
+      "type": "service",
+      "description": "User profile business logic"
+    },
+    {
+      "name": "UserProfile",
+      "file": "services/user-service/src/main/java/com/poliwise/user/entity/UserProfile.java",
+      "type": "entity",
+      "description": "User profile JPA entity"
+    },
+    {
+      "name": "Department",
+      "file": "services/user-service/src/main/java/com/poliwise/user/entity/Department.java",
+      "type": "entity",
+      "description": "Department JPA entity"
+    },
+    {
+      "name": "Document",
+      "file": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/Document.java",
+      "type": "entity",
+      "description": "Document JPA entity"
+    },
+    {
+      "name": "DocumentVersion",
+      "file": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/DocumentVersion.java",
+      "type": "entity",
+      "description": "Document version entity"
+    },
+    {
+      "name": "ProcessingJob",
+      "file": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/ProcessingJob.java",
+      "type": "entity",
+      "description": "Processing job entity"
+    },
+    {
+      "name": "Chunk",
+      "file": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/Chunk.java",
+      "type": "entity",
+      "description": "Document chunk entity"
+    },
+    {
+      "name": "DocumentMetadata",
+      "file": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentMetadata.java",
+      "type": "entity",
+      "description": "Document metadata entity"
+    },
+    {
+      "name": "DocumentAccessRule",
+      "file": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentAccessRule.java",
+      "type": "entity",
+      "description": "Access rule entity"
+    },
+    {
+      "name": "Category",
+      "file": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/Category.java",
+      "type": "entity",
+      "description": "Category entity"
+    },
+    {
+      "name": "Tag",
+      "file": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/Tag.java",
+      "type": "entity",
+      "description": "Tag entity"
+    },
+    {
+      "name": "Feedback",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/Feedback.java",
+      "type": "entity",
+      "description": "Feedback entity"
+    },
+    {
+      "name": "UnansweredQuestion",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/UnansweredQuestion.java",
+      "type": "entity",
+      "description": "Unanswered question entity"
+    },
+    {
+      "name": "AuditLog",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/AuditLog.java",
+      "type": "entity",
+      "description": "Audit log entity"
+    },
+    {
+      "name": "DailyAggregate",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/DailyAggregate.java",
+      "type": "entity",
+      "description": "Daily aggregate entity"
+    },
+    {
+      "name": "UsageStat",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/UsageStat.java",
+      "type": "entity",
+      "description": "Usage stat entity"
+    },
+    {
+      "name": "DocumentPopularity",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/DocumentPopularity.java",
+      "type": "entity",
+      "description": "Document popularity entity"
+    },
+    {
+      "name": "PopularQuestion",
+      "file": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/PopularQuestion.java",
+      "type": "entity",
+      "description": "Popular question entity"
+    }
+  ],
+
+  "apis": [
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "auth": "public",
+      "service": "api-gateway",
+      "target": "auth-service",
+      "description": "User login"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "auth": "public",
+      "service": "api-gateway",
+      "target": "auth-service",
+      "description": "User registration"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/refresh",
+      "auth": "public",
+      "service": "api-gateway",
+      "target": "auth-service",
+      "description": "Refresh access token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "auth-service",
+      "description": "Logout current session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout-all",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "auth-service",
+      "description": "Logout all sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/sessions",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "auth-service",
+      "description": "Get active sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Get current user profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/users/me",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Update own profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/me/status",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Get own account status"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/users/me/department",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Change own department"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Search users"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/{userId}",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Get user by ID"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/users/{userId}/status",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Change user status"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/users/{userId}",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "user-service",
+      "description": "Delete user"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/documents",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Get documents list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/documents/{id}",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Get document by ID"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/documents/upload",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Upload new document"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/documents/{id}",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Update document"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/documents/{id}",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Delete document"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/documents/{id}/download",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Download document file"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/documents/{id}/versions",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Get document version history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/documents/{id}/jobs",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Get processing jobs for document"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/documents/search",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "knowledge-service",
+      "description": "Search documents"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/metadata/categories",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "metadata-service",
+      "description": "Get all categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/metadata/categories",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "metadata-service",
+      "description": "Create category"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/metadata/tags",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "metadata-service",
+      "description": "Get all tags"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/metadata/tags",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "metadata-service",
+      "description": "Create tag"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/feedback",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Submit feedback"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/feedback",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get feedback list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/feedback/unanswered",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get unanswered questions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/feedback/unanswered/{id}/answer",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Answer unanswered question"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/analytics/overview",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get analytics overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/analytics/usage",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get usage statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/analytics/popular-documents",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get popular documents"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/analytics/popular-questions",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get popular questions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/analytics/audit-logs",
+      "auth": "admin",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Get audit logs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/export",
+      "auth": "manager+",
+      "service": "api-gateway",
+      "target": "feedback-service",
+      "description": "Export analytics report"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai/question",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "ai-service",
+      "description": "Ask AI question"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai/conversations",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "ai-service",
+      "description": "Get conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai/conversations/{id}/messages",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "ai-service",
+      "description": "Get conversation messages"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/ai/conversations/{id}",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "ai-service",
+      "description": "Delete conversation"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/ai/history",
+      "auth": "required",
+      "service": "api-gateway",
+      "target": "ai-service",
+      "description": "Clear conversation history"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "auth": "public",
+      "service": "api-gateway",
+      "description": "Health check"
+    },
+    {
+      "method": "GET",
+      "path": "/health/live",
+      "auth": "public",
+      "service": "api-gateway",
+      "description": "Liveness probe"
+    },
+    {
+      "method": "GET",
+      "path": "/health/ready",
+      "auth": "public",
+      "service": "api-gateway",
+      "description": "Readiness probe"
+    },
+    {
+      "method": "GET",
+      "path": "/health/circuit-breakers",
+      "auth": "public",
+      "service": "api-gateway",
+      "description": "Circuit breaker status"
+    }
+  ],
+
+  "database": [
+    {
+      "schema": "core",
+      "tables": [
+        {
+          "name": "users",
+          "service": "auth-service",
+          "description": "User accounts and authentication",
+          "columns": ["id (UUID)", "username", "email", "password_hash", "role (USER|MANAGER|ADMIN)", "status (ACTIVE|DEACTIVATED|REVOKED)", "department_id", "failed_login_attempts", "locked_until", "must_change_password", "created_at", "updated_at"],
+          "indexes": ["email (unique)", "username (unique)", "role", "status"]
+        },
+        {
+          "name": "departments",
+          "service": "user-service",
+          "description": "Organization departments",
+          "columns": ["id (UUID)", "name", "description", "created_at", "updated_at"]
+        },
+        {
+          "name": "user_profiles",
+          "service": "user-service",
+          "description": "Extended user profile data",
+          "columns": ["id (UUID)", "user_id (FK)", "full_name", "avatar_url", "phone", "position", "created_at", "updated_at"]
+        }
+      ]
+    },
+    {
+      "schema": "knowledge",
+      "tables": [
+        {
+          "name": "documents",
+          "service": "knowledge-service",
+          "description": "Uploaded documents with processing pipeline",
+          "columns": ["id (UUID)", "original_filename", "file_type (PDF|DOCX|XLSX|PNG|JPG)", "file_size_bytes", "mime_type", "file_key", "bucket_name", "status (PENDING|PARSING|CHUNKING|EMBEDDING|INDEXING|READY|FAILED)", "current_version", "extracted_text", "page_count", "word_count", "language", "ocr_required", "chunking_strategy", "chunk_size", "chunk_overlap", "embedding_model", "created_by", "created_at", "updated_at"],
+          "indexes": ["created_by", "status", "file_type"]
+        },
+        {
+          "name": "document_versions",
+          "service": "knowledge-service",
+          "description": "Document version history",
+          "columns": ["id (UUID)", "document_id (FK)", "version", "file_key", "file_size_bytes", "change_summary", "created_by", "created_at"],
+          "indexes": ["document_id + version (unique)"]
+        },
+        {
+          "name": "processing_jobs",
+          "service": "knowledge-service",
+          "description": "Document processing pipeline jobs",
+          "columns": ["id (UUID)", "document_id (FK)", "step (PARSING|CHUNKING|EMBEDDING|INDEXING)", "status", "progress", "error_message", "started_at", "completed_at", "created_at"]
+        },
+        {
+          "name": "chunks",
+          "service": "knowledge-service",
+          "description": "Document text chunks for embedding",
+          "columns": ["id (UUID)", "document_id (FK)", "content", "chunk_index", "token_count", "embedding_vector", "created_at"],
+          "indexes": ["document_id"]
+        }
+      ]
+    },
+    {
+      "schema": "metadata",
+      "tables": [
+        {
+          "name": "categories",
+          "service": "metadata-service",
+          "description": "Document categories",
+          "columns": ["id (UUID)", "name", "description", "parent_id", "created_at", "updated_at"]
+        },
+        {
+          "name": "tags",
+          "service": "metadata-service",
+          "description": "Document tags",
+          "columns": ["id (UUID)", "name", "created_at"]
+        },
+        {
+          "name": "document_metadata",
+          "service": "metadata-service",
+          "description": "Document metadata",
+          "columns": ["id (UUID)", "document_id (FK)", "category_id (FK)", "title", "description", "author", "published_date", "status (DRAFT|PUBLISHED|ARCHIVED|EXPIRED)", "access_level (PUBLIC|DEPARTMENT_ONLY|RESTRICTED)", "created_at", "updated_at"]
+        },
+        {
+          "name": "document_access_rules",
+          "service": "metadata-service",
+          "description": "Document access control rules",
+          "columns": ["id (UUID)", "document_id (FK)", "grantee_type (USER|DEPARTMENT|ROLE)", "grantee_id", "permission (READ|COMMENT|EDIT|DELETE)", "created_at", "expires_at"]
+        },
+        {
+          "name": "document_tags",
+          "service": "metadata-service",
+          "description": "Document-tag associations",
+          "columns": ["document_metadata_id (FK)", "tag_id (FK)", "(document_metadata_id, tag_id) PRIMARY KEY"]
+        }
+      ]
+    },
+    {
+      "schema": "analytics",
+      "tables": [
+        {
+          "name": "feedbacks",
+          "service": "feedback-service",
+          "description": "Answer feedback",
+          "columns": ["id (UUID)", "user_id (FK)", "question_id", "type (LIKE|DISLIKE)", "created_at"]
+        },
+        {
+          "name": "audit_logs",
+          "service": "feedback-service",
+          "description": "System audit trail",
+          "columns": ["id (UUID)", "user_id (FK)", "action (CREATE|READ|UPDATE|DELETE|LOGIN|LOGOUT)", "resource_type", "resource_id", "details", "ip_address", "user_agent", "created_at"]
+        },
+        {
+          "name": "daily_aggregates",
+          "service": "feedback-service",
+          "description": "Daily aggregated stats",
+          "columns": ["id (UUID)", "date", "total_questions", "total_answers", "total_feedbacks", "total_documents_uploaded", "total_searches", "avg_response_time_ms", "created_at"]
+        },
+        {
+          "name": "hourly_aggregates",
+          "service": "feedback-service",
+          "description": "Hourly aggregated stats",
+          "columns": ["id (UUID)", "date", "hour", "total_questions", "total_answers", "avg_response_time_ms", "created_at"]
+        },
+        {
+          "name": "usage_stats",
+          "service": "feedback-service",
+          "description": "User-level usage statistics",
+          "columns": ["id (UUID)", "user_id (FK)", "date", "questions_asked", "documents_viewed", "searches_made", "created_at", "updated_at"]
+        },
+        {
+          "name": "document_popularity",
+          "service": "feedback-service",
+          "description": "Document view counts",
+          "columns": ["id (UUID)", "document_id (FK)", "date", "view_count", "search_count", "created_at", "updated_at"]
+        },
+        {
+          "name": "popular_questions",
+          "service": "feedback-service",
+          "description": "Frequently asked questions",
+          "columns": ["id (UUID)", "question_hash", "question_text", "answer_count", "avg_confidence", "last_asked_at", "created_at"]
+        },
+        {
+          "name": "department_daily_stats",
+          "service": "feedback-service",
+          "description": "Per-department daily statistics",
+          "columns": ["id (UUID)", "department_id (FK)", "date", "active_users", "questions_asked", "documents_viewed", "created_at"]
+        },
+        {
+          "name": "report_exports",
+          "service": "feedback-service",
+          "description": "Export job tracking",
+          "columns": ["id (UUID)", "requested_by (FK)", "report_type", "format (CSV|JSON|PDF)", "status", "file_url", "created_at", "completed_at"]
+        }
+      ]
+    },
+    {
+      "schema": "conversation",
+      "tables": [
+        {
+          "name": "unanswered_questions",
+          "service": "feedback-service",
+          "description": "Questions that AI couldn't answer",
+          "columns": ["id (UUID)", "user_id (FK)", "question_text", "context", "answered_by (FK)", "answer_text", "answered_at", "status (PENDING|ANSWERED|IGNORED)", "created_at"]
+        }
+      ]
+    }
+  ],
+
+  "dependencies": [
+    {
+      "from": "frontend/web",
+      "to": "services/api-gateway",
+      "type": "http",
+      "description": "Frontend calls API gateway for all backend operations"
+    },
+    {
+      "from": "services/api-gateway",
+      "to": "services/auth-service",
+      "type": "http",
+      "description": "Gateway proxies auth requests to auth-service"
+    },
+    {
+      "from": "services/api-gateway",
+      "to": "services/user-service",
+      "type": "http",
+      "description": "Gateway proxies user requests to user-service"
+    },
+    {
+      "from": "services/api-gateway",
+      "to": "services/knowledge-service",
+      "type": "http",
+      "description": "Gateway proxies document requests to knowledge-service"
+    },
+    {
+      "from": "services/api-gateway",
+      "to": "services/metadata-service",
+      "type": "http",
+      "description": "Gateway proxies metadata requests to metadata-service"
+    },
+    {
+      "from": "services/api-gateway",
+      "to": "services/feedback-service",
+      "type": "http",
+      "description": "Gateway proxies analytics/feedback requests to feedback-service"
+    },
+    {
+      "from": "services/user-service",
+      "to": "services/auth-service",
+      "type": "event",
+      "description": "user-service publishes User.status.changed and User.revoked events via RabbitMQ"
+    },
+    {
+      "from": "services/knowledge-service",
+      "to": "services/feedback-service",
+      "type": "event",
+      "description": "knowledge-service publishes Document.uploaded and Document.deleted events via RabbitMQ"
+    },
+    {
+      "from": "services/auth-service",
+      "to": "core.users (database)",
+      "type": "database",
+      "description": "auth-service owns core.users table"
+    },
+    {
+      "from": "services/user-service",
+      "to": "core.user_profiles (database)",
+      "type": "database",
+      "description": "user-service owns core.user_profiles and core.departments tables"
+    },
+    {
+      "from": "services/knowledge-service",
+      "to": "knowledge.* (database)",
+      "type": "database",
+      "description": "knowledge-service owns knowledge.documents, document_versions, processing_jobs, chunks tables"
+    },
+    {
+      "from": "services/metadata-service",
+      "to": "metadata.* (database)",
+      "type": "database",
+      "description": "metadata-service owns metadata.* tables"
+    },
+    {
+      "from": "services/feedback-service",
+      "to": "analytics.* + conversation.* (database)",
+      "type": "database",
+      "description": "feedback-service owns analytics.* and conversation.* tables"
+    },
+    {
+      "from": "frontend/web/services/auth.service.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "AuthService uses ApiClient"
+    },
+    {
+      "from": "frontend/web/services/ai.service.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "AIService uses ApiClient"
+    },
+    {
+      "from": "frontend/web/services/knowledge.service.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "KnowledgeService uses ApiClient"
+    },
+    {
+      "from": "frontend/web/services/user.service.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "UserService uses ApiClient"
+    },
+    {
+      "from": "frontend/web/services/analytics.service.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "AnalyticsService uses ApiClient"
+    },
+    {
+      "from": "frontend/web/services/feedback.service.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "FeedbackService uses ApiClient"
+    },
+    {
+      "from": "frontend/web/store/auth-store.ts",
+      "to": "frontend/web/services/auth.service.ts",
+      "type": "import",
+      "description": "Auth store uses AuthService for logout/logoutAll"
+    },
+    {
+      "from": "frontend/web/store/auth-store.ts",
+      "to": "frontend/web/lib/api.ts",
+      "type": "import",
+      "description": "Auth store uses API lib for token management"
+    },
+    {
+      "from": "frontend/web/app/page.tsx",
+      "to": "frontend/web/store/auth-store.ts",
+      "type": "import",
+      "description": "Chat page uses auth store"
+    },
+    {
+      "from": "frontend/web/app/page.tsx",
+      "to": "frontend/web/services/ai.service.ts",
+      "type": "import",
+      "description": "Chat page uses AI service"
+    },
+    {
+      "from": "frontend/web/app/login/page.tsx",
+      "to": "frontend/web/store/auth-store.ts",
+      "type": "import",
+      "description": "Login page uses auth store"
+    },
+    {
+      "from": "frontend/web/app/login/page.tsx",
+      "to": "frontend/web/services/auth.service.ts",
+      "type": "import",
+      "description": "Login page uses auth service"
+    },
+    {
+      "from": "frontend/web/components/layout/Sidebar.tsx",
+      "to": "frontend/web/store/auth-store.ts",
+      "type": "import",
+      "description": "Sidebar uses auth store for role-based menu"
+    },
+    {
+      "from": "frontend/web/components/layout/Header.tsx",
+      "to": "frontend/web/store/auth-store.ts",
+      "type": "import",
+      "description": "Header uses auth store for user info"
+    },
+    {
+      "from": "frontend/web/lib/api.ts",
+      "to": "frontend/web/services/api-client.ts",
+      "type": "import",
+      "description": "API lib uses ApiClient instance"
+    },
+    {
+      "from": "frontend/web/lib/api.ts",
+      "to": "frontend/web/types/",
+      "type": "import",
+      "description": "API lib imports all type definitions"
+    },
+    {
+      "from": "services/api-gateway/src/app.module.ts",
+      "to": "services/api-gateway/src/auth/auth.module.ts",
+      "type": "import",
+      "description": "Root module imports AuthModule"
+    },
+    {
+      "from": "services/api-gateway/src/app.module.ts",
+      "to": "services/api-gateway/src/proxy/proxy.module.ts",
+      "type": "import",
+      "description": "Root module imports ProxyModule"
+    },
+    {
+      "from": "services/api-gateway/src/app.module.ts",
+      "to": "services/api-gateway/src/health/health.module.ts",
+      "type": "import",
+      "description": "Root module imports HealthModule"
+    },
+    {
+      "from": "services/api-gateway/src/proxy/proxy.controller.ts",
+      "to": "services/api-gateway/src/proxy/proxy.service.ts",
+      "type": "import",
+      "description": "ProxyController uses ProxyService"
+    },
+    {
+      "from": "services/api-gateway/src/proxy/proxy.controller.ts",
+      "to": "services/api-gateway/src/common/guards/jwt-auth.guard.ts",
+      "type": "import",
+      "description": "ProxyController applies JwtAuthGuard globally"
+    },
+    {
+      "from": "services/api-gateway/src/proxy/proxy.controller.ts",
+      "to": "services/api-gateway/src/common/guards/rbac.guard.ts",
+      "type": "import",
+      "description": "ProxyController applies RolesGuard"
+    },
+    {
+      "from": "services/api-gateway/src/proxy/proxy.service.ts",
+      "to": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "type": "import",
+      "description": "ProxyService uses JwtAuthService for token injection"
+    },
+    {
+      "from": "services/api-gateway/src/auth/auth.module.ts",
+      "to": "services/api-gateway/src/auth/strategies/jwt.strategy.ts",
+      "type": "import",
+      "description": "AuthModule provides Passport JWT strategy"
+    },
+    {
+      "from": "services/api-gateway/src/auth/auth.module.ts",
+      "to": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "type": "import",
+      "description": "AuthModule provides JwtAuthService"
+    },
+    {
+      "from": "services/api-gateway/src/common/guards/jwt-auth.guard.ts",
+      "to": "services/api-gateway/src/auth/services/jwt-auth.service.ts",
+      "type": "import",
+      "description": "JwtAuthGuard uses JwtAuthService"
+    },
+    {
+      "from": "services/api-gateway/src/common/guards/jwt-auth.guard.ts",
+      "to": "services/api-gateway/src/common/interfaces/jwt-payload.interface.ts",
+      "type": "import",
+      "description": "JwtAuthGuard uses IJwtPayload interface"
+    },
+    {
+      "from": "services/api-gateway/src/common/interceptors/logging.interceptor.ts",
+      "to": "services/api-gateway/src/logging/winston.config.ts",
+      "type": "import",
+      "description": "LoggingInterceptor uses Winston logger"
+    },
+    {
+      "from": "services/api-gateway/src/health/health.controller.ts",
+      "to": "services/api-gateway/src/health/indicators/services.indicator.ts",
+      "type": "import",
+      "description": "HealthController uses ServicesIndicator"
+    },
+    {
+      "from": "services/api-gateway/src/common/interceptors/response-transform.interceptor.ts",
+      "to": "services/api-gateway/src/common/dto/api-response.dto.ts",
+      "type": "import",
+      "description": "ResponseTransformInterceptor uses ApiResponse"
+    }
+  ]
+}
