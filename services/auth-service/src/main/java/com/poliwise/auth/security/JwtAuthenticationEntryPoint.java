@@ -1,9 +1,13 @@
 package com.poliwise.auth.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
@@ -13,7 +17,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public JwtAuthenticationEntryPoint() {
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
@@ -21,12 +31,21 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-        Map<String, Object> body = Map.of(
-                "error", "Unauthorized",
-                "message", authException.getMessage() != null ? authException.getMessage() : "Authentication required",
-                "status", HttpServletResponse.SC_UNAUTHORIZED,
-                "path", request.getServletPath()
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "Unauthorized");
+        body.put("message", authException.getMessage() != null ? authException.getMessage() : "Full authentication is required to access this resource");
+        body.put("status", HttpServletResponse.SC_UNAUTHORIZED);
+        body.put("path", request.getServletPath());
+        body.put("method", request.getMethod());
+        body.put("timestamp", Instant.now().toString());
+
+        // Debug details
+        body.put("_debug", Map.of(
+                "remoteAddr", request.getRemoteAddr(),
+                "authExceptionType", authException.getClass().getSimpleName(),
+                "authExceptionMessage", authException.getMessage(),
+                "queryString", request.getQueryString()
+        ));
 
         objectMapper.writeValue(response.getOutputStream(), body);
     }
