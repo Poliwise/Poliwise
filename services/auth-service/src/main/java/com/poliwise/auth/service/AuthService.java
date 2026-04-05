@@ -72,7 +72,7 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request, ClientMetadata metadata) {
-        String identifier = normalize(request.identifier());
+        String identifier = normalize(request.username());
 
         Optional<User> candidate = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(identifier, identifier);
         if (candidate.isEmpty()) {

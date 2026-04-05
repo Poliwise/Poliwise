@@ -3,6 +3,8 @@ package com.poliwise.auth.entity;
 import com.poliwise.auth.enums.LoginStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -16,29 +18,17 @@ import java.util.UUID;
 @AllArgsConstructor
 public class LoginHistory {
 
-    /**
-     * ID của bản ghi login history UUID để đảm bảo unique trên distributed systems
-     */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /**
-     * ID của user thực hiện đăng nhập FK tới bảng users
-     */
     @Column(name = "user_id")
     private UUID userId;
 
-    /**
-     * Username dùng để login Lưu lại để audit ngay cả khi user bị xoá
-     */
     @Column(nullable = false)
     private String username;
 
-    /**
-     * Địa chỉ IP của client PostgreSQL dùng kiểu INET
-     */
-    @Column(name = "ip_address", columnDefinition = "INET")
+    @Column(name = "ip_address")
     private String ipAddress;
 
     /**
@@ -61,7 +51,7 @@ public class LoginHistory {
     /**
      * Trạng thái đăng nhập SUCCESS hoặc FAILED
      */
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false)
     private LoginStatus status;
 
