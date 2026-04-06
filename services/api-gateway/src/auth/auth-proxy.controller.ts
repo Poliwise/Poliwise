@@ -5,10 +5,12 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ProxyService, ServiceName } from '../proxy/proxy.service';
 import { Public } from '../common/decorators';
+import { JwtAuthGuard } from '../common/guards';
 
 @Controller('api/v1/auth')
 export class AuthProxyController {
@@ -38,6 +40,22 @@ export class AuthProxyController {
   @HttpCode(HttpStatus.OK)
   handleRefresh(@Req() request: Request) {
     const path = '/api/v1/auth/refresh';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  handleLogout(@Req() request: Request) {
+    const path = '/api/v1/auth/logout';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  handleLogoutAll(@Req() request: Request) {
+    const path = '/api/v1/auth/logout-all';
     return this.proxyService.forward(ServiceName.AUTH, request, path);
   }
 }
