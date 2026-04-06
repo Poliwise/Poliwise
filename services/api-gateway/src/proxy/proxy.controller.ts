@@ -19,6 +19,12 @@ function downstreamDocumentsPath(request: Request): string {
   return '/api/v1/documents' + (relative === '/' ? '' : relative);
 }
 
+/** Tách prefix gateway, giữ nguyên /api/v1/service-prefix/... cho downstream. */
+function downstreamPath(request: Request, prefix: string): string {
+  const relative = request.path.replace(new RegExp(`^${prefix}`), '') || '/';
+  return `${prefix}${relative === '/' ? '' : relative}`;
+}
+
 @Controller('api/v1')
 export class ProxyController {
   constructor(private readonly proxyService: ProxyService) {}
@@ -28,8 +34,11 @@ export class ProxyController {
   @All('users/*')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleUsers(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/users', '');
-    return this.proxyService.forward(ServiceName.USER, request, path);
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -71,38 +80,54 @@ export class ProxyController {
   @All('metadata/*')
   @Roles(UserRole.ADMIN)
   handleMetadata(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/metadata', '');
-    return this.proxyService.forward(ServiceName.METADATA, request, path);
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      downstreamPath(request, '/api/v1/metadata'),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('feedback/*')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleFeedback(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/feedback', '');
-    return this.proxyService.forward(ServiceName.FEEDBACK, request, path);
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/feedback'),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('analytics/*')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   handleAnalytics(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/analytics', '');
-    return this.proxyService.forward(ServiceName.FEEDBACK, request, path);
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/analytics'),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('ai/*')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleAI(@Req() request: Request) {
-    const path = request.url.replace('/api/v1/ai', '');
-    return this.proxyService.forward(ServiceName.FEEDBACK, request, path);
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/ai'),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('admin/*')
   @Roles(UserRole.ADMIN)
   handleAdmin(@Req() request: Request) {
-    return this.proxyService.forward(ServiceName.USER, request, request.url);
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/admin'),
+    );
   }
 }

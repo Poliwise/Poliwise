@@ -1,6 +1,6 @@
-package com.poliwise.knowledge.config;
+package com.poliwise.feedback.config;
 
-import com.poliwise.knowledge.security.JwtAuthenticationFilter;
+import com.poliwise.feedback.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
