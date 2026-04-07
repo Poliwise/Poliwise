@@ -120,7 +120,7 @@ frontend/web/
 ├── lib/
 ├── constants/
 ├── public/
-├── .env.local                 # NEXT_PUBLIC_API_URL=http://localhost:3001
+├── .env.local                 # NEXT_PUBLIC_API_URL=http://localhost:3000
 ├── package.json               # next 16.1.6, react 19.2.3, tailwindcss v4, zustand, axios
 └── pnpm-lock.yaml
 ```

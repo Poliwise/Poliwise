@@ -6,18 +6,22 @@ import com.poliwise.auth.dto.auth.JwtPayload;
 import com.poliwise.auth.dto.auth.LoginRequest;
 import com.poliwise.auth.dto.auth.RegisterRequest;
 import com.poliwise.auth.dto.auth.TokenResponse;
+import com.poliwise.auth.dto.event.UserRegisteredEvent;
 import com.poliwise.auth.entity.LoginHistory;
 import com.poliwise.auth.entity.User;
 import com.poliwise.auth.enums.AccountStatus;
 import com.poliwise.auth.enums.LoginStatus;
 import com.poliwise.auth.enums.UserRole;
+import com.poliwise.auth.event.AuthEventPublisher;
 import com.poliwise.auth.repository.LoginHistoryRepository;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
+import com.poliwise.auth.security.JwtAuthenticationToken;
 import io.jsonwebtoken.JwtException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -37,9 +41,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final AuthEventPublisher authEventPublisher;
 
     @Transactional
-    public AuthUserView register(RegisterRequest request) {
+    public AuthUserView register(RegisterRequest request, UUID registeredBy) {
         String normalizedUsername = normalize(request.username());
         String normalizedEmail = normalize(request.email());
 
@@ -67,7 +72,35 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-        return toUserView(savedUser);
+
+        publishUserRegisteredEvent(savedUser, registeredBy);
+
+        return toUserView(savedUser, registeredBy);
+    }
+
+    private void publishUserRegisteredEvent(User user, UUID registeredBy) {
+        try {
+            UserRegisteredEvent event;
+            if (registeredBy != null) {
+                event = UserRegisteredEvent.create(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getRole(),
+                        registeredBy
+                );
+            } else {
+                event = UserRegisteredEvent.createSelfRegistered(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getRole()
+                );
+            }
+            authEventPublisher.publishUserRegistered(event);
+        } catch (Exception e) {
+            // Log but don't fail the registration if event publishing fails
+        }
     }
 
     @Transactional
@@ -115,7 +148,7 @@ public class AuthService {
                 rawRefreshToken,
                 "Bearer",
                 jwtTokenProvider.getAccessTokenTtl().toSeconds(),
-                toUserView(user)
+                toUserView(user, null)
         );
     }
 
@@ -130,7 +163,7 @@ public class AuthService {
                 result.newRawToken(),
                 "Bearer",
                 jwtTokenProvider.getAccessTokenTtl().toSeconds(),
-                toUserView(result.user())
+                toUserView(result.user(), null)
         );
     }
 
@@ -227,15 +260,25 @@ public class AuthService {
         loginHistoryRepository.save(history);
     }
 
-    private AuthUserView toUserView(User user) {
+    private AuthUserView toUserView(User user, UUID registeredBy) {
         return new AuthUserView(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole(),
                 user.getStatus(),
-                user.getMustChangePassword()
+                user.getMustChangePassword(),
+                registeredBy
         );
+    }
+
+    public JwtAuthenticationToken extractToken(String rawToken) {
+        JwtPayload payload = jwtTokenProvider.verifyAccessToken(rawToken);
+        return new JwtAuthenticationToken(payload, rawToken, buildAuthorities(payload.role()));
+    }
+
+    private List<GrantedAuthority> buildAuthorities(UserRole role) {
+        return List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     private String normalize(String value) {
