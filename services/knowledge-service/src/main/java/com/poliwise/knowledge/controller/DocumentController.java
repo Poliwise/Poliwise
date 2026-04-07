@@ -1,115 +1,147 @@
 package com.poliwise.knowledge.controller;
 
-import com.poliwise.knowledge.dto.DocumentListResponse;
-import com.poliwise.knowledge.dto.DocumentSummaryDto;
-import com.poliwise.knowledge.dto.PaginationDto;
+import com.poliwise.knowledge.dto.*;
 import com.poliwise.knowledge.entity.Document;
-import com.poliwise.knowledge.enums.FileType;
-import com.poliwise.knowledge.enums.ProcessingStatus;
-import com.poliwise.knowledge.repository.DocumentRepository;
+import com.poliwise.knowledge.entity.DocumentVersion;
+import com.poliwise.knowledge.security.SecurityUtils;
+import com.poliwise.knowledge.security.UserRole;
+import com.poliwise.knowledge.service.DocumentService;
+import com.poliwise.knowledge.service.PolicyComparisonService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
-import java.util.Locale;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/documents")
-@RequiredArgsConstructor
 public class DocumentController {
 
-    private final DocumentRepository documentRepository;
+    private final DocumentService documentService;
+    private final PolicyComparisonService comparisonService;
 
-    @GetMapping
-    public DocumentListResponse list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "12") int limit,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status) {
-        int pageIndex = Math.max(0, page - 1);
-        int pageSize = Math.min(Math.max(1, limit), 100);
-        Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
-
-        Specification<Document> spec = (root, query, cb) -> cb.isNull(root.get("deletedAt"));
-
-        if (search != null && !search.isBlank()) {
-            String pat = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
-            spec = spec.and((root, query, cb) -> cb.or(
-                    cb.and(cb.isNotNull(root.get("originalFilename")),
-                            cb.like(cb.lower(root.get("originalFilename")), pat)),
-                    cb.and(cb.isNotNull(root.get("fileKey")), cb.like(cb.lower(root.get("fileKey")), pat))));
-        }
-
-        if (status != null && !status.isBlank()) {
-            String u = status.trim().toUpperCase(Locale.ROOT);
-            if ("PUBLISHED".equals(u)) {
-                spec = spec.and((root, query, cb) -> root.get("status").in(ProcessingStatus.READY, ProcessingStatus.INDEXED));
-            } else if ("DRAFT".equals(u)) {
-                spec = spec.and((root, query, cb) -> cb.not(
-                        root.get("status").in(ProcessingStatus.READY, ProcessingStatus.INDEXED)));
-            } else if ("ARCHIVED".equals(u) || "EXPIRED".equals(u)) {
-                spec = spec.and((root, query, cb) -> cb.equal(cb.literal(1), cb.literal(0)));
-            }
-        }
-
-        Page<Document> result = documentRepository.findAll(spec, pageable);
-        List<DocumentSummaryDto> data = result.getContent().stream().map(this::toDto).toList();
-        PaginationDto pagination = new PaginationDto(
-                pageIndex + 1,
-                pageSize,
-                result.getTotalElements(),
-                result.getTotalPages());
-        return new DocumentListResponse(data, pagination);
+    public DocumentController(DocumentService documentService, PolicyComparisonService comparisonService) {
+        this.documentService = documentService;
+        this.comparisonService = comparisonService;
     }
 
-    private DocumentSummaryDto toDto(Document d) {
-        String title = d.getOriginalFilename() != null && !d.getOriginalFilename().isBlank()
-                ? d.getOriginalFilename()
-                : (d.getFileKey() != null ? d.getFileKey() : d.getId().toString());
-        String fileName = d.getOriginalFilename() != null ? d.getOriginalFilename() : title;
-        long size = d.getFileSizeBytes() != null ? d.getFileSizeBytes() : 0L;
-        int ver = d.getCurrentVersion() != null ? d.getCurrentVersion() : 0;
-        String uploaded = d.getCreatedAt() != null ? d.getCreatedAt().toString() : "";
-        String updated = d.getUpdatedAt() != null ? d.getUpdatedAt().toString() : uploaded;
-        return new DocumentSummaryDto(
-                d.getId().toString(),
-                title,
-                fileName,
-                size,
-                toUiFileType(d.getFileType()),
-                toUiStatus(d.getStatus()),
-                ver,
-                uploaded,
-                updated);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentResponse> upload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "changelog", required = false, defaultValue = "") String changelog,
+            @RequestParam(value = "language", required = false, defaultValue = "vi") String language) {
+
+        UUID uploadedBy = SecurityUtils.getCurrentUserId();
+
+        UploadDocumentRequest request = new UploadDocumentRequest(
+                file.getOriginalFilename(),
+                detectFileType(file.getOriginalFilename()),
+                file.getSize(),
+                file.getContentType(),
+                null, null, null, null,
+                language
+        );
+
+        Document document = documentService.upload(file, request, uploadedBy);
+
+        // Start processing asynchronously
+        try {
+            documentService.processDocument(document.getId(), uploadedBy);
+        } catch (Exception e) {
+            // Processing will be retried or done async
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(document));
     }
 
-    private static String toUiFileType(FileType ft) {
-        if (ft == null) {
-            return "PDF";
-        }
-        return switch (ft) {
-            case JPEG -> "JPG";
-            case DOC -> "DOCX";
-            case XLS -> "XLSX";
-            case TXT -> "PDF";
-            default -> ft.getValue();
-        };
+    @GetMapping("/{documentId}")
+    public ResponseEntity<DocumentResponse> get(@PathVariable UUID documentId) {
+        return documentService.findById(documentId)
+                .map(this::toResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    private static String toUiStatus(ProcessingStatus s) {
-        if (s == null) {
-            return "DRAFT";
-        }
-        if (s == ProcessingStatus.READY || s == ProcessingStatus.INDEXED) {
-            return "PUBLISHED";
-        }
-        return "DRAFT";
+    @DeleteMapping("/{documentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable UUID documentId) {
+        UUID deletedBy = SecurityUtils.getCurrentUserId();
+        documentService.softDelete(documentId, deletedBy);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{documentId}/process")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> process(@PathVariable UUID documentId) {
+        UUID processedBy = SecurityUtils.getCurrentUserId();
+        documentService.processDocument(documentId, processedBy);
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/{documentId}/versions")
+    public ResponseEntity<List<DocumentVersionResponse>> versions(@PathVariable UUID documentId) {
+        List<DocumentVersionResponse> versions = documentService.getVersions(documentId)
+                .stream()
+                .map(this::toVersionResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(versions);
+    }
+
+    private DocumentResponse toResponse(Document d) {
+        return new DocumentResponse(
+                d.getId(),
+                d.getOriginalFilename(),
+                d.getFileType(),
+                d.getFileSizeBytes(),
+                d.getMimeType(),
+                d.getStatus(),
+                d.getCurrentVersion(),
+                d.getPageCount(),
+                d.getWordCount(),
+                d.getLanguage(),
+                d.getOcrRequired(),
+                d.getChunkingStrategy(),
+                d.getChunkSize(),
+                d.getChunkOverlap(),
+                d.getEmbeddingModel(),
+                d.getUploadedBy(),
+                d.getCreatedAt(),
+                d.getUpdatedAt()
+        );
+    }
+
+    private DocumentVersionResponse toVersionResponse(DocumentVersion v) {
+        return new DocumentVersionResponse(
+                v.getId(),
+                v.getDocumentId(),
+                v.getVersionNumber(),
+                v.getFileKey(),
+                v.getFileSizeBytes(),
+                v.getChangelog(),
+                v.getCreatedBy(),
+                v.getCreatedAt()
+        );
+    }
+
+    private com.poliwise.knowledge.enums.FileType detectFileType(String filename) {
+        if (filename == null) return com.poliwise.knowledge.enums.FileType.PDF;
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".pdf")) return com.poliwise.knowledge.enums.FileType.PDF;
+        if (lower.endsWith(".docx")) return com.poliwise.knowledge.enums.FileType.DOCX;
+        if (lower.endsWith(".xlsx")) return com.poliwise.knowledge.enums.FileType.XLSX;
+        if (lower.endsWith(".doc")) return com.poliwise.knowledge.enums.FileType.DOC;
+        if (lower.endsWith(".xls")) return com.poliwise.knowledge.enums.FileType.XLS;
+        if (lower.endsWith(".txt")) return com.poliwise.knowledge.enums.FileType.TXT;
+        if (lower.endsWith(".png")) return com.poliwise.knowledge.enums.FileType.PNG;
+        if (lower.endsWith(".jpg")) return com.poliwise.knowledge.enums.FileType.JPG;
+        if (lower.endsWith(".jpeg")) return com.poliwise.knowledge.enums.FileType.JPEG;
+        return com.poliwise.knowledge.enums.FileType.PDF;
     }
 }

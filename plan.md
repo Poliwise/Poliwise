@@ -6,8 +6,8 @@
 |---|---------|---------|---------|
 | 1 | **API Gateway** | ✅ 95% | Hoàn thiện. Chỉ thiếu endpoint `/circuit-breakers` trả về state |
 | 2 | **Auth Service** | ✅ **HOÀN THÀNH** | (1) Admin check bằng @PreAuthorize, (2) RabbitMQ event publishing (UserRegisteredEvent, UserStatusChangedEvent), (3) Unit tests viết xong (14 tests passed) |
-| 3 | **User Service** | ✅ 90% | Gần hoàn chỉnh. Thiếu: (1) file trùng, (2) init department data |
-| 4 | **Knowledge Service** | ⚠️ 30% | Chỉ có Entity/Repository/Enum. Thiếu hoàn toàn: Service, Controller, Upload, Parsing, Chunking, Embedding |
+| 3 | **User Service** | ✅ **HOÀN THÀNH** | (1) Không có file trùng, (2) Thêm DataInitializer tạo 8 departments mặc định (Engineering, HR, Finance, Legal, Operations, Marketing, IT, Admin) |
+| 4 | **Knowledge Service** | ✅ **HOÀN THÀNH** | (1) Thêm dependencies (PDFBox, POI, Tika, MinIO, WebFlux), (2) Tạo Config (MinioConfig, KnowledgeProperties, EmbeddingConfig, RabbitMQConfig), (3) Tạo DTO (Upload, Response, Version, Process, PolicyComparison), (4) Tạo Service (StorageService, DocumentParsingService, TextChunkingService, EmbeddingService, DocumentService, PolicyComparisonService), (5) Tạo Controller (upload, list, process, versions, compare) |
 | 5 | **Metadata Service** | ⚠️ 40% | Có Entity/Enum/Repository. Thiếu: Controller, Service, Scheduled job (expiration), DTO còn lại |
 | 6 | **Feedback Service** | ⚠️ 35% | Có Entity/Enum/Repository. Thiếu hoàn toàn: Controller, Service, DTO, RabbitMQ Consumer |
 | 7 | **Frontend** | ⚠️ 80% | UI pages đầy đủ. Thiếu: (1) duplicate API client, (2) charts placeholders, (3) hooks, (4) Error handling nâng cao |
