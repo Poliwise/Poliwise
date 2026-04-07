@@ -1,6 +1,7 @@
 package com.poliwise.metadata.repository;
 
 import com.poliwise.metadata.entity.Tag;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -18,9 +19,13 @@ public interface TagRepository extends JpaRepository<Tag, UUID>, JpaSpecificatio
 
     Optional<Tag> findByNameIgnoreCase(String name);
 
+    Optional<Tag> findBySlug(String slug);
+
     boolean existsBySlugIgnoreCase(String slug);
 
     boolean existsByNameIgnoreCase(String name);
+
+    List<Tag> findTopByOrderByUsageCountDesc();
 
     @Query("""
             select t

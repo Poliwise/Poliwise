@@ -35,10 +35,13 @@ public interface DocumentMetadataRepository extends JpaRepository<DocumentMetada
                           and dm.expiryDate is not null
                           and dm.expiryDate <= :date
                         """)
-        Page<DocumentMetadata> findExpiredDocuments(@Param("date") LocalDate date,
-                        Pageable pageable);
+        List<DocumentMetadata> findExpiredDocuments(@Param("date") LocalDate date);
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("select dm from DocumentMetadata dm where dm.id = :id")
         Optional<DocumentMetadata> findByIdForUpdate(@Param("id") UUID id);
+
+        List<DocumentMetadata> findByStatus(DocumentStatus status);
+
+        List<DocumentMetadata> findByCategoryId(UUID categoryId);
 }

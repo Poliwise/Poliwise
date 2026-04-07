@@ -8,7 +8,7 @@
 | 2 | **Auth Service** | ✅ **HOÀN THÀNH** | (1) Admin check bằng @PreAuthorize, (2) RabbitMQ event publishing (UserRegisteredEvent, UserStatusChangedEvent), (3) Unit tests viết xong (14 tests passed) |
 | 3 | **User Service** | ✅ **HOÀN THÀNH** | (1) Không có file trùng, (2) Thêm DataInitializer tạo 8 departments mặc định (Engineering, HR, Finance, Legal, Operations, Marketing, IT, Admin) |
 | 4 | **Knowledge Service** | ✅ **HOÀN THÀNH** | (1) Thêm dependencies (PDFBox, POI, Tika, MinIO, WebFlux), (2) Tạo Config (MinioConfig, KnowledgeProperties, EmbeddingConfig, RabbitMQConfig), (3) Tạo DTO (Upload, Response, Version, Process, PolicyComparison), (4) Tạo Service (StorageService, DocumentParsingService, TextChunkingService, EmbeddingService, DocumentService, PolicyComparisonService), (5) Tạo Controller (upload, list, process, versions, compare) |
-| 5 | **Metadata Service** | ⚠️ 40% | Có Entity/Enum/Repository. Thiếu: Controller, Service, Scheduled job (expiration), DTO còn lại |
+| 5 | **Metadata Service** | ✅ **HOÀN THÀNH** | (1) Xóa thư mục sai `oliwise`, (2) Tạo RabbitMQ config + events + consumer, (3) Tạo DTO (Tag, Category, AccessRule, Update), (4) Tạo Services (DocumentMetadata, Category, Tag, AccessRule), (5) Tạo Controllers (DocumentMetadata, Category, Tag, EventConsumer), (6) Tạo Scheduled job xử lý EXPIRED documents |
 | 6 | **Feedback Service** | ⚠️ 35% | Có Entity/Enum/Repository. Thiếu hoàn toàn: Controller, Service, DTO, RabbitMQ Consumer |
 | 7 | **Frontend** | ⚠️ 80% | UI pages đầy đủ. Thiếu: (1) duplicate API client, (2) charts placeholders, (3) hooks, (4) Error handling nâng cao |
 
@@ -87,7 +87,7 @@ Bước 1: Thêm dependencies còn thiếu vào pom.xml
 
 Bước 2: Tạo Config layer
   → MinioConfig.java — kết nối MinIO, tạo bucket
-  → EmbeddingConfig.java — c���u hình embedding API
+  → EmbeddingConfig.java — cấu hình embedding API
   → ChunkingConfig.java — cấu hình chunk size, overlap
 
 Bước 3: Tạo Service layer (5 services)
