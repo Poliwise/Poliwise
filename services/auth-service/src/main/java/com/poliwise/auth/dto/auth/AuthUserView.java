@@ -11,5 +11,6 @@ public record AuthUserView(
         String email,
         UserRole role,
         AccountStatus status,
-        @JsonProperty("mustChangePassword") Boolean mustChangePassword) {
+        @JsonProperty("mustChangePassword") Boolean mustChangePassword,
+        @JsonProperty("registeredBy") UUID registeredBy) {
 }
