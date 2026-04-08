@@ -2,7 +2,7 @@
 
 > Cập nhật: Tháng 4/2026
 > Nguồn đánh giá: Khám phá codebase thực tế tại thời điểm làm việc
-> **LƯU Ý QUAN TRỌNG:** feedback-service đã bị xóa hoàn toàn — cần tái tạo từ đầu dựa trên kế hoạch này.
+
 
 ---
 
