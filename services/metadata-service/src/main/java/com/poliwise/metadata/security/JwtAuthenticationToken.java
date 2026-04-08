@@ -1,7 +1,7 @@
 package com.poliwise.metadata.security;
 
+import com.poliwise.metadata.enums.UserRole;
 import com.poliwise.metadata.security.AccountStatus;
-import com.poliwise.metadata.security.UserRole;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

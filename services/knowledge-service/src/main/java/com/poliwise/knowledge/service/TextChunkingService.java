@@ -66,7 +66,7 @@ public class TextChunkingService {
             }
 
             start = end - overlap;
-            if (start <= chunks.isEmpty() ? 0 : chunks.get(chunks.size() - 1).start()) {
+            if (start <= (chunks.isEmpty() ? 0 : chunks.get(chunks.size() - 1).startChar())) {
                 start = end;
             }
         }
@@ -122,13 +122,13 @@ public class TextChunkingService {
                 if (!chunkText.isEmpty()) {
                     int chunkEnd = chunkStart + chunkText.length();
                     chunks.add(new Chunk(chunkIndex++, chunkStart, chunkEnd, chunkText));
+                    chunkStart = chunkEnd - overlap;
                 }
 
                 // Start new chunk with overlap
                 String overlapText = currentChunk.toString();
                 int overlapStart = Math.max(0, overlapText.length() - overlap);
                 currentChunk = new StringBuilder(overlapText.substring(overlapStart));
-                chunkStart = chunkEnd - overlap;
             }
 
             currentChunk.append(sentence).append(" ");
@@ -137,7 +137,8 @@ public class TextChunkingService {
         // Add remaining chunk
         String remaining = currentChunk.toString().trim();
         if (!remaining.isEmpty()) {
-            chunks.add(new Chunk(chunkIndex, chunkStart, chunkStart + remaining.length(), remaining));
+            int finalChunkEnd = chunkStart + remaining.length();
+            chunks.add(new Chunk(chunkIndex, chunkStart, finalChunkEnd, remaining));
         }
 
         log.info("Created {} chunks using SENTENCE strategy", chunks.size());
@@ -165,14 +166,15 @@ public class TextChunkingService {
                 // Finish current chunk
                 String chunkText = currentChunk.toString().trim();
                 if (!chunkText.isEmpty()) {
-                    chunks.add(new Chunk(chunkIndex++, charPosition, charPosition + chunkText.length(), chunkText));
+                    int chunkEnd = charPosition + chunkText.length();
+                    chunks.add(new Chunk(chunkIndex++, charPosition, chunkEnd, chunkText));
+                    charPosition = chunkEnd - overlap;
                 }
 
                 // Keep overlap
                 String overlapText = currentChunk.toString();
                 int overlapStart = Math.max(0, overlapText.length() - overlap);
                 currentChunk = new StringBuilder(overlapText.substring(overlapStart));
-                charPosition = charPosition + chunkText.length() - overlap;
             }
 
             currentChunk.append(paragraph).append("\n\n");
@@ -181,7 +183,8 @@ public class TextChunkingService {
         // Add remaining
         String remaining = currentChunk.toString().trim();
         if (!remaining.isEmpty()) {
-            chunks.add(new Chunk(chunkIndex, charPosition, charPosition + remaining.length(), remaining));
+            int finalChunkEnd = charPosition + remaining.length();
+            chunks.add(new Chunk(chunkIndex, charPosition, finalChunkEnd, remaining));
         }
 
         log.info("Created {} chunks using SEMANTIC strategy", chunks.size());

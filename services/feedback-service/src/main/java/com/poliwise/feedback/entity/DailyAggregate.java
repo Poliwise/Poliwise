@@ -4,42 +4,43 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "daily_aggregates", schema = "analytics")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "daily_aggregates", schema = "analytics")
 public class DailyAggregate {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Column(name = "date")
+    @Column(name = "date", nullable = false, unique = true)
     private LocalDate date;
 
     @Column(name = "total_questions")
-    private Integer totalQuestions;
+    private Integer totalQuestions = 0;
 
     @Column(name = "total_conversations")
-    private Integer totalConversations;
+    private Integer totalConversations = 0;
 
     @Column(name = "unique_users_asked")
-    private Integer uniqueUsersAsked;
+    private Integer uniqueUsersAsked = 0;
 
     @Column(name = "total_likes")
-    private Integer totalLikes;
+    private Integer totalLikes = 0;
 
     @Column(name = "total_dislikes")
-    private Integer totalDislikes;
+    private Integer totalDislikes = 0;
 
-    @Column(name = "feedback_ratio")
+    @Column(name = "feedback_ratio", precision = 5, scale = 4)
     private BigDecimal feedbackRatio;
 
     @Column(name = "avg_response_time_ms")
@@ -55,58 +56,58 @@ public class DailyAggregate {
     private Integer p99ResponseTimeMs;
 
     @Column(name = "total_requests")
-    private Integer totalRequests;
+    private Integer totalRequests = 0;
 
     @Column(name = "total_errors")
-    private Integer totalErrors;
+    private Integer totalErrors = 0;
 
-    @Column(name = "error_rate")
+    @Column(name = "error_rate", precision = 5, scale = 4)
     private BigDecimal errorRate;
 
     @Column(name = "total_tokens_used")
-    private Long totalTokensUsed;
+    private Long totalTokensUsed = 0L;
 
     @Column(name = "avg_tokens_per_question")
     private Integer avgTokensPerQuestion;
 
-    @Column(name = "avg_chunks_retrieved")
+    @Column(name = "avg_chunks_retrieved", precision = 5, scale = 2)
     private BigDecimal avgChunksRetrieved;
 
     @Column(name = "documents_uploaded")
-    private Integer documentsUploaded;
+    private Integer documentsUploaded = 0;
 
     @Column(name = "documents_published")
-    private Integer documentsPublished;
+    private Integer documentsPublished = 0;
 
     @Column(name = "unique_active_users")
-    private Integer uniqueActiveUsers;
+    private Integer uniqueActiveUsers = 0;
 
     @Column(name = "new_users")
-    private Integer newUsers;
+    private Integer newUsers = 0;
 
     @Column(name = "unanswered_questions")
-    private Integer unansweredQuestions;
+    private Integer unansweredQuestions = 0;
 
     @Column(name = "resolved_questions")
-    private Integer resolvedQuestions;
+    private Integer resolvedQuestions = 0;
 
     @Column(name = "computed_at")
-    private OffsetDateTime computedAt;
+    private Instant computedAt;
 
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
 
-
-    /* ===== Helper methods cho dashboard ===== */
-
-    public boolean hasErrors() {
-        return totalErrors != null && totalErrors > 0;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
+        updatedAt = Instant.now();
     }
 
-    public boolean hasLowFeedbackScore() {
-        return feedbackRatio != null && feedbackRatio.doubleValue() < 0.5;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
     }
 }

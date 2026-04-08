@@ -83,7 +83,7 @@ public class DocumentMetadataService {
                 DocumentTag dt = DocumentTag.builder()
                         .id(UUID.randomUUID())
                         .documentMetadataId(saved.getId())
-                        .tagId(tagId)
+                        .tag(tagRepository.findById(tagId).orElse(null))
                         .createdAt(now)
                         .build();
                 documentTagRepository.save(dt);
@@ -228,12 +228,11 @@ public class DocumentMetadataService {
 
         List<TagResponse> tags = documentTagRepository.findByDocumentMetadataId(metadata.getId())
                 .stream()
-                .map(dt -> tagRepository.findById(dt.getTagId())
-                        .map(tag -> new TagResponse(
-                                tag.getId(), tag.getName(), tag.getSlug(),
-                                tag.getColor(), tag.getUsageCount(), tag.getCreatedAt()))
-                        .orElse(null))
+                .map(dt -> dt.getTag() != null ? tagRepository.findById(dt.getTag().getId()).orElse(null) : null)
                 .filter(t -> t != null)
+                .map(tag -> new TagResponse(
+                        tag.getId(), tag.getName(), tag.getSlug(),
+                        tag.getColor(), tag.getUsageCount(), tag.getCreatedAt()))
                 .toList();
 
         List<AccessRuleResponse> rules = accessRuleRepository.findByDocumentMetadataId(metadata.getId())

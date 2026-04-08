@@ -3,70 +3,64 @@ package com.poliwise.feedback.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "document_popularity", schema = "analytics")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "document_popularity", schema = "analytics")
 public class DocumentPopularity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Column(name = "document_id")
+    @Column(name = "document_id", nullable = false, unique = true)
     private UUID documentId;
 
     @Column(name = "total_citations")
-    private Integer totalCitations;
+    private Integer totalCitations = 0;
 
     @Column(name = "unique_questions_cited")
-    private Integer uniqueQuestionsCited;
+    private Integer uniqueQuestionsCited = 0;
 
     @Column(name = "citations_with_likes")
-    private Integer citationsWithLikes;
+    private Integer citationsWithLikes = 0;
 
     @Column(name = "citations_with_dislikes")
-    private Integer citationsWithDislikes;
+    private Integer citationsWithDislikes = 0;
 
     @Column(name = "first_cited_at")
-    private OffsetDateTime firstCitedAt;
+    private Instant firstCitedAt;
 
     @Column(name = "last_cited_at")
-    private OffsetDateTime lastCitedAt;
+    private Instant lastCitedAt;
 
     @Column(name = "citations_last_7_days")
-    private Integer citationsLast7Days;
+    private Integer citationsLast7Days = 0;
 
     @Column(name = "citations_last_30_days")
-    private Integer citationsLast30Days;
+    private Integer citationsLast30Days = 0;
 
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
 
-
-    /* ===== Helper methods ===== */
-
-    public boolean isTrending() {
-        return citationsLast7Days != null && citationsLast7Days > 10;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
+        updatedAt = Instant.now();
     }
 
-    public double feedbackScore() {
-        if (citationsWithLikes == null || citationsWithDislikes == null)
-            return 0;
-
-        int total = citationsWithLikes + citationsWithDislikes;
-        if (total == 0)
-            return 0;
-
-        return (double) citationsWithLikes / total;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
     }
 }

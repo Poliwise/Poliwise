@@ -278,8 +278,8 @@ Use `docs/allow_per_role.md` as the source of truth for permission details.
 | knowledge-service | 8083 | |
 | metadata-service | 8084 | |
 | feedback-service | 8085 | |
-| api-gateway | 3000 | |
-| frontend | 3001 | |
+| api-gateway | 3001 | Single entry point for clients |
+| frontend | 3000 | Next.js web UI |
 
 All services share `poliwise-network` bridge network. Data volumes: `postgres_data`, `rabbitmq_data`.
 

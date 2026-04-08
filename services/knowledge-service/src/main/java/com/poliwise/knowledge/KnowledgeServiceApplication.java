@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-@EnableConfigurationProperties(KnowledgeProperties.class)
 public class KnowledgeServiceApplication {
 
 	public static void main(String[] args) {

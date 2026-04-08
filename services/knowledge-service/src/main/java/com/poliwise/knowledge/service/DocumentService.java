@@ -1,6 +1,7 @@
 package com.poliwise.knowledge.service;
 
 import com.poliwise.knowledge.config.KnowledgeProperties;
+import com.poliwise.knowledge.config.MinioConfig;
 import com.poliwise.knowledge.dto.event.DocumentUploadedEvent;
 import com.poliwise.knowledge.dto.ProcessDocumentRequest;
 import com.poliwise.knowledge.dto.UploadDocumentRequest;
@@ -95,7 +96,7 @@ public class DocumentService {
                 .fileSizeBytes(request.fileSizeBytes())
                 .mimeType(request.mimeType() != null ? request.mimeType() : file.getContentType())
                 .fileKey(fileKey)
-                .bucketName(StorageService.BUCKET_NAME)
+                .bucketName(MinioConfig.BUCKET_NAME)
                 .status(ProcessingStatus.UPLOADED)
                 .currentVersion(1)
                 .language(request.language() != null ? request.language() : "vi")

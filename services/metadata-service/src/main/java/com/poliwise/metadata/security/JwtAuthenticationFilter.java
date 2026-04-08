@@ -1,7 +1,7 @@
 package com.poliwise.metadata.security;
 
+import com.poliwise.metadata.enums.UserRole;
 import com.poliwise.metadata.security.AccountStatus;
-import com.poliwise.metadata.security.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;

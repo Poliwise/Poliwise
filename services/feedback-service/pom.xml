@@ -5,7 +5,6 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<!-- Spring Boot parent -->
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
@@ -13,19 +12,17 @@
 		<relativePath />
 	</parent>
 
-	<!-- Project information -->
 	<groupId>com.poliwise</groupId>
 	<artifactId>feedback-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>feedback-service</name>
-	<description>Feedback Microservice</description>
+	<description>Feedback and Analytics Microservice</description>
 
 	<properties>
 		<java.version>17</java.version>
 		<spring-cloud.version>2024.0.3</spring-cloud.version>
 	</properties>
 
-	<!-- Spring Cloud dependency management (required for OpenFeign) -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -101,6 +98,11 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- JWT token verification -->
 		<dependency>
@@ -123,14 +125,32 @@
 
 	</dependencies>
 
-	<!-- Build plugin -->
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
 			</plugin>
-			<!-- Load .env file into environment variables -->
 			<plugin>
 				<groupId>io.github.mjourard</groupId>
 				<artifactId>env-file-maven-plugin</artifactId>
