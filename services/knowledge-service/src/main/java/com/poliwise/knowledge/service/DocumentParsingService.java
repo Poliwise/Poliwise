@@ -5,6 +5,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,7 @@ public class DocumentParsingService {
         }
     }
 
-    private ParsingResult parseWord(InputStream inputStream) throws IOException {
+    private ParsingResult parseWord(InputStream inputStream) throws IOException, TikaException {
         // Use Apache Tika for DOC/DOCX extraction
         try (InputStream fis = inputStream) {
             String text = tika.parseToString(fis);
@@ -58,7 +59,7 @@ public class DocumentParsingService {
         }
     }
 
-    private ParsingResult parseExcel(InputStream inputStream) throws IOException {
+    private ParsingResult parseExcel(InputStream inputStream) throws IOException, TikaException {
         // Use Apache Tika for XLS/XLSX extraction
         try (InputStream fis = inputStream) {
             String text = tika.parseToString(fis);
@@ -74,7 +75,7 @@ public class DocumentParsingService {
         return new ParsingResult(text, 1, wordCount, false, null);
     }
 
-    private ParsingResult parseImage(InputStream inputStream) throws IOException {
+    private ParsingResult parseImage(InputStream inputStream) throws IOException, TikaException {
         // Use Tika for OCR-ready parsing
         String text = tika.parseToString(inputStream);
         int wordCount = countWords(text);

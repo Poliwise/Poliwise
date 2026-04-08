@@ -3,9 +3,8 @@ package com.poliwise.knowledge.config;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
-@Configuration
 @ConfigurationProperties(prefix = "knowledge")
 public class KnowledgeProperties {
 

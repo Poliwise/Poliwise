@@ -183,13 +183,15 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=analytics
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      POLIWISE_JWT_SECRET: poliwise-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256
+      POLIWISE_JWT_ISSUER: poliwise-auth-service
     ports:
       - "8085:8085"
     depends_on:

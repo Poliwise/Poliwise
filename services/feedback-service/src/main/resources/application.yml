@@ -1,0 +1,66 @@
+poliwise:
+  jwt:
+    secret: ${POLIWISE_JWT_SECRET:poliwise-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+    issuer: ${POLIWISE_JWT_ISSUER:poliwise-auth-service}
+  cleanup:
+    audit-retention-days: 90
+    report-expiry-days: 7
+    usage-stats-retention-days: 7
+    hourly-aggregate-retention-days: 30
+
+server:
+  port: 8085
+
+spring:
+  application:
+    name: feedback-service
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres?schema=analytics&pgbouncer=true}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres.yokxvdwwmibopyauwocp}
+    password: ${SPRING_DATASOURCE_PASSWORD:NguyenHuuTuDeThuong}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:fuji.lmq.cloudamqp.com}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:bjzoliga}
+    password: ${RABBITMQ_PASSWORD:aLAxD6PmQEYMM4kHhJrJXNTqZDh-I8kw}
+    virtual-host: ${RABBITMQ_VHOST:bjzoliga}
+
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+      thread-name-prefix: ReportExport-
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
