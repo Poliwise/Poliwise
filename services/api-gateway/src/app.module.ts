@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { createWinstonConfig } from './logging/winston.config';
 import {
@@ -15,7 +15,7 @@ import { AppController } from './app.controller';
 import { AuthModule } from './auth';
 import { ProxyModule } from './proxy';
 import { HealthModule } from './health';
-import { JwtAuthGuard, RolesGuard } from './common/guards';
+import { RolesGuard } from './common/guards';
 import { HttpExceptionFilter } from './common/filters';
 import {
   LoggingInterceptor,
@@ -47,14 +47,6 @@ import {
   controllers: [AppController],
   providers: [
     {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
-    {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
     },
@@ -78,6 +70,7 @@ import {
       provide: APP_INTERCEPTOR,
       useClass: RateLimitInterceptor,
     },
+    RolesGuard,
   ],
 })
 export class AppModule {}

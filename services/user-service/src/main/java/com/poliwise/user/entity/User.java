@@ -5,8 +5,6 @@ import com.poliwise.user.enums.UserRole;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
@@ -22,6 +20,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -46,12 +46,12 @@ public class User {
     @Column(nullable = false, length = 255)
     private String email;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(columnDefinition = "core.user_role", nullable = false)
     private UserRole role;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "account_status", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status", nullable = false)
     private AccountStatus accountStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -63,9 +63,6 @@ public class User {
             orphanRemoval = true)
     @ToString.Exclude
     private UserProfile profile;
-
-    @Column(name = "deleted_at")
-    private OffsetDateTime deletedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -86,29 +83,26 @@ public class User {
         updatedAt = OffsetDateTime.now();
     }
 
-    public boolean isDeleted() { return deletedAt != null; }
-    public boolean isActive()  { return accountStatus == AccountStatus.ACTIVE && deletedAt == null; }
+    public boolean isActive() { return accountStatus == AccountStatus.ACTIVE; }
 
     // Explicit accessors (Lombok processor does not generate them in this JDK 23 environment)
     public UUID           getId()           { return id; }
     public String         getUsername()     { return username; }
-    public String         getEmail()        { return email; }
-    public UserRole       getRole()         { return role; }
+    public String         getEmail()       { return email; }
+    public UserRole       getRole()        { return role; }
     public AccountStatus  getAccountStatus(){ return accountStatus; }
-    public Department     getDepartment()   { return department; }
-    public UserProfile   getProfile()       { return profile; }
-    public OffsetDateTime getDeletedAt()    { return deletedAt; }
-    public OffsetDateTime getCreatedAt()    { return createdAt; }
-    public OffsetDateTime getUpdatedAt()    { return updatedAt; }
+    public Department      getDepartment()  { return department; }
+    public UserProfile    getProfile()     { return profile; }
+    public OffsetDateTime getCreatedAt()   { return createdAt; }
+    public OffsetDateTime getUpdatedAt()   { return updatedAt; }
 
     public void setId(UUID id)                        { this.id = id; }
     public void setUsername(String v)                 { this.username = v; }
-    public void setEmail(String v)                    { this.email = v; }
+    public void setEmail(String v)                  { this.email = v; }
     public void setRole(UserRole v)                  { this.role = v; }
-    public void setAccountStatus(AccountStatus v)     { this.accountStatus = v; }
-    public void setDepartment(Department v)           { this.department = v; }
+    public void setAccountStatus(AccountStatus v)   { this.accountStatus = v; }
+    public void setDepartment(Department v)          { this.department = v; }
     public void setProfile(UserProfile v)            { this.profile = v; }
-    public void setDeletedAt(OffsetDateTime v)       { this.deletedAt = v; }
     public void setCreatedAt(OffsetDateTime v)       { this.createdAt = v; }
     public void setUpdatedAt(OffsetDateTime v)        { this.updatedAt = v; }
 
@@ -123,7 +117,6 @@ public class User {
         private AccountStatus accountStatus;
         private Department department;
         private UserProfile profile;
-        private OffsetDateTime deletedAt;
         private OffsetDateTime createdAt;
         private OffsetDateTime updatedAt;
 
@@ -134,7 +127,6 @@ public class User {
         public UserBuilder accountStatus(AccountStatus v) { this.accountStatus = v; return this; }
         public UserBuilder department(Department v)   { this.department = v; return this; }
         public UserBuilder profile(UserProfile v)     { this.profile = v; return this; }
-        public UserBuilder deletedAt(OffsetDateTime v) { this.deletedAt = v; return this; }
         public UserBuilder createdAt(OffsetDateTime v) { this.createdAt = v; return this; }
         public UserBuilder updatedAt(OffsetDateTime v) { this.updatedAt = v; return this; }
 
@@ -142,7 +134,7 @@ public class User {
             User u = new User();
             u.setId(id); u.setUsername(username); u.setEmail(email); u.setRole(role);
             u.setAccountStatus(accountStatus); u.setDepartment(department); u.setProfile(profile);
-            u.setDeletedAt(deletedAt); u.setCreatedAt(createdAt); u.setUpdatedAt(updatedAt);
+            u.setCreatedAt(createdAt); u.setUpdatedAt(updatedAt);
             return u;
         }
     }

@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poliwise - Codebase Map</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --bg-card-hover: #22222f;
+            --bg-code: #0d1117;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8b8b9e;
+            --text-muted: #5a5a6e;
+            --accent-cyan: #00d4ff;
+            --accent-purple: #a855f7;
+            --accent-pink: #ec4899;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --border-color: #2a2a3a;
+            --glow-cyan: rgba(0, 212, 255, 0.15);
+            --glow-purple: rgba(168, 85, 247, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 2rem;
+        }
+
+        .nav-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .nav-logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-link {
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-link.active {
+            background: var(--bg-card);
+            color: var(--accent-cyan);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 120px 2rem 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse 80% 50% at 50% -20%, var(--glow-cyan), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 60%, var(--glow-purple), transparent);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .hero-badge-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero h1 {
+            font-size: 4.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-cyan) 50%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 24px;
+            letter-spacing: -2px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 48px;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 48px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Section */
+        .section {
+            padding: 100px 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-cyan);
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .section-desc {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Architecture Diagram */
+        .arch-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 60px;
+            overflow-x: auto;
+        }
+
+        .arch-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            min-width: 900px;
+        }
+
+        .arch-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .arch-node {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            text-align: center;
+            min-width: 140px;
+            transition: all 0.3s;
+        }
+
+        .arch-node:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
+        }
+
+        .arch-node.frontend {
+            border-color: var(--accent-orange);
+        }
+
+        .arch-node.gateway {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .arch-node.service {
+            border-color: var(--accent-purple);
+        }
+
+        .arch-node.database {
+            border-color: var(--accent-green);
+        }
+
+        .arch-node-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .arch-node-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .arch-node-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .arch-arrow {
+            color: var(--text-muted);
+            font-size: 1.5rem;
+        }
+
+        .arch-arrow-down {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+        }
+
+        .arch-services-row {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .arch-db-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .arch-db-node {
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-green);
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 12px 40px rgba(0, 212, 255, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .card-type {
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .card-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-code);
+            padding: 8px 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* API Table */
+        .api-table-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .api-table th,
+        .api-table td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .api-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .api-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .api-table tr:hover td {
+            background: var(--bg-card-hover);
+        }
+
+        .method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .method.GET { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .method.POST { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+        .method.PUT { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
+        .method.PATCH { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        .method.DELETE { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+
+        .auth-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .auth-badge.public { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .auth-badge.required { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+        .auth-badge.manager { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        .auth-badge.admin { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+
+        .api-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        /* Database Schema */
+        .db-schemas {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .db-schema {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .db-schema-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .db-schema-icon {
+            font-size: 1.5rem;
+        }
+
+        .db-schema-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .db-schema-service {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 6px;
+        }
+
+        .db-tables {
+            padding: 16px;
+        }
+
+        .db-table {
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .db-table:last-child {
+            margin-bottom: 0;
+        }
+
+        .db-table-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .db-table-name::before {
+            content: '📋';
+        }
+
+        .db-table-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .db-columns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .db-column {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            background: var(--bg-code);
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        /* Dependencies Graph */
+        .deps-list {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .dep-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        .dep-item:last-child {
+            border-bottom: none;
+        }
+
+        .dep-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .dep-from, .dep-to {
+            flex: 1;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            background: var(--bg-code);
+            border-radius: 6px;
+        }
+
+        .dep-from {
+            color: var(--accent-orange);
+        }
+
+        .dep-to {
+            color: var(--accent-cyan);
+        }
+
+        .dep-type {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .dep-type.http { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+        .dep-type.database { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .dep-type.event { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        .dep-type.import { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
+
+        .dep-arrow {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        /* Functions Table */
+        .func-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .func-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .func-card:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+        }
+
+        .func-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+        }
+
+        .func-sig {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-code);
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+        }
+
+        .func-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Language Stats */
+        .lang-stats {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .lang-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+        }
+
+        .lang-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .lang-dot.ts { background: #3178c6; }
+        .lang-dot.js { background: #f7df1e; }
+        .lang-dot.java { background: #007396; }
+        .lang-dot.css { background: #264de4; }
+        .lang-dot.sql { background: #336791; }
+        .lang-dot.yaml { background: #cb171e; }
+        .lang-dot.md { background: #083fa1; }
+
+        .lang-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 60px 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-stats {
+                gap: 24px;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .func-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        /* Tab System */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 32px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            border-color: var(--accent-cyan);
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(168, 85, 247, 0.1));
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Filter */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-content">
+            <div class="nav-logo">
+                <div class="nav-logo-icon">P</div>
+                <span>Poliwise</span>
+            </div>
+            <div class="nav-links">
+                <a href="#overview" class="nav-link active">Tổng Quan</a>
+                <a href="#architecture" class="nav-link">Kiến Trúc</a>
+                <a href="#files" class="nav-link">Files</a>
+                <a href="#apis" class="nav-link">APIs</a>
+                <a href="#database" class="nav-link">Database</a>
+                <a href="#functions" class="nav-link">Functions</a>
+                <a href="#dependencies" class="nav-link">Dependencies</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="overview">
+        <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            Microservices Architecture
+        </div>
+        <h1>Poliwise</h1>
+        <p class="hero-subtitle">
+            Hệ thống AI Q&A dựa trên tài liệu với kiến trúc Microservices hiện đại.
+            Built với Next.js, NestJS, và Spring Boot.
+        </p>
+        <div class="hero-stats">
+            <div class="stat">
+                <div class="stat-value">257</div>
+                <div class="stat-label">Total Files</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">43</div>
+                <div class="stat-label">Classes</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">46</div>
+                <div class="stat-label">API Endpoints</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">20</div>
+                <div class="stat-label">Database Tables</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Languages -->
+    <section class="section">
+        <div class="section-header">
+            <div class="section-tag">Technologies</div>
+            <h2 class="section-title">Ngôn Ngữ Lập Trình</h2>
+        </div>
+        <div class="lang-stats">
+            <div class="lang-item">
+                <div class="lang-dot ts"></div>
+                <span class="lang-name">TypeScript</span>
+            </div>
+            <div class="lang-item">
+                <div class="lang-dot js"></div>
+                <span class="lang-name">JavaScript</span>
+            </div>
+            <div class="lang-item">
+                <div class="lang-dot java"></div>
+                <span class="lang-name">Java</span>
+            </div>
+            <div class="lang-item">
+                <div class="lang-dot css"></div>
+                <span class="lang-name">CSS</span>
+            </div>
+            <div class="lang-item">
+                <div class="lang-dot sql"></div>
+                <span class="lang-name">SQL</span>
+            </div>
+            <div class="lang-item">
+                <div class="lang-dot yaml"></div>
+                <span class="lang-name">YAML</span>
+            </div>
+            <div class="lang-item">
+                <div class="lang-dot md"></div>
+                <span class="lang-name">Markdown</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture -->
+    <section class="section" id="architecture">
+        <div class="section-header">
+            <div class="section-tag">System Design</div>
+            <h2 class="section-title">Kiến Trúc Hệ Thống</h2>
+            <p class="section-desc">Mô hình Microservices với API Gateway pattern</p>
+        </div>
+
+        <div class="arch-diagram">
+            <div class="arch-grid">
+                <!-- Frontend -->
+                <div class="arch-row">
+                    <div class="arch-node frontend">
+                        <div class="arch-node-icon">🌐</div>
+                        <div class="arch-node-name">Frontend</div>
+                        <div class="arch-node-desc">Next.js 16</div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow-down">⬇️ HTTP</div>
+                
+                <!-- API Gateway -->
+                <div class="arch-row">
+                    <div class="arch-node gateway">
+                        <div class="arch-node-icon">🚪</div>
+                        <div class="arch-node-name">API Gateway</div>
+                        <div class="arch-node-desc">NestJS | Port 3000</div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow-down">⬇️ Proxy</div>
+                
+                <!-- Services -->
+                <div class="arch-row">
+                    <div class="arch-services-row">
+                        <div class="arch-node service">
+                            <div class="arch-node-icon">🔐</div>
+                            <div class="arch-node-name">Auth</div>
+                            <div class="arch-node-desc">Port 8081</div>
+                        </div>
+                        <div class="arch-node service">
+                            <div class="arch-node-icon">👤</div>
+                            <div class="arch-node-name">User</div>
+                            <div class="arch-node-desc">Port 8082</div>
+                        </div>
+                        <div class="arch-node service">
+                            <div class="arch-node-icon">📄</div>
+                            <div class="arch-node-name">Knowledge</div>
+                            <div class="arch-node-desc">Port 8083</div>
+                        </div>
+                        <div class="arch-node service">
+                            <div class="arch-node-icon">🏷️</div>
+                            <div class="arch-node-name">Metadata</div>
+                            <div class="arch-node-desc">Port 8084</div>
+                        </div>
+                        <div class="arch-node service">
+                            <div class="arch-node-icon">📊</div>
+                            <div class="arch-node-name">Feedback</div>
+                            <div class="arch-node-desc">Port 8085</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow-down">⬇️</div>
+                
+                <!-- Databases -->
+                <div class="arch-row">
+                    <div class="arch-db-row">
+                        <div class="arch-db-node">core.*</div>
+                        <div class="arch-db-node">knowledge.*</div>
+                        <div class="arch-db-node">metadata.*</div>
+                        <div class="arch-db-node">analytics.*</div>
+                        <div class="arch-db-node">conversation.*</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Files -->
+    <section class="section" id="files">
+        <div class="section-header">
+            <div class="section-tag">Source Code</div>
+            <h2 class="section-title">Cấu Trúc Files</h2>
+            <p class="section-desc">Tất cả files quan trọng trong codebase</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('all-files')">Tất Cả (73)</button>
+            <button class="tab" onclick="showTab('frontend-files')">Frontend (40)</button>
+            <button class="tab" onclick="showTab('gateway-files')">API Gateway (25)</button>
+            <button class="tab" onclick="showTab('java-files')">Java Services (30)</button>
+        </div>
+
+        <div id="all-files" class="tab-content active">
+            <div class="cards-grid" id="all-files-grid"></div>
+        </div>
+        <div id="frontend-files" class="tab-content">
+            <div class="cards-grid" id="frontend-files-grid"></div>
+        </div>
+        <div id="gateway-files" class="tab-content">
+            <div class="cards-grid" id="gateway-files-grid"></div>
+        </div>
+        <div id="java-files" class="tab-content">
+            <div class="cards-grid" id="java-files-grid"></div>
+        </div>
+    </section>
+
+    <!-- APIs -->
+    <section class="section" id="apis">
+        <div class="section-header">
+            <div class="section-tag">REST API</div>
+            <h2 class="section-title">API Endpoints</h2>
+            <p class="section-desc">Tất cả REST API endpoints của hệ thống</p>
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterAPI('all')">Tất Cả</button>
+            <button class="filter-btn" onclick="filterAPI('public')">Public</button>
+            <button class="filter-btn" onclick="filterAPI('auth')">Auth Required</button>
+            <button class="filter-btn" onclick="filterAPI('manager')">Manager+</button>
+            <button class="filter-btn" onclick="filterAPI('admin')">Admin Only</button>
+        </div>
+
+        <div class="api-table-wrapper">
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Auth</th>
+                        <th>Service</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="api-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Database -->
+    <section class="section" id="database">
+        <div class="section-header">
+            <div class="section-tag">Data Layer</div>
+            <h2 class="section-title">Cấu Trúc Database</h2>
+            <p class="section-desc">Database schemas và tables theo kiến trúc microservices</p>
+        </div>
+
+        <div class="db-schemas" id="db-schemas"></div>
+    </section>
+
+    <!-- Functions -->
+    <section class="section" id="functions">
+        <div class="section-header">
+            <div class="section-tag">Code Analysis</div>
+            <h2 class="section-title">Functions & Methods</h2>
+            <p class="section-desc">Các functions và methods chính trong codebase</p>
+        </div>
+
+        <div class="func-grid" id="func-grid"></div>
+    </section>
+
+    <!-- Dependencies -->
+    <section class="section" id="dependencies">
+        <div class="section-header">
+            <div class="section-tag">Relationships</div>
+            <h2 class="section-title">Dependencies</h2>
+            <p class="section-desc">Các mối quan hệ phụ thuộc giữa modules</p>
+        </div>
+
+        <div class="deps-list" id="deps-list"></div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Poliwise Codebase Map &bull; Generated 2026-04-05 &bull; 257 files analyzed</p>
+    </footer>
+
+    <script>
+        // JSON Data
+        const data = {
+  "meta": {
+    "generated": "2026-04-05",
+    "project": "Poliwise",
+    "totalFiles": 257,
+    "languages": ["TypeScript", "JavaScript", "Java", "CSS", "SQL", "YAML", "Markdown"]
+  },
+  "files": [
+    {"path": "frontend/web/services/api-client.ts", "type": "service", "language": "typescript", "description": "Axios client wrapper với interceptors"},
+    {"path": "frontend/web/services/auth.service.ts", "type": "service", "language": "typescript", "description": "Authentication service"},
+    {"path": "frontend/web/services/ai.service.ts", "type": "service", "language": "typescript", "description": "AI chat service"},
+    {"path": "frontend/web/services/knowledge.service.ts", "type": "service", "language": "typescript", "description": "Document management"},
+    {"path": "frontend/web/services/user.service.ts", "type": "service", "language": "typescript", "description": "User profile management"},
+    {"path": "frontend/web/services/analytics.service.ts", "type": "service", "language": "typescript", "description": "Analytics service"},
+    {"path": "frontend/web/services/feedback.service.ts", "type": "service", "language": "typescript", "description": "Feedback service"},
+    {"path": "frontend/web/store/auth-store.ts", "type": "store", "language": "typescript", "description": "Zustand auth store"},
+    {"path": "frontend/web/lib/api.ts", "type": "service", "language": "typescript", "description": "Legacy API client"},
+    {"path": "frontend/web/app/page.tsx", "type": "page", "language": "typescript", "route": "/", "description": "Chat page"},
+    {"path": "frontend/web/app/login/page.tsx", "type": "page", "language": "typescript", "route": "/login", "description": "Login page"},
+    {"path": "frontend/web/app/documents/page.tsx", "type": "page", "language": "typescript", "route": "/documents", "description": "Documents page"},
+    {"path": "frontend/web/app/profile/page.tsx", "type": "page", "language": "typescript", "route": "/profile", "description": "Profile page"},
+    {"path": "frontend/web/app/analytics/page.tsx", "type": "page", "language": "typescript", "route": "/analytics", "description": "Analytics page"},
+    {"path": "frontend/web/app/admin/users/page.tsx", "type": "page", "language": "typescript", "route": "/admin/users", "description": "Admin users page"},
+    {"path": "frontend/web/components/layout/MainLayout.tsx", "type": "component", "language": "typescript", "description": "Main layout"},
+    {"path": "frontend/web/components/layout/Header.tsx", "type": "component", "language": "typescript", "description": "Header component"},
+    {"path": "frontend/web/components/layout/Sidebar.tsx", "type": "component", "language": "typescript", "description": "Sidebar component"},
+    {"path": "frontend/web/components/ui/loading/LoadingScreen.tsx", "type": "component", "language": "typescript", "description": "Loading screen"},
+    {"path": "frontend/web/types/auth.ts", "type": "types", "language": "typescript", "description": "Auth types"},
+    {"path": "frontend/web/types/ai.ts", "type": "types", "language": "typescript", "description": "AI types"},
+    {"path": "frontend/web/types/document.ts", "type": "types", "language": "typescript", "description": "Document types"},
+    {"path": "frontend/web/types/analytics.ts", "type": "types", "language": "typescript", "description": "Analytics types"},
+    {"path": "frontend/web/interfaces/enums/core/user-role.enum.ts", "type": "enum", "language": "typescript", "description": "User role enum"},
+    {"path": "frontend/web/interfaces/enums/core/account-status.enum.ts", "type": "enum", "language": "typescript", "description": "Account status enum"},
+    {"path": "frontend/web/interfaces/enums/knowledge/file-type.enum.ts", "type": "enum", "language": "typescript", "description": "File type enum"},
+    {"path": "frontend/web/interfaces/enums/analytics/feedback-type.enum.ts", "type": "enum", "language": "typescript", "description": "Feedback type enum"},
+    {"path": "frontend/web/interfaces/enums/metadata/access-level.enum.ts", "type": "enum", "language": "typescript", "description": "Access level enum"},
+    {"path": "services/api-gateway/src/main.ts", "type": "bootstrap", "language": "typescript", "description": "NestJS bootstrap"},
+    {"path": "services/api-gateway/src/app.module.ts", "type": "module", "language": "typescript", "description": "Root module"},
+    {"path": "services/api-gateway/src/app.controller.ts", "type": "controller", "language": "typescript", "description": "Root controller"},
+    {"path": "services/api-gateway/src/proxy/proxy.module.ts", "type": "module", "language": "typescript", "description": "Proxy module"},
+    {"path": "services/api-gateway/src/proxy/proxy.controller.ts", "type": "controller", "language": "typescript", "description": "Proxy controller"},
+    {"path": "services/api-gateway/src/proxy/proxy.service.ts", "type": "service", "language": "typescript", "description": "Proxy service"},
+    {"path": "services/api-gateway/src/auth/auth.module.ts", "type": "module", "language": "typescript", "description": "Auth module"},
+    {"path": "services/api-gateway/src/auth/strategies/jwt.strategy.ts", "type": "strategy", "language": "typescript", "description": "JWT strategy"},
+    {"path": "services/api-gateway/src/auth/services/jwt-auth.service.ts", "type": "service", "language": "typescript", "description": "JWT auth service"},
+    {"path": "services/api-gateway/src/common/guards/jwt-auth.guard.ts", "type": "guard", "language": "typescript", "description": "JWT guard"},
+    {"path": "services/api-gateway/src/common/guards/rbac.guard.ts", "type": "guard", "language": "typescript", "description": "RBAC guard"},
+    {"path": "services/api-gateway/src/common/interceptors/logging.interceptor.ts", "type": "interceptor", "language": "typescript", "description": "Logging interceptor"},
+    {"path": "services/api-gateway/src/common/interceptors/trace-id.interceptor.ts", "type": "interceptor", "language": "typescript", "description": "Trace ID interceptor"},
+    {"path": "services/api-gateway/src/common/interceptors/response-transform.interceptor.ts", "type": "interceptor", "language": "typescript", "description": "Response transform"},
+    {"path": "services/api-gateway/src/common/decorators/roles.decorator.ts", "type": "decorator", "language": "typescript", "description": "@Roles decorator"},
+    {"path": "services/api-gateway/src/common/decorators/public.decorator.ts", "type": "decorator", "language": "typescript", "description": "@Public decorator"},
+    {"path": "services/api-gateway/src/common/decorators/current-user.decorator.ts", "type": "decorator", "language": "typescript", "description": "@CurrentUser decorator"},
+    {"path": "services/api-gateway/src/health/health.module.ts", "type": "module", "language": "typescript", "description": "Health module"},
+    {"path": "services/api-gateway/src/health/health.controller.ts", "type": "controller", "language": "typescript", "description": "Health controller"},
+    {"path": "services/api-gateway/src/config/configuration.ts", "type": "config", "language": "typescript", "description": "Configuration"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/controller/AuthController.java", "type": "controller", "language": "java", "description": "Auth controller"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java", "type": "service", "language": "java", "description": "Auth service"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/service/JwtTokenProvider.java", "type": "service", "language": "java", "description": "JWT provider"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/entity/User.java", "type": "entity", "language": "java", "description": "User entity"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/entity/LoginHistory.java", "type": "entity", "language": "java", "description": "Login history entity"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/security/JwtAuthenticationFilter.java", "type": "filter", "language": "java", "description": "JWT filter"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/enums/UserRole.java", "type": "enum", "language": "java", "description": "User role enum"},
+    {"path": "services/auth-service/src/main/java/com/poliwise/auth/enums/AccountStatus.java", "type": "enum", "language": "java", "description": "Account status enum"},
+    {"path": "services/user-service/src/main/java/com/poliwise/user/controller/UserController.java", "type": "controller", "language": "java", "description": "User controller"},
+    {"path": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java", "type": "service", "language": "java", "description": "User service"},
+    {"path": "services/user-service/src/main/java/com/poliwise/user/entity/UserProfile.java", "type": "entity", "language": "java", "description": "User profile entity"},
+    {"path": "services/user-service/src/main/java/com/poliwise/user/entity/Department.java", "type": "entity", "language": "java", "description": "Department entity"},
+    {"path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/Document.java", "type": "entity", "language": "java", "description": "Document entity"},
+    {"path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/DocumentVersion.java", "type": "entity", "language": "java", "description": "Document version entity"},
+    {"path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/ProcessingJob.java", "type": "entity", "language": "java", "description": "Processing job entity"},
+    {"path": "services/knowledge-service/src/main/java/com/poliwise/knowledge/entity/Chunk.java", "type": "entity", "language": "java", "description": "Chunk entity"},
+    {"path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentMetadata.java", "type": "entity", "language": "java", "description": "Metadata entity"},
+    {"path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/DocumentAccessRule.java", "type": "entity", "language": "java", "description": "Access rule entity"},
+    {"path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/Category.java", "type": "entity", "language": "java", "description": "Category entity"},
+    {"path": "services/metadata-service/src/main/java/com/poliwise/metadata/entity/Tag.java", "type": "entity", "language": "java", "description": "Tag entity"},
+    {"path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/Feedback.java", "type": "entity", "language": "java", "description": "Feedback entity"},
+    {"path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/UnansweredQuestion.java", "type": "entity", "language": "java", "description": "Unanswered question entity"},
+    {"path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/AuditLog.java", "type": "entity", "language": "java", "description": "Audit log entity"},
+    {"path": "services/feedback-service/src/main/java/com/poliwise/feedback/entity/DailyAggregate.java", "type": "entity", "language": "java", "description": "Daily aggregate entity"}
+  ],
+  "functions": [
+    {"name": "ApiClient.get", "file": "frontend/web/services/api-client.ts", "signature": "get<T>(url, config?): Promise<T>", "description": "HTTP GET request"},
+    {"name": "ApiClient.post", "file": "frontend/web/services/api-client.ts", "signature": "post<T>(url, data?, config?): Promise<T>", "description": "HTTP POST request"},
+    {"name": "ApiClient.upload", "file": "frontend/web/services/api-client.ts", "signature": "upload<T>(url, formData, onProgress?): Promise<T>", "description": "File upload with progress"},
+    {"name": "AuthService.login", "file": "frontend/web/services/auth.service.ts", "signature": "login(credentials): Promise<LoginResponse>", "description": "Authenticate user"},
+    {"name": "AuthService.register", "file": "frontend/web/services/auth.service.ts", "signature": "register(data): Promise<AuthUserView>", "description": "Register new user"},
+    {"name": "AuthService.refreshToken", "file": "frontend/web/services/auth.service.ts", "signature": "refreshToken(token): Promise<TokenResponse>", "description": "Refresh access token"},
+    {"name": "AuthService.logout", "file": "frontend/web/services/auth.service.ts", "signature": "logout(): Promise<void>", "description": "Logout current session"},
+    {"name": "AuthService.logoutAll", "file": "frontend/web/services/auth.service.ts", "signature": "logoutAll(): Promise<void>", "description": "Logout all sessions"},
+    {"name": "AuthService.getSessions", "file": "frontend/web/services/auth.service.ts", "signature": "getSessions(): Promise<Session[]>", "description": "Get active sessions"},
+    {"name": "AIService.sendMessage", "file": "frontend/web/services/ai.service.ts", "signature": "sendMessage(question, conversationId?): Promise<QuestionResponse>", "description": "Send question to AI"},
+    {"name": "AIService.getConversations", "file": "frontend/web/services/ai.service.ts", "signature": "getConversations(params?): Promise<PaginatedResponse<Conversation>>", "description": "Get all conversations"},
+    {"name": "AIService.getMessages", "file": "frontend/web/services/ai.service.ts", "signature": "getMessages(conversationId): Promise<Message[]>", "description": "Get messages"},
+    {"name": "AIService.deleteConversation", "file": "frontend/web/services/ai.service.ts", "signature": "deleteConversation(id): Promise<void>", "description": "Delete conversation"},
+    {"name": "AIService.clearHistory", "file": "frontend/web/services/ai.service.ts", "signature": "clearHistory(): Promise<void>", "description": "Clear conversation history"},
+    {"name": "KnowledgeService.getDocuments", "file": "frontend/web/services/knowledge.service.ts", "signature": "getDocuments(params?): Promise<PaginatedResponse<Document>>", "description": "Get documents with filters"},
+    {"name": "KnowledgeService.uploadDocument", "file": "frontend/web/services/knowledge.service.ts", "signature": "uploadDocument(file, metadata?): Promise<Document>", "description": "Upload document"},
+    {"name": "KnowledgeService.updateDocument", "file": "frontend/web/services/knowledge.service.ts", "signature": "updateDocument(id, data): Promise<Document>", "description": "Update document"},
+    {"name": "KnowledgeService.deleteDocument", "file": "frontend/web/services/knowledge.service.ts", "signature": "deleteDocument(id): Promise<void>", "description": "Delete document"},
+    {"name": "KnowledgeService.searchDocuments", "file": "frontend/web/services/knowledge.service.ts", "signature": "searchDocuments(query, filters?): Promise<SearchResult[]>", "description": "Search documents"},
+    {"name": "UserService.getMyProfile", "file": "frontend/web/services/user.service.ts", "signature": "getMyProfile(): Promise<User>", "description": "Get current user profile"},
+    {"name": "UserService.updateMyProfile", "file": "frontend/web/services/user.service.ts", "signature": "updateMyProfile(data): Promise<User>", "description": "Update own profile"},
+    {"name": "UserService.searchUsers", "file": "frontend/web/services/user.service.ts", "signature": "searchUsers(params?): Promise<PaginatedResponse<User>>", "description": "Search users"},
+    {"name": "UserService.updateUserStatus", "file": "frontend/web/services/user.service.ts", "signature": "updateUserStatus(userId, status): Promise<User>", "description": "Change user status"},
+    {"name": "AnalyticsService.getOverview", "file": "frontend/web/services/analytics.service.ts", "signature": "getOverview(params?): Promise<AnalyticsOverview>", "description": "Get analytics overview"},
+    {"name": "AnalyticsService.exportReport", "file": "frontend/web/services/analytics.service.ts", "signature": "exportReport(params): Promise<ExportJob>", "description": "Export analytics report"},
+    {"name": "FeedbackService.submitFeedback", "file": "frontend/web/services/feedback.service.ts", "signature": "submitFeedback(data): Promise<Feedback>", "description": "Submit feedback"},
+    {"name": "FeedbackService.getUnansweredQuestions", "file": "frontend/web/services/feedback.service.ts", "signature": "getUnansweredQuestions(params?): Promise<PaginatedResponse<UnansweredQuestion>>", "description": "Get unanswered questions"},
+    {"name": "FeedbackService.answerQuestion", "file": "frontend/web/services/feedback.service.ts", "signature": "answerQuestion(id, answer): Promise<UnansweredQuestion>", "description": "Answer question"},
+    {"name": "ProxyService.forward", "file": "services/api-gateway/src/proxy/proxy.service.ts", "signature": "forward(service, path, method, body, headers): Promise<any>", "description": "Forward request to service"},
+    {"name": "JwtAuthService.verifyToken", "file": "services/api-gateway/src/auth/services/jwt-auth.service.ts", "signature": "verifyToken(token): Promise<IJwtPayload>", "description": "Verify JWT token"},
+    {"name": "JwtAuthService.buildUserContext", "file": "services/api-gateway/src/auth/services/jwt-auth.service.ts", "signature": "buildUserContext(payload): IUserContext", "description": "Build user context"},
+    {"name": "JwtTokenProvider.createAccessToken", "file": "services/auth-service/src/main/java/com/poliwise/auth/service/JwtTokenProvider.java", "signature": "public String createAccessToken(User user)", "description": "Create JWT token"},
+    {"name": "AuthService.register", "file": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java", "signature": "public AuthUserView register(RegisterRequest)", "description": "Register new user account"},
+    {"name": "AuthService.login", "file": "services/auth-service/src/main/java/com/poliwise/auth/service/AuthService.java", "signature": "public TokenResponse login(LoginRequest, String, String)", "description": "Authenticate and return tokens"},
+    {"name": "UserService.getProfile", "file": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java", "signature": "public UserProfile getProfile(String userId)", "description": "Get user profile"},
+    {"name": "UserService.changeStatus", "file": "services/user-service/src/main/java/com/poliwise/user/service/UserService.java", "signature": "public void changeStatus(String, AccountStatus)", "description": "Change user status"}
+  ],
+  "apis": [
+    {"method": "POST", "path": "/api/v1/auth/login", "auth": "public", "service": "auth-service", "target": "auth-service", "description": "User login"},
+    {"method": "POST", "path": "/api/v1/auth/register", "auth": "public", "service": "auth-service", "target": "auth-service", "description": "User registration"},
+    {"method": "POST", "path": "/api/v1/auth/refresh", "auth": "public", "service": "auth-service", "target": "auth-service", "description": "Refresh access token"},
+    {"method": "POST", "path": "/api/v1/auth/logout", "auth": "required", "service": "auth-service", "target": "auth-service", "description": "Logout current session"},
+    {"method": "POST", "path": "/api/v1/auth/logout-all", "auth": "required", "service": "auth-service", "target": "auth-service", "description": "Logout all sessions"},
+    {"method": "GET", "path": "/api/v1/auth/sessions", "auth": "required", "service": "auth-service", "target": "auth-service", "description": "Get active sessions"},
+    {"method": "GET", "path": "/api/v1/users/me", "auth": "required", "service": "user-service", "target": "user-service", "description": "Get current user profile"},
+    {"method": "PUT", "path": "/api/v1/users/me", "auth": "required", "service": "user-service", "target": "user-service", "description": "Update own profile"},
+    {"method": "GET", "path": "/api/v1/users/me/status", "auth": "required", "service": "user-service", "target": "user-service", "description": "Get own account status"},
+    {"method": "PATCH", "path": "/api/v1/users/me/department", "auth": "required", "service": "user-service", "target": "user-service", "description": "Change own department"},
+    {"method": "GET", "path": "/api/v1/users", "auth": "manager", "service": "user-service", "target": "user-service", "description": "Search users"},
+    {"method": "GET", "path": "/api/v1/users/{userId}", "auth": "manager", "service": "user-service", "target": "user-service", "description": "Get user by ID"},
+    {"method": "PATCH", "path": "/api/v1/users/{userId}/status", "auth": "admin", "service": "user-service", "target": "user-service", "description": "Change user status"},
+    {"method": "DELETE", "path": "/api/v1/users/{userId}", "auth": "admin", "service": "user-service", "target": "user-service", "description": "Delete user"},
+    {"method": "GET", "path": "/api/v1/documents", "auth": "required", "service": "knowledge-service", "target": "knowledge-service", "description": "Get documents list"},
+    {"method": "GET", "path": "/api/v1/documents/{id}", "auth": "required", "service": "knowledge-service", "target": "knowledge-service", "description": "Get document by ID"},
+    {"method": "POST", "path": "/api/v1/documents/upload", "auth": "admin", "service": "knowledge-service", "target": "knowledge-service", "description": "Upload new document"},
+    {"method": "PUT", "path": "/api/v1/documents/{id}", "auth": "admin", "service": "knowledge-service", "target": "knowledge-service", "description": "Update document"},
+    {"method": "DELETE", "path": "/api/v1/documents/{id}", "auth": "admin", "service": "knowledge-service", "target": "knowledge-service", "description": "Delete document"},
+    {"method": "GET", "path": "/api/v1/documents/{id}/download", "auth": "required", "service": "knowledge-service", "target": "knowledge-service", "description": "Download document"},
+    {"method": "GET", "path": "/api/v1/documents/{id}/versions", "auth": "required", "service": "knowledge-service", "target": "knowledge-service", "description": "Get version history"},
+    {"method": "GET", "path": "/api/v1/documents/search", "auth": "required", "service": "knowledge-service", "target": "knowledge-service", "description": "Search documents"},
+    {"method": "GET", "path": "/api/v1/metadata/categories", "auth": "admin", "service": "metadata-service", "target": "metadata-service", "description": "Get all categories"},
+    {"method": "POST", "path": "/api/v1/metadata/categories", "auth": "admin", "service": "metadata-service", "target": "metadata-service", "description": "Create category"},
+    {"method": "GET", "path": "/api/v1/metadata/tags", "auth": "admin", "service": "metadata-service", "target": "metadata-service", "description": "Get all tags"},
+    {"method": "POST", "path": "/api/v1/feedback", "auth": "required", "service": "feedback-service", "target": "feedback-service", "description": "Submit feedback"},
+    {"method": "GET", "path": "/api/v1/feedback", "auth": "required", "service": "feedback-service", "target": "feedback-service", "description": "Get feedback list"},
+    {"method": "GET", "path": "/api/v1/feedback/unanswered", "auth": "admin", "service": "feedback-service", "target": "feedback-service", "description": "Get unanswered questions"},
+    {"method": "POST", "path": "/api/v1/feedback/unanswered/{id}/answer", "auth": "admin", "service": "feedback-service", "target": "feedback-service", "description": "Answer question"},
+    {"method": "GET", "path": "/api/v1/analytics/overview", "auth": "manager", "service": "feedback-service", "target": "feedback-service", "description": "Get analytics overview"},
+    {"method": "GET", "path": "/api/v1/analytics/usage", "auth": "manager", "service": "feedback-service", "target": "feedback-service", "description": "Get usage statistics"},
+    {"method": "GET", "path": "/api/v1/analytics/popular-documents", "auth": "manager", "service": "feedback-service", "target": "feedback-service", "description": "Get popular documents"},
+    {"method": "GET", "path": "/api/v1/analytics/audit-logs", "auth": "admin", "service": "feedback-service", "target": "feedback-service", "description": "Get audit logs"},
+    {"method": "POST", "path": "/api/v1/analytics/export", "auth": "manager", "service": "feedback-service", "target": "feedback-service", "description": "Export analytics report"},
+    {"method": "GET", "path": "/api/v1/ai/question", "auth": "required", "service": "ai-service", "target": "ai-service", "description": "Ask AI question"},
+    {"method": "GET", "path": "/api/v1/ai/conversations", "auth": "required", "service": "ai-service", "target": "ai-service", "description": "Get conversations"},
+    {"method": "DELETE", "path": "/api/v1/ai/conversations/{id}", "auth": "required", "service": "ai-service", "target": "ai-service", "description": "Delete conversation"},
+    {"method": "DELETE", "path": "/api/v1/ai/history", "auth": "required", "service": "ai-service", "target": "ai-service", "description": "Clear history"},
+    {"method": "GET", "path": "/health", "auth": "public", "service": "api-gateway", "target": "api-gateway", "description": "Health check"},
+    {"method": "GET", "path": "/health/live", "auth": "public", "service": "api-gateway", "target": "api-gateway", "description": "Liveness probe"},
+    {"method": "GET", "path": "/health/ready", "auth": "public", "service": "api-gateway", "target": "api-gateway", "description": "Readiness probe"},
+    {"method": "GET", "path": "/health/circuit-breakers", "auth": "public", "service": "api-gateway", "target": "api-gateway", "description": "Circuit breaker status"}
+  ],
+  "database": [
+    {
+      "schema": "core",
+      "tables": [
+        {"name": "users", "service": "auth-service", "description": "User accounts and authentication", "columns": ["id (UUID)", "username", "email", "password_hash", "role", "status", "department_id", "failed_login_attempts", "locked_until", "created_at"]},
+        {"name": "departments", "service": "user-service", "description": "Organization departments", "columns": ["id (UUID)", "name", "description", "created_at"]},
+        {"name": "user_profiles", "service": "user-service", "description": "Extended user profile data", "columns": ["id (UUID)", "user_id (FK)", "full_name", "avatar_url", "phone", "position", "created_at"]}
+      ]
+    },
+    {
+      "schema": "knowledge",
+      "tables": [
+        {"name": "documents", "service": "knowledge-service", "description": "Uploaded documents", "columns": ["id (UUID)", "original_filename", "file_type", "file_size_bytes", "status", "current_version", "extracted_text", "chunking_strategy", "embedding_model", "created_by"]},
+        {"name": "document_versions", "service": "knowledge-service", "description": "Document version history", "columns": ["id (UUID)", "document_id (FK)", "version", "file_key", "change_summary", "created_by"]},
+        {"name": "processing_jobs", "service": "knowledge-service", "description": "Processing pipeline jobs", "columns": ["id (UUID)", "document_id (FK)", "step", "status", "progress", "error_message", "started_at"]},
+        {"name": "chunks", "service": "knowledge-service", "description": "Document chunks for embedding", "columns": ["id (UUID)", "document_id (FK)", "content", "chunk_index", "token_count", "embedding_vector"]}
+      ]
+    },
+    {
+      "schema": "metadata",
+      "tables": [
+        {"name": "categories", "service": "metadata-service", "description": "Document categories", "columns": ["id (UUID)", "name", "description", "parent_id", "created_at"]},
+        {"name": "tags", "service": "metadata-service", "description": "Document tags", "columns": ["id (UUID)", "name", "created_at"]},
+        {"name": "document_metadata", "service": "metadata-service", "description": "Document metadata", "columns": ["id (UUID)", "document_id (FK)", "category_id (FK)", "title", "author", "status", "access_level"]},
+        {"name": "document_access_rules", "service": "metadata-service", "description": "Access control rules", "columns": ["id (UUID)", "document_id (FK)", "grantee_type", "grantee_id", "permission", "expires_at"]},
+        {"name": "document_tags", "service": "metadata-service", "description": "Document-tag associations", "columns": ["document_metadata_id (FK)", "tag_id (FK)"]}
+      ]
+    },
+    {
+      "schema": "analytics",
+      "tables": [
+        {"name": "feedbacks", "service": "feedback-service", "description": "Answer feedback", "columns": ["id (UUID)", "user_id (FK)", "question_id", "type", "created_at"]},
+        {"name": "audit_logs", "service": "feedback-service", "description": "System audit trail", "columns": ["id (UUID)", "user_id (FK)", "action", "resource_type", "resource_id", "ip_address", "created_at"]},
+        {"name": "daily_aggregates", "service": "feedback-service", "description": "Daily aggregated stats", "columns": ["id (UUID)", "date", "total_questions", "total_answers", "avg_response_time_ms"]},
+        {"name": "hourly_aggregates", "service": "feedback-service", "description": "Hourly aggregated stats", "columns": ["id (UUID)", "date", "hour", "total_questions", "avg_response_time_ms"]},
+        {"name": "usage_stats", "service": "feedback-service", "description": "User-level usage statistics", "columns": ["id (UUID)", "user_id (FK)", "date", "questions_asked", "documents_viewed", "searches_made"]},
+        {"name": "document_popularity", "service": "feedback-service", "description": "Document view counts", "columns": ["id (UUID)", "document_id (FK)", "date", "view_count", "search_count"]},
+        {"name": "popular_questions", "service": "feedback-service", "description": "Frequently asked questions", "columns": ["id (UUID)", "question_hash", "question_text", "answer_count", "avg_confidence"]},
+        {"name": "report_exports", "service": "feedback-service", "description": "Export job tracking", "columns": ["id (UUID)", "requested_by (FK)", "report_type", "format", "status", "file_url"]}
+      ]
+    },
+    {
+      "schema": "conversation",
+      "tables": [
+        {"name": "unanswered_questions", "service": "feedback-service", "description": "Questions that AI couldn't answer", "columns": ["id (UUID)", "user_id (FK)", "question_text", "context", "answered_by (FK)", "answer_text", "status", "created_at"]}
+      ]
+    }
+  ],
+  "dependencies": [
+    {"from": "frontend/web", "to": "services/api-gateway", "type": "http", "description": "Frontend calls API gateway"},
+    {"from": "services/api-gateway", "to": "services/auth-service", "type": "http", "description": "Gateway proxies auth requests"},
+    {"from": "services/api-gateway", "to": "services/user-service", "type": "http", "description": "Gateway proxies user requests"},
+    {"from": "services/api-gateway", "to": "services/knowledge-service", "type": "http", "description": "Gateway proxies document requests"},
+    {"from": "services/api-gateway", "to": "services/metadata-service", "type": "http", "description": "Gateway proxies metadata requests"},
+    {"from": "services/api-gateway", "to": "services/feedback-service", "type": "http", "description": "Gateway proxies feedback requests"},
+    {"from": "services/user-service", "to": "RabbitMQ", "type": "event", "description": "Publishes User.status.changed event"},
+    {"from": "services/knowledge-service", "to": "RabbitMQ", "type": "event", "description": "Publishes Document.uploaded event"},
+    {"from": "services/auth-service", "to": "core.users", "type": "database", "description": "Owns core.users table"},
+    {"from": "services/user-service", "to": "core.user_profiles", "type": "database", "description": "Owns user profiles tables"},
+    {"from": "services/knowledge-service", "to": "knowledge.*", "type": "database", "description": "Owns knowledge tables"},
+    {"from": "services/metadata-service", "to": "metadata.*", "type": "database", "description": "Owns metadata tables"},
+    {"from": "services/feedback-service", "to": "analytics.*", "type": "database", "description": "Owns analytics tables"}
+  ]
+};
+
+        // Icons for file types
+        const typeIcons = {
+            service: '🔌', controller: '🎮', component: '🧩', page: '📄', module: '📦',
+            entity: '🗃️', store: '💾', types: '📋', enum: '🔢', guard: '🛡️',
+            interceptor: '⚡', decorator: '✨', config: '⚙️', filter: '🔍',
+            bootstrap: '🚀', strategy: '🔑', indicator: '📊', repository: '💿',
+            dto: '📝', interface: '🔲', style: '🎨', barrel: '📤', event: '📡'
+        };
+
+        // Render Files
+        function renderFiles() {
+            const allGrid = document.getElementById('all-files-grid');
+            const frontendGrid = document.getElementById('frontend-files-grid');
+            const gatewayGrid = document.getElementById('gateway-files-grid');
+            const javaGrid = document.getElementById('java-files-grid');
+
+            data.files.forEach(file => {
+                const card = `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon">${typeIcons[file.type] || '📄'}</div>
+                            <div>
+                                <div class="card-title">${file.path.split('/').pop()}</div>
+                                <span class="card-type">${file.type}</span>
+                            </div>
+                        </div>
+                        <p class="card-desc">${file.description}</p>
+                        <div class="card-path">${file.path}</div>
+                    </div>
+                `;
+                allGrid.innerHTML += card;
+
+                if (file.path.startsWith('frontend/')) {
+                    frontendGrid.innerHTML += card;
+                } else if (file.path.startsWith('services/api-gateway/')) {
+                    gatewayGrid.innerHTML += card;
+                } else if (file.path.includes('.java')) {
+                    javaGrid.innerHTML += card;
+                }
+            });
+        }
+
+        // Render APIs
+        function renderAPIs() {
+            const tbody = document.getElementById('api-table-body');
+            tbody.innerHTML = data.apis.map(api => {
+                let authClass = 'public';
+                if (api.auth === 'required') authClass = 'required';
+                else if (api.auth === 'manager') authClass = 'manager';
+                else if (api.auth === 'admin') authClass = 'admin';
+                
+                return `
+                    <tr>
+                        <td><span class="method ${api.method}">${api.method}</span></td>
+                        <td><span class="api-path">${api.path}</span></td>
+                        <td><span class="auth-badge ${authClass}">${api.auth}</span></td>
+                        <td>${api.service}</td>
+                        <td>${api.description}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterAPI(filter) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const tbody = document.getElementById('api-table-body');
+            let filtered = data.apis;
+
+            if (filter === 'public') filtered = data.apis.filter(a => a.auth === 'public');
+            else if (filter === 'auth') filtered = data.apis.filter(a => a.auth === 'required');
+            else if (filter === 'manager') filtered = data.apis.filter(a => a.auth === 'manager' || a.auth === 'admin');
+            else if (filter === 'admin') filtered = data.apis.filter(a => a.auth === 'admin');
+
+            tbody.innerHTML = filtered.map(api => {
+                let authClass = 'public';
+                if (api.auth === 'required') authClass = 'required';
+                else if (api.auth === 'manager') authClass = 'manager';
+                else if (api.auth === 'admin') authClass = 'admin';
+                
+                return `
+                    <tr>
+                        <td><span class="method ${api.method}">${api.method}</span></td>
+                        <td><span class="api-path">${api.path}</span></td>
+                        <td><span class="auth-badge ${authClass}">${api.auth}</span></td>
+                        <td>${api.service}</td>
+                        <td>${api.description}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Render Database
+        function renderDatabase() {
+            const container = document.getElementById('db-schemas');
+            const schemaIcons = { core: '🔐', knowledge: '📚', metadata: '🏷️', analytics: '📊', conversation: '💬' };
+
+            container.innerHTML = data.database.map(schema => `
+                <div class="db-schema">
+                    <div class="db-schema-header">
+                        <span class="db-schema-icon">${schemaIcons[schema.schema] || '📦'}</span>
+                        <span class="db-schema-name">${schema.schema.toUpperCase()} Schema</span>
+                        <span class="db-schema-service">${schema.service}</span>
+                    </div>
+                    <div class="db-tables">
+                        ${schema.tables.map(table => `
+                            <div class="db-table">
+                                <div class="db-table-name">${table.name}</div>
+                                <p class="db-table-desc">${table.description}</p>
+                                <div class="db-columns">
+                                    ${table.columns.map(col => `<span class="db-column">${col}</span>`).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render Functions
+        function renderFunctions() {
+            const container = document.getElementById('func-grid');
+            container.innerHTML = data.functions.map(func => `
+                <div class="func-card">
+                    <div class="func-name">${func.name}</div>
+                    <div class="func-sig">${func.signature}</div>
+                    <div class="func-desc">${func.description}</div>
+                </div>
+            `).join('');
+        }
+
+        // Render Dependencies
+        function renderDependencies() {
+            const container = document.getElementById('deps-list');
+            container.innerHTML = data.dependencies.map(dep => `
+                <div class="dep-item">
+                    <span class="dep-from">${dep.from}</span>
+                    <span class="dep-type ${dep.type}">${dep.type}</span>
+                    <span class="dep-arrow">→</span>
+                    <span class="dep-to">${dep.to}</span>
+                </div>
+            `).join('');
+        }
+
+        // Tab System
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                document.querySelector(targetId).scrollIntoView({ behavior: 'smooth' });
+                
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+
+        // Active nav on scroll
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('section[id]');
+            let current = '';
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Initialize
+        renderFiles();
+        renderAPIs();
+        renderDatabase();
+        renderFunctions();
+        renderDependencies();
+    </script>
+</body>
+</html>

@@ -5,7 +5,6 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<!-- Spring Boot parent -->
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
@@ -13,19 +12,17 @@
 		<relativePath />
 	</parent>
 
-	<!-- Project information -->
 	<groupId>com.poliwise</groupId>
 	<artifactId>feedback-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>feedback-service</name>
-	<description>Feedback Microservice</description>
+	<description>Feedback and Analytics Microservice</description>
 
 	<properties>
 		<java.version>17</java.version>
 		<spring-cloud.version>2024.0.3</spring-cloud.version>
 	</properties>
 
-	<!-- Spring Cloud dependency management (required for OpenFeign) -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -101,15 +98,71 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- JWT token verification -->
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.12.6</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.12.6</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.12.6</version>
+			<scope>runtime</scope>
+		</dependency>
 
 	</dependencies>
 
-	<!-- Build plugin -->
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>io.github.mjourard</groupId>
+				<artifactId>env-file-maven-plugin</artifactId>
+				<version>2.0.6</version>
+				<executions>
+					<execution>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>loadenv</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

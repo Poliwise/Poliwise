@@ -6,6 +6,8 @@ import com.poliwise.knowledge.enums.FileType;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -27,7 +29,7 @@ public class Document {
     @Column(name = "original_filename")
     private String originalFilename;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "file_type", columnDefinition = "knowledge.file_type")
     private FileType fileType;
 
@@ -43,7 +45,7 @@ public class Document {
     @Column(name = "bucket_name")
     private String bucketName;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", columnDefinition = "knowledge.processing_status")
     private ProcessingStatus status;
 
@@ -68,7 +70,7 @@ public class Document {
     @Column(name = "ocr_confidence")
     private BigDecimal ocrConfidence;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "chunking_strategy", columnDefinition = "knowledge.chunking_strategy")
     private ChunkingStrategy chunkingStrategy;
 
@@ -78,7 +80,7 @@ public class Document {
     @Column(name = "chunk_overlap")
     private Integer chunkOverlap;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "embedding_model", columnDefinition = "knowledge.embedding_model")
     private EmbeddingModel embeddingModel;
 

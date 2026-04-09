@@ -75,7 +75,7 @@ public class UserService {
                 user.getAccountStatus(),
                 user.getRole(),
                 user.isActive(),
-                user.isDeleted() ? null : user.getDeletedAt()
+                null
         );
     }
 
@@ -198,14 +198,13 @@ public class UserService {
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        if (user.isDeleted()) {
-            throw new IllegalArgumentException("User already deleted: " + userId);
+        if (user.getAccountStatus() == AccountStatus.REVOKED) {
+            throw new IllegalArgumentException("User already revoked: " + userId);
         }
 
         user.setUsername("deleted_" + user.getId());
         user.setEmail("deleted_" + user.getId() + "@anonymized.local");
         user.setAccountStatus(AccountStatus.REVOKED);
-        user.setDeletedAt(OffsetDateTime.now());
 
         if (user.getProfile() != null) {
             UserProfile profile = user.getProfile();
@@ -237,9 +236,6 @@ public class UserService {
         User user = userRepository.findDetailedById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        if (user.isDeleted()) {
-            throw new UserDeactivatedException("Account has been deleted");
-        }
         if (user.getAccountStatus() == AccountStatus.DEACTIVATED) {
             throw new UserDeactivatedException("Account is deactivated");
         }

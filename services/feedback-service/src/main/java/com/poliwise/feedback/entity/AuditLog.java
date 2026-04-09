@@ -7,85 +7,80 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Map;
+import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "audit_logs", schema = "analytics")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "audit_logs", schema = "analytics")
 public class AuditLog {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 
     @Column(name = "user_id")
     private UUID userId;
 
-    @Column(name = "username")
+    @Column(name = "username", length = 50)
     private String username;
 
-    @Column(name = "user_role")
+    @Column(name = "user_role", length = 20)
     private String userRole;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "action", columnDefinition = "analytics.audit_action")
+    @Column(name = "action", nullable = false)
     private AuditAction action;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "resource_type", columnDefinition = "analytics.resource_type")
+    @Column(name = "resource_type", nullable = false)
     private ResourceType resourceType;
 
     @Column(name = "resource_id")
     private UUID resourceId;
 
-    @Column(name = "resource_name")
+    @Column(name = "resource_name", length = 255)
     private String resourceName;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "old_value", columnDefinition = "jsonb")
-    private Map<String, Object> oldValue;
+    private String oldValue;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "new_value", columnDefinition = "jsonb")
-    private Map<String, Object> newValue;
+    private String newValue;
 
-    @Column(name = "changed_fields")
-    private List<String> changedFields;
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "changed_fields", columnDefinition = "text[]")
+    private String[] changedFields;
 
-    @Column(name = "ip_address", columnDefinition = "inet")
+    @JdbcTypeCode(SqlTypes.INET)
+    @Column(name = "ip_address")
     private String ipAddress;
 
-    @Column(name = "user_agent", columnDefinition = "text")
+    @Column(name = "user_agent", columnDefinition = "TEXT")
     private String userAgent;
 
-    @Column(name = "trace_id")
+    @Column(name = "trace_id", length = 100)
     private String traceId;
 
-    @Column(name = "service_name")
+    @Column(name = "service_name", length = 50)
     private String serviceName;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
-    private Map<String, Object> metadata;
+    private String metadata;
 
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
-
-    /* ===== Helper methods ===== */
-
-    public boolean isUserAction() {
-        return resourceType == ResourceType.USER;
-    }
-
-    public boolean isDocumentAction() {
-        return resourceType == ResourceType.DOCUMENT;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
     }
 }

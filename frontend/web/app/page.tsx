@@ -6,8 +6,8 @@ import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
 import type { Source } from '@/types';
-import { FeedbackType } from '@/types';
-import styles from './page.module.css';
+import { FeedbackType } from '@/types/ai';
+import styles from './chat.module.css';
 
 interface Message {
   id: string;

@@ -8,8 +8,8 @@ export const appConfig = registerAs('app', () => ({
 }));
 
 export const jwtConfig = registerAs('jwt', () => ({
-  secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
-  issuer: process.env.JWT_ISSUER || 'poliwise-auth',
+  secret: process.env.JWT_SECRET || 'poliwise-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256',
+  issuer: process.env.JWT_ISSUER || 'poliwise-auth-service',
 }));
 
 export const corsConfig = registerAs('cors', () => ({

@@ -20,6 +20,77 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+type RawTokenBody = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn?: number;
+  expiresInSeconds?: number;
+  user?: LoginResponse['user'];
+};
+
+function coerceLoginResponse(body: unknown): LoginResponse {
+  const root = body as Record<string, unknown> | null;
+  if (!root || typeof root !== 'object') {
+    throw new Error('Phản hồi đăng nhập không hợp lệ');
+  }
+  const payload =
+    'data' in root &&
+    root.data &&
+    typeof root.data === 'object' &&
+    'accessToken' in (root.data as object)
+      ? (root.data as RawTokenBody & { user: LoginResponse['user'] })
+      : (root as RawTokenBody & { user: LoginResponse['user'] });
+
+  const expiresIn =
+    typeof payload.expiresIn === 'number'
+      ? payload.expiresIn
+      : typeof payload.expiresInSeconds === 'number'
+        ? payload.expiresInSeconds
+        : 0;
+
+  if (!payload.accessToken || !payload.refreshToken || !payload.user) {
+    throw new Error('Phản hồi đăng nhập không hợp lệ');
+  }
+
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    expiresIn,
+    user: payload.user,
+  };
+}
+
+function coerceRefreshResponse(body: unknown): RefreshTokenResponse {
+  const root = body as Record<string, unknown> | null;
+  if (!root || typeof root !== 'object') {
+    throw new Error('Phản hồi làm mới token không hợp lệ');
+  }
+  const payload =
+    'data' in root &&
+    root.data &&
+    typeof root.data === 'object' &&
+    'accessToken' in (root.data as object)
+      ? (root.data as RawTokenBody)
+      : (root as RawTokenBody);
+
+  const expiresIn =
+    typeof payload.expiresIn === 'number'
+      ? payload.expiresIn
+      : typeof payload.expiresInSeconds === 'number'
+        ? payload.expiresInSeconds
+        : 0;
+
+  if (!payload.accessToken || !payload.refreshToken) {
+    throw new Error('Phản hồi làm mới token không hợp lệ');
+  }
+
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    expiresIn,
+  };
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -66,12 +137,12 @@ class ApiClient {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
             try {
-              const response = await this.auth.refresh(refreshToken);
-              localStorage.setItem('accessToken', response.accessToken);
-              localStorage.setItem('refreshToken', response.refreshToken);
+              const tokens = await this.auth.refresh(refreshToken);
+              localStorage.setItem('accessToken', tokens.accessToken);
+              localStorage.setItem('refreshToken', tokens.refreshToken);
 
               // Retry original request
-              originalRequest.headers.Authorization = `Bearer ${response.accessToken}`;
+              originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
               return this.client(originalRequest);
             } catch {
               // Refresh failed, logout
@@ -89,8 +160,8 @@ class ApiClient {
   // Auth endpoints
   auth = {
     login: async (data: LoginRequest): Promise<LoginResponse> => {
-      const response = await this.client.post<ApiResponse<LoginResponse>>('/api/v1/auth/login', data);
-      return response.data.data!;
+      const response = await this.client.post<unknown>('/api/v1/auth/login', data);
+      return coerceLoginResponse(response.data);
     },
 
     register: async (data: { username: string; email: string; password: string }): Promise<void> => {
@@ -98,14 +169,16 @@ class ApiClient {
     },
 
     refresh: async (refreshToken: string): Promise<RefreshTokenResponse> => {
-      const response = await this.client.post<ApiResponse<RefreshTokenResponse>>('/api/v1/auth/refresh', {
-        refreshToken,
-      }, {
-        headers: {
-          'X-User-Id': localStorage.getItem('userId') || '',
+      const response = await this.client.post<unknown>(
+        '/api/v1/auth/refresh',
+        { refreshToken },
+        {
+          headers: {
+            'X-User-Id': localStorage.getItem('userId') || '',
+          },
         },
-      });
-      return response.data.data!;
+      );
+      return coerceRefreshResponse(response.data);
     },
 
     logout: async (): Promise<void> => {

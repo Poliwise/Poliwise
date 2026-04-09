@@ -1,2 +1,26 @@
-/mvnw text eol=lf
-*.cmd text eol=crlf
+* text=auto
+
+*.class binary
+*.jar binary
+*.war binary
+*.ear binary
+*.zip binary
+*.tar.gz binary
+*.log
+
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db

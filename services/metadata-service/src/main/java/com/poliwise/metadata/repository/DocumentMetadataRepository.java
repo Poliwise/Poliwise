@@ -5,6 +5,7 @@ import com.poliwise.metadata.enums.DocumentStatus;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -35,10 +36,13 @@ public interface DocumentMetadataRepository extends JpaRepository<DocumentMetada
                           and dm.expiryDate is not null
                           and dm.expiryDate <= :date
                         """)
-        Page<DocumentMetadata> findExpiredDocuments(@Param("date") LocalDate date,
-                        Pageable pageable);
+        List<DocumentMetadata> findExpiredDocuments(@Param("date") LocalDate date);
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("select dm from DocumentMetadata dm where dm.id = :id")
         Optional<DocumentMetadata> findByIdForUpdate(@Param("id") UUID id);
+
+        List<DocumentMetadata> findByStatus(DocumentStatus status);
+
+        List<DocumentMetadata> findByCategoryId(UUID categoryId);
 }

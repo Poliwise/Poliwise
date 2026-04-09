@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,10 +34,25 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+        JwtAuthenticationToken authToken = extractAuthToken(httpRequest);
         ClientMetadata metadata = extractMetadata(httpRequest);
-        var user = authService.register(request);
+        var user = authService.register(request, authToken != null ? authToken.getPayload().sub() : null);
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
+    }
+
+    private JwtAuthenticationToken extractAuthToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String rawToken = header.substring(7).trim();
+            try {
+                return authService.extractToken(rawToken);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @PostMapping("/login")
