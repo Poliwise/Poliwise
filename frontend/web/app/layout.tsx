@@ -1,9 +1,10 @@
+import React from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Poliwise - AI-powered Enterprise Knowledge Platform",
-  description: "Nền tảng tri thức doanh nghiệp thông minh với AI",
+  description: "AI-powered Enterprise Knowledge Platform",
   icons: {
     icon: [
       {
@@ -20,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );

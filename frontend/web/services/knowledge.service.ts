@@ -1,6 +1,7 @@
 import { apiClient } from './api-client';
 import { Document } from '@/interfaces/models/knowledge/document.model';
 import { ProcessingJob } from '@/interfaces/models/knowledge/processing-job.model';
+import { PaginatedResponse } from './types';
 
 export interface DocumentSearchParams {
   page?: number;
@@ -16,17 +17,6 @@ export interface DocumentSearchParams {
 export interface DocumentUploadResponse {
   document: Document;
   job: ProcessingJob;
-}
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
 }
 
 class KnowledgeService {

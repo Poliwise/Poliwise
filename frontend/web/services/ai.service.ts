@@ -2,6 +2,7 @@ import { apiClient } from './api-client';
 import { Conversation } from '@/interfaces/models/conversation/conversation.model';
 import { Message } from '@/interfaces/models/conversation/message.model';
 import { UnansweredQuestion } from '@/interfaces/models/conversation/unanswered-question.model';
+import { PaginatedResponse } from './types';
 
 export interface SendMessageRequest {
   message: string;
@@ -27,17 +28,6 @@ export interface ConversationSearchParams {
   page?: number;
   size?: number;
   keyword?: string;
-}
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
 }
 
 class AIService {
