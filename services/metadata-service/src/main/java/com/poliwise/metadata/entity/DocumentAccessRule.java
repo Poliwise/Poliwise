@@ -3,6 +3,8 @@ package com.poliwise.metadata.entity;
 import com.poliwise.metadata.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -25,7 +27,7 @@ public class DocumentAccessRule {
     @Column(name = "target_type")
     private String targetType;
 
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "target_role", columnDefinition = "core.user_role")
     private UserRole targetRole;
 
@@ -43,4 +45,23 @@ public class DocumentAccessRule {
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
+
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+    public UUID getDocumentMetadataId() { return documentMetadataId; }
+    public void setDocumentMetadataId(UUID documentMetadataId) { this.documentMetadataId = documentMetadataId; }
+    public String getTargetType() { return targetType; }
+    public void setTargetType(String targetType) { this.targetType = targetType; }
+    public UserRole getTargetRole() { return targetRole; }
+    public void setTargetRole(UserRole targetRole) { this.targetRole = targetRole; }
+    public UUID getTargetDepartmentId() { return targetDepartmentId; }
+    public void setTargetDepartmentId(UUID targetDepartmentId) { this.targetDepartmentId = targetDepartmentId; }
+    public UUID getTargetUserId() { return targetUserId; }
+    public void setTargetUserId(UUID targetUserId) { this.targetUserId = targetUserId; }
+    public String getPermission() { return permission; }
+    public void setPermission(String permission) { this.permission = permission; }
+    public UUID getCreatedBy() { return createdBy; }
+    public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }

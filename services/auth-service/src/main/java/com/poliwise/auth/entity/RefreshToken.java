@@ -43,6 +43,7 @@ public class RefreshToken {
 
     /**
      * Địa chỉ IP của client khi token được tạo.
+     * Sử dụng columnDefinition = "inet" để match với database schema
      */
     @Column(name = "ip_address")
     private String ipAddress;

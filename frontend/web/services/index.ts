@@ -1,7 +1,7 @@
-export * from './api-client';
-export * from './auth.service';
-export * from './user.service';
-export * from './knowledge.service';
-export * from './feedback.service';
-export * from './analytics.service';
-export * from './ai.service';
+export { apiClient } from './api-client';
+export { authService } from './auth.service';
+export { userService } from './user.service';
+export { knowledgeService } from './knowledge.service';
+export { feedbackService } from './feedback.service';
+export { analyticsService } from './analytics.service';
+export { aiService } from './ai.service';

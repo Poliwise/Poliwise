@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 
 public enum ChunkingStrategy {
-
     RECURSIVE("RECURSIVE"), SEMANTIC("SEMANTIC"), FIXED_SIZE("FIXED_SIZE"), SENTENCE("SENTENCE");
 
     private final String value;
@@ -23,7 +22,6 @@ public enum ChunkingStrategy {
     @JsonCreator
     public static ChunkingStrategy fromValue(String value) {
         return Arrays.stream(values()).filter(v -> v.value.equalsIgnoreCase(value)).findFirst()
-                .orElseThrow(
-                        () -> new IllegalArgumentException("Unknown ChunkingStrategy: " + value));
+                .orElseThrow(() -> new IllegalArgumentException("Unknown ChunkingStrategy: " + value));
     }
 }

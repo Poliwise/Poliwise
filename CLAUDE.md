@@ -1,52 +1,206 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI coding agents working in the Poliwise repository.
 
-## Common Commands
-- **Install dependencies**: `pnpm install` (run in `frontend/web`)
-- **Build**: `pnpm run build` (produces production assets)
-- **Start development server**: `pnpm dev` (hot‑reloading UI)
-- **Run all tests**: `pnpm test`
-- **Run a single test**: `pnpm test -- -t "<test name>"`
-- **Lint**: `pnpm lint`
-- **Generate API client** (if applicable): `pnpm run generate:api`
+## 1) Mandatory Working Rules
 
-## High‑Level Architecture
-- **Frontend** (`frontend/web`): Next.js application using TypeScript. Entry point is `frontend/web/app/page.tsx`. Layout components live under `frontend/web/components`. Services for API calls are in `frontend/web/services` (e.g., `ai.service.ts`, `analytics.service.ts`).
-- **API Gateway** (`services/api-gateway`): Express/Koa based gateway that proxies requests to downstream micro‑services, handling authentication, RBAC, and request logging.
-- **Micro‑services** (`services/*`): Each domain (e.g., analytics, core, knowledge) runs as an independent service with its own DB schema. They expose REST endpoints consumed by the API gateway.
-- **Docker Compose** (`docker-compose.yml`): Orchestrates all services locally for development and testing. Use `docker compose up` to spin up the full stack.
-- **Database**: PostgreSQL containers defined in Docker Compose; schema migrations are managed per service (see each service's `migrations` folder).
+- Always check architecture and boundary context before implementing features, changing database interaction, or touching service contracts.
+- Source of truth for architecture and ownership:
+  - `contexts/architecture/`
+  - `contexts/service-boundaries/`
+  - `contexts/database/`
+  - `contexts/authorization/`
+  - `contexts/development/`
+- Living documentation rule:
+  - If you add or change REST endpoints, DB schema, RBAC roles, or service responsibilities, update related files in `contexts/`.
+  - Briefly summarize which context files were updated.
+  - If context docs are outdated or missing, propose updates proactively.
+- Verify real implementation before extending features. Some parts may still be scaffold or placeholder code.
+- Ignore build artifacts such as `target/` and `node_modules/`.
 
-## Development Tips
-- When adding a new feature, start by updating the relevant service API, then adjust the gateway routes, and finally implement UI components.
-- Keep UI and service code in sync: UI expects the shape defined in `services/*/src/types`.
-- Run `pnpm test` frequently; tests are colocated with their modules.
-- Use the Docker Compose environment for integration tests to ensure end‑to‑end behavior.
+## 2) Repository Overview
 
-## Important Project Files
-- `README.md`: top‑level project overview.
-- `docker-compose.yml`: defines all containers.
-- `.cursor/rules/` and `.github/copilot-instructions.md`: contain AI assistance policies—review them for any tooling constraints.
+Poliwise is a multi-service monorepo with:
 
-## AI Assistance Rules
-- Follow the guidance in `.cursor/rules/` for safe code generation.
-- Copilot instructions in `.github/copilot-instructions.md` outline preferred patterns and naming conventions.
+- `frontend/web`: Next.js 16 App Router frontend (TypeScript)
+- `services/api-gateway`: NestJS 11 API gateway (single client entry point)
+- `services/*-service`: Spring Boot 3 / Java 17 microservices
+- `infrastructure/init-db/`: SQL initialization scripts
+- `config/`: Shared environment/config files (including RabbitMQ)
+- `docs/`: Product and architecture notes
 
-## Context Guidance (Where to Find Context)
-- **`contexts/architecture/`** – Contains system overview and high‑level architectural patterns.
-- **`contexts/service-boundaries/`** – Documents API contracts, event definitions, and microservice responsibility ownership.
-- **`contexts/database/`** – Holds full schemas, index strategies, queries, and specific table structures (analytics, core, knowledge, etc.).
-- **`contexts/authorization/`** – Describes the RBAC matrix and dual‑strategy security logic.
-- **`contexts/development/`** – Outlines extraction plans and development workflows.
+## 3) Common Commands
 
-**Rule:** Whenever an AI agent is asked to implement a feature, modify a database interaction, or touch service boundaries, it **MUST** first read the relevant markdown files in the `contexts/` folder to ensure alignment with the project's architecture.
+### Frontend (`frontend/web`)
 
-## Living Documentation Rule
-- When the AI implements a new REST endpoint, changes a database schema, modifies an RBAC role, or shifts service responsibilities, it **MUST** update the corresponding documentation files in the `contexts/` directory.
-- The AI should briefly summarize which documentation files were updated in its response to the user.
-- If the existing context is outdated or missing, the AI should proactively propose an update to the relevant `.md` file in `contexts/`.
-- Follow the guidance in `.cursor/rules/` for safe code generation.
-- Copilot instructions in `.github/copilot-instructions.md` outline preferred patterns and naming conventions.
----
-*Generated for Claude Code to streamline future interactions.*
+- Install deps: `pnpm install`
+- Dev server: `pnpm dev`
+- Build: `pnpm build`
+- Start production: `pnpm start`
+- Lint: `pnpm lint`
+- Test: `pnpm test`
+
+### API Gateway (`services/api-gateway`)
+
+- Install deps: `pnpm install`
+- Start (watch): `pnpm run start:dev`
+- Start (once): `pnpm run start`
+- Build: `pnpm run build`
+- Lint: `pnpm run lint`
+- Test: `pnpm test`
+- E2E test: `pnpm run test:e2e`
+
+### Spring Boot Services (`services/<service-name>`)
+
+- Run locally: `./mvnw spring-boot:run`
+- Build jar: `./mvnw package`
+- Run all tests: `./mvnw test`
+- Run one test class: `./mvnw -Dtest=ClassName test`
+- Run one test method: `./mvnw -Dtest=ClassName#methodName test`
+
+### Full Stack (Docker)
+
+- Start all services: `docker compose up`
+
+## 4) High-Level Architecture
+
+### Frontend: `frontend/web`
+
+- Next.js 16 App Router app.
+- Main entry points:
+  - `app/layout.tsx`
+  - `app/page.tsx`
+- Core layers:
+  - `components/` for shared UI/layout
+  - `services/` for API calls (`auth.service.ts`, `ai.service.ts`, etc.)
+  - `store/` for Zustand state
+  - `interfaces/`, `types/` for shared contracts
+
+### API Gateway: `services/api-gateway`
+
+Primary responsibilities:
+
+- JWT validation and auth flow
+- RBAC enforcement (guards + decorators)
+- Rate limiting and timeout handling
+- Circuit breaker for downstream resilience
+- Request proxying to microservices
+- Trace ID propagation and request logging
+- Response normalization and exception filtering
+- Security headers and CORS
+- Service health checks
+
+Important source folders:
+
+- `src/auth/`
+- `src/proxy/`
+- `src/health/`
+- `src/common/` (guards, decorators, filters, interceptors, DTOs)
+- `src/config/`
+
+### Spring Microservices: `services/*-service`
+
+Shared stack and pattern:
+
+- Spring Boot 3.x + Java 17
+- JPA repositories + PostgreSQL
+- Spring Security, Validation, OpenFeign, RabbitMQ, Actuator
+- Typical package layout: `config`, `controller`, `dto`, `entity`, `enums`, `exception`, `mapper`, `repository`, `service`
+
+## 5) Service Responsibilities
+
+### `auth-service` (8081) - schema `poliwise_auth`
+
+- Login/register/logout/session revocation
+- Access and refresh token lifecycle
+- Login history and token blacklist
+- Default admin bootstrap
+- Emits user-state events
+
+### `user-service` (8082) - schema `poliwise_user`
+
+- User profile and department domain
+- Account state management
+- Emits user-state events
+
+### `knowledge-service` (8083) - schema `poliwise_knowledge`
+
+- Document lifecycle and processing pipeline
+- Versioning and processing job tracking
+
+### `metadata-service` (8084) - schema `poliwise_metadata`
+
+- Document metadata, categories, tags
+- Document access rules and lifecycle status
+
+### `feedback-service` (8085) - schema `poliwise_analytics`
+
+- Feedback and usage analytics
+- Aggregations, audit logs, reporting, unanswered questions
+
+## 6) Database Ownership Boundaries
+
+Strong ownership per service:
+
+- `poliwise_auth` -> `auth-service`
+- `poliwise_user` -> `user-service`
+- `poliwise_knowledge` -> `knowledge-service`
+- `poliwise_metadata` -> `metadata-service`
+- `poliwise_analytics` -> `feedback-service`
+
+Do not bypass ownership boundaries without explicit architecture updates.
+
+## 7) Event-Driven Integration
+
+RabbitMQ is used for cross-service communication.
+
+Core events include:
+
+- `User.status.changed`
+- `User.revoked`
+- `Document.uploaded`
+- `Document.deleted`
+- `Unanswered.question`
+
+Shared RabbitMQ configuration lives in `config/rabbitmq.env`.
+
+## 8) RBAC Model
+
+Roles and capabilities:
+
+- `USER`: AI Q&A, own profile, feedback
+- `MANAGER`: USER capabilities + analytics dashboard + report export + unanswered questions view
+- `ADMIN`: MANAGER capabilities + document upload + metadata management + user management
+
+Reference document: `docs/allow_per_role.md`.
+
+## 9) Docker Topology
+
+Main local ports:
+
+- Postgres: 5432
+- RabbitMQ: 5672, management 15672
+- Auth service: 8081
+- User service: 8082
+- Knowledge service: 8083
+- Metadata service: 8084
+- Feedback service: 8085
+- API gateway: 3001
+- Frontend: 3000
+
+All services run on shared `poliwise-network` with persistent data volumes.
+
+## 10) Recommended Implementation Flow
+
+When adding a feature end-to-end:
+
+1. Update service API/domain logic first.
+2. Update API gateway routes/guards/contracts.
+3. Update frontend services/components.
+4. Run lint/tests.
+5. Update relevant `contexts/` documentation.
+
+## 11) Notes About AI Policy Files
+
+- Expected policy files may be referenced in docs (`.cursor/rules/`, `.github/copilot-instructions.md`).
+- If these files are absent in the current checkout, continue with repository conventions and documented contexts.

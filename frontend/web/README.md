@@ -94,7 +94,7 @@ types/
 Tạo file `.env.local` trong `frontend/web/`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 ## API Endpoints Coverage

@@ -1,7 +1,43 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/auth-store';
+import { useToast } from '@/components/ui/toast';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+function getErrorMessage(error: AxiosError): string {
+  const data = error.response?.data as Record<string, unknown> | null;
+  if (data?.message && typeof data.message === 'string') return data.message;
+  if (data?.error && typeof data.error === 'string') return data.error;
+  if (typeof error.message === 'string') return error.message;
+  switch (error.response?.status) {
+    case 400: return 'Yêu cầu không hợp lệ.';
+    case 401: return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    case 403: return 'Bạn không có quyền thực hiện thao tác này.';
+    case 404: return 'Không tìm thấy tài nguyên yêu cầu.';
+    case 500: return 'Lỗi máy chủ. Vui lòng thử lại sau.';
+    case 502: return 'Dịch vụ tạm thời không khả dụng.';
+    case 503: return 'Hệ thống đang bảo trì. Vui lòng thử lại sau.';
+    default: return `Lỗi không xác định (${error.response?.status || 'network'}).`;
+  }
+}
+
+function parseRefreshTokens(body: unknown): { accessToken: string; refreshToken: string } {
+  const root = body as Record<string, unknown> | null;
+  if (!root || typeof root !== 'object') {
+    throw new Error('Invalid refresh response');
+  }
+  const payload =
+    'data' in root &&
+    root.data &&
+    typeof root.data === 'object' &&
+    'accessToken' in (root.data as object)
+      ? (root.data as { accessToken: string; refreshToken: string })
+      : (root as { accessToken: string; refreshToken: string });
+  if (!payload?.accessToken || !payload?.refreshToken) {
+    throw new Error('Invalid refresh response');
+  }
+  return payload;
+}
 
 class ApiClient {
   private client: AxiosInstance;
@@ -31,34 +67,80 @@ class ApiClient {
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor - Handle token refresh
+    // Response interceptor - Handle errors gracefully
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // If no response (network error), show toast and don't logout
+        if (!error.response) {
+          if (typeof window !== 'undefined') {
+            const toast = (await import('@/components/ui/toast')).useToast;
+            toast().addToast('Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối mạng.', 'warning');
+          }
+          return Promise.reject(error);
+        }
+
+        const status = error.response.status;
+
+        // 401 — try token refresh first
+        if (status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
-          try {
-            const refreshToken = useAuthStore.getState().refreshToken;
-            if (refreshToken) {
-              const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-                refreshToken,
-              });
+          const refreshToken = useAuthStore.getState().refreshToken;
+          if (refreshToken) {
+            try {
+              const userId =
+                useAuthStore.getState().user?.userId ||
+                (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
+              const response = await axios.post(
+                `${API_BASE_URL}/api/v1/auth/refresh`,
+                { refreshToken },
+                {
+                  headers: userId ? { 'X-User-Id': userId } : undefined,
+                },
+              );
 
-              const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+              const { accessToken, refreshToken: newRefreshToken } = parseRefreshTokens(
+                response.data,
+              );
               useAuthStore.getState().setTokens(accessToken, newRefreshToken);
 
               if (originalRequest.headers) {
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
               }
               return this.client(originalRequest);
+            } catch (refreshError) {
+              // Refresh failed — session is truly expired
+              useAuthStore.getState().logout();
+              if (typeof window !== 'undefined') {
+                const toast = (await import('@/components/ui/toast')).useToast;
+                toast().addToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warning');
+                window.location.href = '/login';
+              }
+              return Promise.reject(refreshError);
             }
-          } catch (refreshError) {
+          } else {
+            // No refresh token — session is invalid
             useAuthStore.getState().logout();
-            window.location.href = '/login';
-            return Promise.reject(refreshError);
+            if (typeof window !== 'undefined') {
+              const toast = (await import('@/components/ui/toast')).useToast;
+              toast().addToast('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.', 'warning');
+              window.location.href = '/login';
+            }
+            return Promise.reject(error);
+          }
+        }
+
+        // For all other errors (400, 403, 404, 500, 502, 503, etc.)
+        // Show toast with the error message but DON'T logout
+        if (typeof window !== 'undefined') {
+          try {
+            const toast = (await import('@/components/ui/toast')).useToast;
+            toast().addToast(getErrorMessage(error), 'error');
+          } catch {
+            // Toast context not available
           }
         }
 

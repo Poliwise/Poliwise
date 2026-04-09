@@ -4,6 +4,8 @@ import com.poliwise.auth.enums.AccountStatus;
 import com.poliwise.auth.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -45,14 +47,14 @@ public class User {
     /**
      * Vai trò của người dùng trong hệ thống. Quy định quyền truy cập (authorization).
      */
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "role", nullable = false)
     private UserRole role;
 
     /**
      * Trạng thái tài khoản. Cho biết tài khoản có được phép đăng nhập hay không.
      */
-    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false)
     private AccountStatus status;
 

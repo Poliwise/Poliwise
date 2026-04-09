@@ -7,29 +7,29 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.Map;
 import java.util.UUID;
 
-@Entity
-@Table(name = "report_exports", schema = "analytics")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "report_exports", schema = "analytics")
 public class ReportExport {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "report_type", columnDefinition = "analytics.report_type")
+    @Column(name = "report_type", nullable = false)
     private ReportType reportType;
 
-    @Column(name = "title")
+    @Column(name = "title", nullable = false, length = 255)
     private String title;
 
     @Column(name = "date_from")
@@ -43,51 +43,41 @@ public class ReportExport {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "filters", columnDefinition = "jsonb")
-    private Map<String, Object> filters;
+    private String filters;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "format", columnDefinition = "analytics.export_format")
+    @Column(name = "format", nullable = false)
     private ExportFormat format;
 
-    @Column(name = "file_key")
+    @Column(name = "file_key", length = 500)
     private String fileKey;
 
     @Column(name = "file_size_bytes")
     private Integer fileSizeBytes;
 
-    @Column(name = "status")
-    private String status;
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "PENDING";
 
-    @Column(name = "error_message", columnDefinition = "text")
+    @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
-    @Column(name = "requested_by")
+    @Column(name = "requested_by", nullable = false)
     private UUID requestedBy;
 
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @Column(name = "completed_at")
-    private OffsetDateTime completedAt;
+    private Instant completedAt;
 
     @Column(name = "downloaded_at")
-    private OffsetDateTime downloadedAt;
+    private Instant downloadedAt;
 
     @Column(name = "expires_at")
-    private OffsetDateTime expiresAt;
+    private Instant expiresAt;
 
-
-    /* ===== Helper methods ===== */
-
-    public boolean isCompleted() {
-        return "COMPLETED".equalsIgnoreCase(status);
-    }
-
-    public boolean isFailed() {
-        return "FAILED".equalsIgnoreCase(status);
-    }
-
-    public boolean isExpired() {
-        return expiresAt != null && expiresAt.isBefore(OffsetDateTime.now());
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
     }
 }

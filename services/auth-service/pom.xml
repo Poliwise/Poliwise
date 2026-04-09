@@ -121,6 +121,18 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Mockito for unit testing -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<!-- Build plugin -->
@@ -153,6 +165,21 @@
 					<execution>
 						<goals>
 							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Load .env file into environment variables -->
+			<plugin>
+				<groupId>io.github.mjourard</groupId>
+				<artifactId>env-file-maven-plugin</artifactId>
+				<version>2.0.6</version>
+				<executions>
+					<execution>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>loadenv</goal>
 						</goals>
 					</execution>
 				</executions>

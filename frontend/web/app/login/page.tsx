@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
-import { AccountStatus } from '@/interfaces/enums/core/account-status.enum';
+import { AccountStatus } from '@/types';
 import styles from './login.module.css';
 
 export default function LoginPage() {

@@ -1,0 +1,100 @@
+-- ============================================================
+-- SCHEMA: CONVERSATION
+-- Contains: Conversations, Messages, Unanswered questions
+-- ============================================================
+
+-- ============================================================
+-- ENUM TYPES (in conversation schema)
+-- ============================================================
+CREATE TYPE conversation.message_role AS ENUM ('USER', 'ASSISTANT', 'SYSTEM');
+CREATE TYPE conversation.confidence_level AS ENUM ('HIGH', 'MEDIUM', 'LOW', 'UNKNOWN');
+
+-- ============================================================
+-- TABLE: conversation.conversations
+-- ============================================================
+CREATE TABLE conversation.conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL, -- References core.users
+    
+    title VARCHAR(255),
+    
+    message_count INT DEFAULT 0,
+    last_message_at TIMESTAMPTZ,
+    
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_conversation_conversations_user_id ON conversation.conversations(user_id);
+CREATE INDEX idx_conversation_conversations_created_at ON conversation.conversations(created_at DESC);
+CREATE INDEX idx_conversation_conversations_deleted_at ON conversation.conversations(deleted_at) WHERE deleted_at IS NULL;
+
+-- ============================================================
+-- TABLE: conversation.messages
+-- ============================================================
+CREATE TABLE conversation.messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID NOT NULL REFERENCES conversation.conversations(id) ON DELETE CASCADE,
+    
+    role conversation.message_role NOT NULL,
+    content TEXT NOT NULL,
+    
+    sources JSONB DEFAULT '[]',
+    
+    model_used VARCHAR(50),
+    tokens_prompt INT,
+    tokens_completion INT,
+    tokens_total INT,
+    latency_ms INT,
+    
+    confidence conversation.confidence_level,
+    has_sources BOOLEAN DEFAULT FALSE,
+    
+    is_streaming BOOLEAN DEFAULT FALSE,
+    streaming_completed BOOLEAN DEFAULT TRUE,
+    
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_tokens CHECK (tokens_total IS NULL OR tokens_total >= 0)
+);
+
+CREATE INDEX idx_conversation_messages_conversation_id ON conversation.messages(conversation_id);
+CREATE INDEX idx_conversation_messages_role ON conversation.messages(role);
+CREATE INDEX idx_conversation_messages_created_at ON conversation.messages(created_at DESC);
+
+-- ============================================================
+-- TABLE: conversation.unanswered_questions
+-- ============================================================
+CREATE TABLE conversation.unanswered_questions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    message_id UUID REFERENCES conversation.messages(id) ON DELETE SET NULL,
+    conversation_id UUID REFERENCES conversation.conversations(id) ON DELETE SET NULL,
+    
+    question TEXT NOT NULL,
+    question_normalized TEXT,
+    
+    attempted_context JSONB DEFAULT '{}',
+    search_query TEXT,
+    top_similarity_score DECIMAL(5,4),
+    
+    user_department_id UUID,
+    user_role VARCHAR(20),
+    
+    resolved BOOLEAN DEFAULT FALSE,
+    resolved_by UUID,
+    resolved_at TIMESTAMPTZ,
+    resolution_notes TEXT,
+    related_document_id UUID,
+    
+    category VARCHAR(100),
+    priority VARCHAR(20) DEFAULT 'NORMAL' CHECK (priority IN ('LOW', 'NORMAL', 'HIGH', 'CRITICAL')),
+    
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_conversation_unanswered_questions_user_id ON conversation.unanswered_questions(user_id);
+CREATE INDEX idx_conversation_unanswered_questions_resolved ON conversation.unanswered_questions(resolved);
+CREATE INDEX idx_conversation_unanswered_questions_priority ON conversation.unanswered_questions(priority);

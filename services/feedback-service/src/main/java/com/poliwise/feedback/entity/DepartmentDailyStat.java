@@ -5,63 +5,47 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.Map;
 import java.util.UUID;
 
-@Entity
-@Table(name = "department_daily_stats", schema = "analytics")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "department_daily_stats", schema = "analytics",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"date", "department_id"}))
 public class DepartmentDailyStat {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Column(name = "date")
+    @Column(name = "date", nullable = false)
     private LocalDate date;
 
-    @Column(name = "department_id")
+    @Column(name = "department_id", nullable = false)
     private UUID departmentId;
 
     @Column(name = "total_questions")
-    private Integer totalQuestions;
+    private Integer totalQuestions = 0;
 
     @Column(name = "unique_users")
-    private Integer uniqueUsers;
+    private Integer uniqueUsers = 0;
 
     @Column(name = "likes")
-    private Integer likes;
+    private Integer likes = 0;
 
     @Column(name = "dislikes")
-    private Integer dislikes;
+    private Integer dislikes = 0;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "top_categories", columnDefinition = "jsonb")
-    private Map<String, Object> topCategories;
+    private String topCategories;
 
     @Column(name = "computed_at")
-    private OffsetDateTime computedAt;
-
-
-    /* ===== Helper methods ===== */
-
-    public boolean hasNegativeFeedback() {
-        return dislikes != null && dislikes > likes;
-    }
-
-    public double feedbackScore() {
-        if (likes == null || dislikes == null) {
-            return 0;
-        }
-        int total = likes + dislikes;
-        if (total == 0)
-            return 0;
-        return (double) likes / total;
-    }
+    private Instant computedAt;
 }

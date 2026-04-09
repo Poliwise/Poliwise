@@ -6,24 +6,24 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.Map;
+import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "unanswered_questions", schema = "conversation")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Entity
+@Table(name = "unanswered_questions", schema = "conversation")
 public class UnansweredQuestion {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
     @Column(name = "message_id")
@@ -32,67 +32,63 @@ public class UnansweredQuestion {
     @Column(name = "conversation_id")
     private UUID conversationId;
 
-    @Column(name = "question", columnDefinition = "text")
+    @Column(name = "question", nullable = false, columnDefinition = "TEXT")
     private String question;
 
-    @Column(name = "question_normalized", columnDefinition = "text")
+    @Column(name = "question_normalized", columnDefinition = "TEXT")
     private String questionNormalized;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "attempted_context", columnDefinition = "jsonb")
-    private Map<String, Object> attemptedContext;
+    private String attemptedContext;
 
-    @Column(name = "search_query", columnDefinition = "text")
+    @Column(name = "search_query", columnDefinition = "TEXT")
     private String searchQuery;
 
-    @Column(name = "top_similarity_score")
+    @Column(name = "top_similarity_score", precision = 5, scale = 4)
     private BigDecimal topSimilarityScore;
 
     @Column(name = "user_department_id")
     private UUID userDepartmentId;
 
-    @Column(name = "user_role")
+    @Column(name = "user_role", length = 20)
     private String userRole;
 
     @Column(name = "resolved")
-    private Boolean resolved;
+    private Boolean resolved = false;
 
     @Column(name = "resolved_by")
     private UUID resolvedBy;
 
     @Column(name = "resolved_at")
-    private OffsetDateTime resolvedAt;
+    private Instant resolvedAt;
 
-    @Column(name = "resolution_notes", columnDefinition = "text")
+    @Column(name = "resolution_notes", columnDefinition = "TEXT")
     private String resolutionNotes;
 
     @Column(name = "related_document_id")
     private UUID relatedDocumentId;
 
-    @Column(name = "category")
+    @Column(name = "category", length = 100)
     private String category;
 
-    @Column(name = "priority")
-    private String priority;
+    @Column(name = "priority", length = 20)
+    private String priority = "NORMAL";
 
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
 
-
-    /* ===== Helper methods ===== */
-
-    public boolean isResolved() {
-        return Boolean.TRUE.equals(resolved);
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
+        updatedAt = Instant.now();
     }
 
-    public boolean isHighPriority() {
-        return "HIGH".equalsIgnoreCase(priority);
-    }
-
-    public boolean hasLowSimilarity() {
-        return topSimilarityScore != null && topSimilarityScore.doubleValue() < 0.3;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
     }
 }
