@@ -16,7 +16,7 @@ import {
   Tags,
   Brain,
 } from 'lucide-react';
-import { useUserRole } from '@/store';
+import { useUserRole, useAuthStore } from '@/store';
 import { UserRole } from '@/types';
 import styles from './Sidebar.module.css';
 

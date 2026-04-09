@@ -1,6 +1,7 @@
 import { apiClient } from './api-client';
 import { Feedback } from '@/interfaces/models/analytics/feedback.model';
 import { UnansweredQuestion } from '@/interfaces/models/conversation/unanswered-question.model';
+import { PaginatedResponse } from './types';
 
 export interface FeedbackSubmitRequest {
   conversationId: string;
@@ -17,17 +18,6 @@ export interface FeedbackSearchParams {
   type?: string;
   startDate?: string;
   endDate?: string;
-}
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
 }
 
 class FeedbackService {

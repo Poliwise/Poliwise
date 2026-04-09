@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   FileText,
@@ -68,7 +68,7 @@ export default function DocumentsPage() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('vi-VN');
+    return new Date(dateString).toLocaleDateString('en-US');
   };
 
   const formatFileSize = (bytes: number) => {
@@ -108,14 +108,14 @@ export default function DocumentsPage() {
               type="text"
               placeholder="Tìm kiếm tài liệu..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
               className={styles.searchInput}
             />
           </div>
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as DocumentStatus | '')}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value as DocumentStatus | '')}
             className={styles.filterSelect}
           >
             <option value="">Tất cả trạng thái</option>

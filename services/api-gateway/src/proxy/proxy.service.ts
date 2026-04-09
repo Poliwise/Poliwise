@@ -15,6 +15,8 @@ export enum ServiceName {
   KNOWLEDGE = 'knowledge',
   METADATA = 'metadata',
   FEEDBACK = 'feedback',
+  AI_QA = 'ai_qa',
+  INGESTION = 'ingestion',
 }
 
 interface ServiceEndpoint {
@@ -66,6 +68,20 @@ export class ProxyService {
           this.configService.get<string>('services.feedback') ||
           'http://localhost:8085',
         timeout: 30000,
+      },
+      [ServiceName.AI_QA]: {
+        name: 'ai-qa-service',
+        baseUrl:
+          this.configService.get<string>('services.aiQa') ||
+          'http://localhost:8086',
+        timeout: 30000,
+      },
+      [ServiceName.INGESTION]: {
+        name: 'ingestion-service',
+        baseUrl:
+          this.configService.get<string>('services.ingestion') ||
+          'http://localhost:8088',
+        timeout: 60000, // longer for file processing
       },
     };
 

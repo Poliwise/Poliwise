@@ -125,7 +125,7 @@ export default function ProfilePage() {
                 <div>
                   <span className={styles.infoLabel}>Ngày tham gia</span>
                   <span className={styles.infoValue}>
-                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '-'}
+                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US') : '-'}
                   </span>
                 </div>
               </div>

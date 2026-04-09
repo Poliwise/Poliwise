@@ -4,6 +4,7 @@ import { DocumentPopularity } from '@/interfaces/models/analytics/document-popul
 import { PopularQuestion } from '@/interfaces/models/analytics/popular-question.model';
 import { UsageStat } from '@/interfaces/models/analytics/usage-stat.model';
 import { AuditLog } from '@/interfaces/models/analytics/audit-log.model';
+import { PaginatedResponse } from './types';
 
 export interface AnalyticsOverview {
   totalConversations: number;
@@ -38,17 +39,6 @@ export interface AuditLogsParams {
   resourceType?: string;
   startDate?: string;
   endDate?: string;
-}
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-  first: boolean;
-  last: boolean;
-  empty: boolean;
 }
 
 class AnalyticsService {
