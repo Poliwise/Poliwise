@@ -14,11 +14,20 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/init-db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U poliwise"]
+      test: [ "CMD-SHELL", "pg_isready -U poliwise" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 512M
     networks:
       - poliwise
 
@@ -32,10 +41,17 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 256M
     networks:
       - poliwise
 
@@ -64,6 +80,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8081:8081"
     depends_on:
@@ -72,11 +89,16 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
     networks:
       - poliwise
 
@@ -95,6 +117,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8082:8082"
     depends_on:
@@ -105,11 +128,16 @@ services:
       auth-service:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
     networks:
       - poliwise
 
@@ -128,6 +156,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8083:8083"
     depends_on:
@@ -136,11 +165,16 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8083/actuator/health"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8083/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
     networks:
       - poliwise
 
@@ -159,6 +193,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8084:8084"
     depends_on:
@@ -167,11 +202,16 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8084/actuator/health"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8084/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
     networks:
       - poliwise
 
@@ -190,6 +230,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      JAVA_OPTS: "-Xmx512m -Xms256m"
       POLIWISE_JWT_SECRET: change-me-in-production
       POLIWISE_JWT_ISSUER: poliwise-auth-service
     ports:
@@ -200,11 +241,136 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8085/actuator/health"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8085/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # AI Processing Layer (Stable & Portable)
+  # ============================================================
+
+  embedding-service:
+    image: litserve-bge-m3:latest
+    container_name: poliwise-embedding-service
+    restart: unless-stopped
+    environment:
+      - MODEL_NAME=BAAI/bge-m3
+      - ENABLE_COLBERT=false
+      - ENABLE_SPARSE=true
+      - ENABLE_DENSE=true
+      - USE_ONNX=true            # Ép dùng ONNX Runtime cho CPU
+      - QUANTIZE_INT8=true       # Dùng model ONNX đã lượng tử hóa INT8
+      - OMP_NUM_THREADS=4        # Giới hạn thread để CPU không bị quá tải
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1.5G           # Với INT8 Quantization, 1.5GB là an toàn
+        reservations:
+          memory: 1G
+    networks:
+      - poliwise
+
+  ingestion-service:
+    build:
+      context: ./services/ingestion-service
+      dockerfile: Dockerfile
+    container_name: poliwise-ingestion-service
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: 1
+      DATABASE_URL: postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise
+      DATABASE_SCHEMA: knowledge
+      RABBITMQ_URL: amqp://poliwise:poliwise_secure_password@rabbitmq:5672
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_SECURE: "false"
+      LITSERVE_EMBEDDING_URL: http://embedding-service:8000
+      CHUNKING_PARENT_SIZE: 1500
+      CHUNKING_CHILD_SIZE: 400
+      CHUNKING_CHILD_OVERLAP: 80
+      LOG_LEVEL: info
+      WORKERS: 2
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      embedding-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      - poliwise
+
+  ai-qa-service:
+    build:
+      context: ./services/ai-qa-service
+      dockerfile: Dockerfile
+    container_name: poliwise-ai-qa-service
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: 1
+      DATABASE_URL: postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise
+      DATABASE_SCHEMA: conversation
+      RABBITMQ_URL: amqp://poliwise:poliwise_secure_password@rabbitmq:5672
+      LLM_PROVIDER: openrouter
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LLM_MODEL: qwen/qwen-2.5-7b-instruct
+      LLM_TEMPERATURE: 0.1
+      LLM_MAX_TOKENS: 2000
+      INGESTION_SERVICE_URL: http://ingestion-service:8088
+      METADATA_SERVICE_URL: http://metadata-service:8084
+      RETRIEVAL_TOP_K: 50
+      RETRIEVAL_RERANK_TOP_K: 10
+      LOG_LEVEL: info
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ingestion-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 512M
     networks:
       - poliwise
 
@@ -228,6 +394,8 @@ services:
       KNOWLEDGE_SERVICE_URL: http://knowledge-service:8083
       METADATA_SERVICE_URL: http://metadata-service:8084
       FEEDBACK_SERVICE_URL: http://feedback-service:8085
+      AI_QA_SERVICE_URL: http://ai-qa-service:8086
+      INGESTION_SERVICE_URL: http://ingestion-service:8088
       THROTTLE_TTL: 60000
       THROTTLE_LIMIT_USER: 100
       THROTTLE_LIMIT_MANAGER: 200
@@ -250,11 +418,16 @@ services:
       feedback-service:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/health"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
     networks:
       - poliwise
 
@@ -276,10 +449,15 @@ services:
       api-gateway:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001"]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001" ]
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
     networks:
       - poliwise
 

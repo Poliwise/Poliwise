@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Req,
   UseGuards,
@@ -109,15 +110,39 @@ export class ProxyController {
     );
   }
 
+  // AI Q&A endpoints — route to ai-qa-service
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('ai/*')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleAI(@Req() request: Request) {
-    return this.proxyService.forward(
-      ServiceName.FEEDBACK,
-      request,
-      downstreamPath(request, '/api/v1/ai'),
-    );
+    const path = request.url.replace('/api/v1/ai', '');
+    return this.proxyService.forward(ServiceName.AI_QA, request, path);
+  }
+
+  // Ingestion endpoints — route to ingestion-service
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('ingest')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.ACCEPTED)
+  handleIngest(@Req() request: Request) {
+    const path = request.url.replace('/api/v1', '');
+    return this.proxyService.forward(ServiceName.INGESTION, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('ingest/:jobId/status')
+  @Roles(UserRole.ADMIN)
+  handleIngestStatus(@Req() request: Request) {
+    const path = request.url.replace('/api/v1', '');
+    return this.proxyService.forward(ServiceName.INGESTION, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('ingest/:docId/reindex')
+  @Roles(UserRole.ADMIN)
+  handleReindex(@Req() request: Request) {
+    const path = request.url.replace('/api/v1', '');
+    return this.proxyService.forward(ServiceName.INGESTION, request, path);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
