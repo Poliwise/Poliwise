@@ -7,6 +7,8 @@ COPY pom.xml ./
 COPY src ./src
 
 RUN apk add --no-cache maven && \
+    touch .env && \
+    export MAVEN_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED" && \
     mvn dependency:go-offline -B && \
     mvn package -DskipTests -B && \
     mv target/*.jar app.jar

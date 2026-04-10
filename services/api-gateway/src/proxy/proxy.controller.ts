@@ -32,7 +32,7 @@ export class ProxyController {
 
   // ===== User Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('users/*')
+  @All('users/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleUsers(@Req() request: Request) {
     return this.proxyService.forward(
@@ -67,7 +67,7 @@ export class ProxyController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('documents/*')
+  @All('documents/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleDocumentsNested(@Req() request: Request) {
     return this.proxyService.forward(
@@ -78,7 +78,7 @@ export class ProxyController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('metadata/*')
+  @All('metadata/*path')
   @Roles(UserRole.ADMIN)
   handleMetadata(@Req() request: Request) {
     return this.proxyService.forward(
@@ -89,7 +89,7 @@ export class ProxyController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('feedback/*')
+  @All('feedback/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleFeedback(@Req() request: Request) {
     return this.proxyService.forward(
@@ -100,7 +100,7 @@ export class ProxyController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('analytics/*')
+  @All('analytics/*path')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
   handleAnalytics(@Req() request: Request) {
     return this.proxyService.forward(
@@ -112,7 +112,7 @@ export class ProxyController {
 
   // AI Q&A endpoints — route to ai-qa-service
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('ai/*')
+  @All('ai/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleAI(@Req() request: Request) {
     const path = request.url.replace('/api/v1/ai', '');
@@ -146,7 +146,7 @@ export class ProxyController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('admin/*')
+  @All('admin/*path')
   @Roles(UserRole.ADMIN)
   handleAdmin(@Req() request: Request) {
     return this.proxyService.forward(

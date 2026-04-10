@@ -18,6 +18,8 @@ export class ServicesIndicator {
       [ServiceName.KNOWLEDGE]: 'Knowledge Service',
       [ServiceName.METADATA]: 'Metadata Service',
       [ServiceName.FEEDBACK]: 'Feedback Service',
+      [ServiceName.AI_QA]: 'AI QA Service',
+      [ServiceName.INGESTION]: 'Ingestion Service',
     };
 
     const startTime = Date.now();

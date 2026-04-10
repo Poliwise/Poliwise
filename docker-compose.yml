@@ -9,11 +9,13 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: poliwise
-      POSTGRES_PASSWORD: poliwise_secure_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       POSTGRES_DB: poliwise
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/init-db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docs/supbase_sql:/docker-entrypoint-initdb.d/supbase_sql:ro
+      - ./docs/supbase_sql_update_v1:/docker-entrypoint-initdb.d/supbase_sql_update_v1:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -37,11 +39,42 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: poliwise
-      RABBITMQ_DEFAULT_PASS: poliwise_secure_password
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 256M
+    networks:
+      - poliwise
+
+  minio:
+    image: minio/minio:latest
+    container_name: poliwise-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,10 +100,12 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=core
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
-      AUTH_JWT_SECRET: change-me-in-production
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      AUTH_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       AUTH_JWT_ISSUER: poliwise-auth-service
       AUTH_ACCESS_TOKEN_TTL: PT15M
       AUTH_REFRESH_TOKEN_TTL: P7D
@@ -79,7 +114,7 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8081:8081"
@@ -110,13 +145,14 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8082
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8082:8082"
@@ -126,7 +162,7 @@ services:
       rabbitmq:
         condition: service_healthy
       auth-service:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8082/actuator/health" ]
       interval: 30s
@@ -149,13 +185,18 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8083
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=knowledge
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-poliwise-documents}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8083:8083"
@@ -163,6 +204,8 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8083/actuator/health" ]
@@ -186,13 +229,14 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
+      SERVER_PORT: 8084
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=metadata
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8084:8084"
@@ -223,15 +267,16 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8085
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=analytics
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: poliwise_secure_password
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: poliwise_secure_password
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       JAVA_OPTS: "-Xmx512m -Xms256m"
-      POLIWISE_JWT_SECRET: change-me-in-production
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       POLIWISE_JWT_ISSUER: poliwise-auth-service
     ports:
       - "8085:8085"
@@ -255,124 +300,10 @@ services:
       - poliwise
 
   # ============================================================
-  # AI Processing Layer (Stable & Portable)
+  # AI Processing Layer
   # ============================================================
-
-  embedding-service:
-    image: litserve-bge-m3:latest
-    container_name: poliwise-embedding-service
-    restart: unless-stopped
-    environment:
-      - MODEL_NAME=BAAI/bge-m3
-      - ENABLE_COLBERT=false
-      - ENABLE_SPARSE=true
-      - ENABLE_DENSE=true
-      - USE_ONNX=true            # Ép dùng ONNX Runtime cho CPU
-      - QUANTIZE_INT8=true       # Dùng model ONNX đã lượng tử hóa INT8
-      - OMP_NUM_THREADS=4        # Giới hạn thread để CPU không bị quá tải
-    ports:
-      - "8001:8000"
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 1.5G           # Với INT8 Quantization, 1.5GB là an toàn
-        reservations:
-          memory: 1G
-    networks:
-      - poliwise
-
-  ingestion-service:
-    build:
-      context: ./services/ingestion-service
-      dockerfile: Dockerfile
-    container_name: poliwise-ingestion-service
-    restart: unless-stopped
-    environment:
-      PYTHONUNBUFFERED: 1
-      DATABASE_URL: postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise
-      DATABASE_SCHEMA: knowledge
-      RABBITMQ_URL: amqp://poliwise:poliwise_secure_password@rabbitmq:5672
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_SECURE: "false"
-      LITSERVE_EMBEDDING_URL: http://embedding-service:8000
-      CHUNKING_PARENT_SIZE: 1500
-      CHUNKING_CHILD_SIZE: 400
-      CHUNKING_CHILD_OVERLAP: 80
-      LOG_LEVEL: info
-      WORKERS: 2
-    ports:
-      - "8088:8088"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      embedding-service:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          memory: 512M
-    networks:
-      - poliwise
-
-  ai-qa-service:
-    build:
-      context: ./services/ai-qa-service
-      dockerfile: Dockerfile
-    container_name: poliwise-ai-qa-service
-    restart: unless-stopped
-    environment:
-      PYTHONUNBUFFERED: 1
-      DATABASE_URL: postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise
-      DATABASE_SCHEMA: conversation
-      RABBITMQ_URL: amqp://poliwise:poliwise_secure_password@rabbitmq:5672
-      LLM_PROVIDER: openrouter
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      LLM_MODEL: qwen/qwen-2.5-7b-instruct
-      LLM_TEMPERATURE: 0.1
-      LLM_MAX_TOKENS: 2000
-      INGESTION_SERVICE_URL: http://ingestion-service:8088
-      METADATA_SERVICE_URL: http://metadata-service:8084
-      RETRIEVAL_TOP_K: 50
-      RETRIEVAL_RERANK_TOP_K: 10
-      LOG_LEVEL: info
-    ports:
-      - "8086:8086"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      ingestion-service:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          memory: 512M
-    networks:
-      - poliwise
+  # Mode A (stable): AI Python services are disabled because source
+  # folders are not present in this repository snapshot.
 
   # ============================================================
   # API Gateway
@@ -387,15 +318,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      JWT_SECRET: change-me-in-production
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       CORS_ORIGIN: http://localhost:3001
       AUTH_SERVICE_URL: http://auth-service:8081
       USER_SERVICE_URL: http://user-service:8082
       KNOWLEDGE_SERVICE_URL: http://knowledge-service:8083
       METADATA_SERVICE_URL: http://metadata-service:8084
       FEEDBACK_SERVICE_URL: http://feedback-service:8085
-      AI_QA_SERVICE_URL: http://ai-qa-service:8086
-      INGESTION_SERVICE_URL: http://ingestion-service:8088
       THROTTLE_TTL: 60000
       THROTTLE_LIMIT_USER: 100
       THROTTLE_LIMIT_MANAGER: 200
@@ -408,21 +337,27 @@ services:
       - "3000:3000"
     depends_on:
       auth-service:
-        condition: service_started
+        condition: service_healthy
       user-service:
-        condition: service_started
+        condition: service_healthy
       knowledge-service:
-        condition: service_started
+        condition: service_healthy
       metadata-service:
-        condition: service_started
+        condition: service_healthy
       feedback-service:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3000/health" ]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 90s
     deploy:
       resources:
         limits:
@@ -442,12 +377,12 @@ services:
     container_name: poliwise-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     ports:
       - "3001:3001"
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001" ]
       interval: 30s
@@ -469,3 +404,4 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
+  minio_data:

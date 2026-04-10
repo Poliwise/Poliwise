@@ -1,1 +1,12 @@
 .openclaude-profile.json
+.env
+
+# Environment variables
+*.env          
+.env.local
+.env.*.local
+
+# MinIO data & local DB storage
+data/minio/
+data/postgres/
+data/

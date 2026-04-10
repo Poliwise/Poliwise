@@ -321,6 +321,39 @@ psql -h localhost -U poliwise -d poliwise -f migrations/20240115-1700-add-resolv
 
 ---
 
+## Local Bootstrap Baseline (Mode A)
+
+Use this flow for local Docker development when bringing up the baseline stack.
+
+1. The `postgres` container auto-runs `infrastructure/init-db/init.sql` on first boot.
+2. That init script loads SQL files from:
+    - `docs/supbase_sql/`
+    - `docs/supbase_sql_update_v1/`
+3. Supabase-specific RLS script (`docs/supbase_sql/row_level_security.sql`) is intentionally excluded from default bootstrap.
+
+### Command Sequence
+
+```bash
+# Start infra
+docker compose up -d postgres rabbitmq minio
+
+# Verify schemas
+docker compose exec -T postgres psql -U poliwise -d poliwise -c "\\dn"
+
+# Start application services
+docker compose up -d auth-service user-service knowledge-service metadata-service feedback-service api-gateway frontend
+```
+
+### Reinitialize Database
+
+```bash
+docker compose down
+docker volume rm poliwise_postgres_data
+docker compose up -d postgres
+```
+
+---
+
 ## Automated Migration Tools
 
 ### Option 1: Flyway (Java)
