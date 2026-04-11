@@ -25,11 +25,8 @@ export default function LoginPage() {
 
     try {
       const response = await api.auth.login({ username, password });
-      
-      // Store tokens
-      setTokens(response.accessToken, response.refreshToken);
-      
-      // Store user info
+
+      // Store user info first
       setUser({
         userId: response.user.userId,
         username: response.user.username,
@@ -38,6 +35,9 @@ export default function LoginPage() {
         status: AccountStatus.ACTIVE,
         department: null,
       });
+
+      // Store tokens (this also sets isAuthenticated)
+      setTokens(response.accessToken, response.refreshToken);
 
       // Store in localStorage for API client
       if (typeof window !== 'undefined') {

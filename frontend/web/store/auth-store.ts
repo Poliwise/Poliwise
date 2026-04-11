@@ -26,14 +26,22 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
 
       setUser: (user) =>
-        set({ user, isAuthenticated: !!user }),
+        set((state) => ({ 
+          user, 
+          isAuthenticated: !!user || !!state.accessToken 
+        })),
 
       setTokens: (accessToken, refreshToken) => {
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
         }
-        set({ accessToken, refreshToken, isAuthenticated: true });
+        set((state) => ({ 
+          accessToken, 
+          refreshToken, 
+          isAuthenticated: true,
+          user: state.user // Preserve existing user
+        }));
       },
 
       setLoading: (isLoading) => set({ isLoading }),
@@ -43,6 +51,8 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('userRole');
         }
         set({
           user: null,

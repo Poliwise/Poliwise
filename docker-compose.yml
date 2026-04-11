@@ -111,6 +111,9 @@ services:
       AUTH_REFRESH_TOKEN_TTL: P7D
       AUTH_MAX_FAILED_ATTEMPTS: 5
       AUTH_LOCK_DURATION: PT15M
+      ADMIN_USERNAME: admin
+      ADMIN_EMAIL: admin@poliwise.com
+      ADMIN_PASSWORD: Admin@123456
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
@@ -322,6 +325,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ISSUER: poliwise-auth-service
       CORS_ORIGIN: http://localhost:3001
       AUTH_SERVICE_URL: http://auth-service:8081
       USER_SERVICE_URL: http://user-service:8082
