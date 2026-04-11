@@ -19,6 +19,7 @@ owner: auth-service
 - [core.user_profiles](#user-profiles)
 - [core.refresh_tokens](#refresh-tokens)
 - [core.login_history](#login-history)
+- [core.access_token_blacklist](#access-token-blacklist)
 
 ---
 
@@ -53,6 +54,7 @@ owner: auth-service
 - Soft deletion: Not used (departments are never deleted, only deactivated via `is_active`)
 - **Tree Traversal**: Use PostgreSQL `WITH RECURSIVE` CTEs for querying sub-departments up/down the hierarchy.
 - **Circular Reference Prevention**: Application logic must strictly prevent cyclical relationships (e.g., A -> B -> A) when creating or updating departments.
+- **GitLab Handbook Alignment**: This table maps extremely well to GitLab's organizational structure (e.g., Engineering -> Development -> Create). Use `parent_id` to mirror these handbook sections.
 
 ---
 
@@ -82,6 +84,7 @@ owner: auth-service
 | `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
 | `deactivated_at` | TIMESTAMP | NULLABLE | When account was deactivated |
 | `revoked_at` | TIMESTAMP | NULLABLE | When account was revoked |
+| `deleted_at` | TIMESTAMP | NULLABLE | Soft delete timestamp |
 
 ### Indexes
 
@@ -92,6 +95,8 @@ owner: auth-service
 
 ### Important Constraints
 
+- `CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')`
+- `CHECK (username ~* '^[a-z0-9_]{3,50}$')`
 - `CHECK (status != 'REVOKED' OR revoked_at IS NOT NULL)`
 - `CHECK (status != 'DEACTIVATED' OR deactivated_at IS NOT NULL)`
 
@@ -251,5 +256,33 @@ CREATE TYPE login_status AS ENUM ('SUCCESS', 'FAILED');
 
 ---
 
-**Last Updated**: 2026-04-08
-**Documentation Version**: 1.0
+## access_token_blacklist
+
+**Description**: Securely revokes individual JWT access tokens upon explicit logout or token compromise
+
+**Primary Key**: `jti` (VARCHAR)
+
+### Columns
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `jti` | VARCHAR(255) | PRIMARY KEY, NOT NULL | JWT ID (unique identifier claim in the token) |
+| `user_id` | UUID | NOT NULL | User associated with the token |
+| `expired_at` | TIMESTAMP | NOT NULL | When the token naturally expires |
+| `blacklisted_at` | TIMESTAMP | DEFAULT NOW() | When it was blacklisted |
+| `reason` | VARCHAR(100) | NULLABLE | Reason (e.g., 'LOGOUT', 'SECURITY') |
+
+### Indexes
+
+- `idx_core_access_token_blacklist_expired_at` on `expired_at` (for cleanup)
+- `idx_core_access_token_blacklist_user_id` on `user_id`
+
+### Notes
+
+- **Cleanup**: Delete rows where `expired_at < NOW()` since they are naturally invalid anyway.
+
+---
+
+**Last Updated**: 2026-04-10
+**Documentation Version**: 1.1
+

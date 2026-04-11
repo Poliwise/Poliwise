@@ -29,6 +29,8 @@ CREATE TYPE analytics.report_type AS ENUM (
     'USER_ENGAGEMENT', 'DOCUMENT_POPULARITY', 'UNANSWERED_QUESTIONS', 'DEPARTMENT_BREAKDOWN'
 );
 
+CREATE TYPE analytics.report_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
+
 -- ============================================================
 -- TABLE: analytics.feedbacks
 -- ============================================================
@@ -306,8 +308,8 @@ CREATE TABLE analytics.report_exports (
     format analytics.export_format NOT NULL,
     file_key VARCHAR(500),
     file_size_bytes INT,
-    
-    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')),
+
+    status analytics.report_status DEFAULT 'PENDING',
     error_message TEXT,
     
     requested_by UUID NOT NULL,

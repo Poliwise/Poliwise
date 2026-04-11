@@ -8,6 +8,7 @@
 -- ============================================================
 CREATE TYPE conversation.message_role AS ENUM ('USER', 'ASSISTANT', 'SYSTEM');
 CREATE TYPE conversation.confidence_level AS ENUM ('HIGH', 'MEDIUM', 'LOW', 'UNKNOWN');
+CREATE TYPE conversation.priority_level AS ENUM ('LOW', 'NORMAL', 'HIGH', 'CRITICAL');
 
 -- ============================================================
 -- TABLE: conversation.conversations
@@ -53,8 +54,12 @@ CREATE TABLE conversation.messages (
     
     is_streaming BOOLEAN DEFAULT FALSE,
     streaming_completed BOOLEAN DEFAULT TRUE,
-    
+
+    trace_id VARCHAR(100),
+    metadata JSONB DEFAULT '{}',
+
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
     
     CONSTRAINT chk_tokens CHECK (tokens_total IS NULL OR tokens_total >= 0)
 );
@@ -62,6 +67,8 @@ CREATE TABLE conversation.messages (
 CREATE INDEX idx_conversation_messages_conversation_id ON conversation.messages(conversation_id);
 CREATE INDEX idx_conversation_messages_role ON conversation.messages(role);
 CREATE INDEX idx_conversation_messages_created_at ON conversation.messages(created_at DESC);
+CREATE INDEX idx_conversation_messages_deleted_at ON conversation.messages(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_conversation_messages_trace_id ON conversation.messages(trace_id);
 
 -- ============================================================
 -- TABLE: conversation.unanswered_questions
@@ -89,12 +96,18 @@ CREATE TABLE conversation.unanswered_questions (
     related_document_id UUID,
     
     category VARCHAR(100),
-    priority VARCHAR(20) DEFAULT 'NORMAL' CHECK (priority IN ('LOW', 'NORMAL', 'HIGH', 'CRITICAL')),
-    
+    priority conversation.priority_level DEFAULT 'NORMAL',
+
+    trace_id VARCHAR(100),
+    metadata JSONB DEFAULT '{}',
+
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_conversation_unanswered_questions_user_id ON conversation.unanswered_questions(user_id);
 CREATE INDEX idx_conversation_unanswered_questions_resolved ON conversation.unanswered_questions(resolved);
 CREATE INDEX idx_conversation_unanswered_questions_priority ON conversation.unanswered_questions(priority);
+CREATE INDEX idx_conversation_unanswered_questions_deleted_at ON conversation.unanswered_questions(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_conversation_unanswered_questions_trace_id ON conversation.unanswered_questions(trace_id);

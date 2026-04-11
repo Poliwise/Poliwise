@@ -45,7 +45,10 @@ owner: feedback-service
 | `question_text` | TEXT | NOT NULL | Snapshot of user's question (denormalized) |
 | `answer_text` | TEXT | NOT NULL | Snapshot of AI's answer (denormalized) |
 | `sources_used` | JSONB | NULLABLE | Array of sources cited: `[{document_id, title, page}]` |
+| `user_department_id` | UUID | NULLABLE | Track context of feedback |
+| `user_role` | VARCHAR(20) | NULLABLE | Track role context |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Feedback timestamp |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
 
 ### Indexes
 
@@ -87,8 +90,18 @@ owner: feedback-service
 | `method` | VARCHAR(10) | NOT NULL | HTTP method (GET, POST, etc.) |
 | `response_time_ms` | INT | NOT NULL | End-to-end response time |
 | `status_code` | INT | NOT NULL | HTTP status code (200, 401, 500, etc.) |
+| `request_size_bytes` | INT | NULLABLE | Size of request payload |
+| `response_size_bytes` | INT | NULLABLE | Size of response payload |
+| `is_error` | BOOLEAN | DEFAULT false | Flag for failed requests |
+| `error_code` | VARCHAR(50) | NULLABLE | Specific error code if failed |
+| `error_message` | TEXT | NULLABLE | Error description |
 | `tokens_used` | INT | NULLABLE | Tokens consumed (if LLM call) |
 | `model_used` | VARCHAR(100) | NULLABLE | LLM model name (if applicable) |
+| `chunks_retrieved` | INT | NULLABLE | Number of chunks used in context |
+| `confidence` | VARCHAR(20) | NULLABLE | Overall confidence score |
+| `trace_id` | VARCHAR(100) | NULLABLE | Trace ID for telemetry |
+| `ip_address` | INET | NULLABLE | Request IP address |
+| `user_agent` | TEXT | NULLABLE | Browser/client string |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Request timestamp |
 
 ### Indexes
@@ -131,13 +144,19 @@ owner: feedback-service
 | `id` | UUID | PRIMARY KEY, NOT NULL | Audit entry ID |
 | `user_id` | UUID | NOT NULL, FOREIGN KEY → core.users(id) | Actor (who performed action) |
 | `username` | VARCHAR(100) | NOT NULL | Username at time of action (denormalized in case user deleted) |
-| `action` | ENUM('USER_CREATED','USER_UPDATED','USER_DELETED','DOCUMENT_UPLOADED','DOCUMENT_DELETED','PERMISSION_CHANGED','LOGIN_FAILED','TOKEN_REVOKED') | NOT NULL | What action was taken |
-| `resource_type` | ENUM('USER','DOCUMENT','DOCUMENT_VERSION','ACCESS_RULE','TOKEN') | NOT NULL | Type of resource affected |
-| `resource_id` | UUID | NOT NULL | ID of affected resource |
+| `user_role` | VARCHAR(20) | NULLABLE | Role at time of action |
+| `action` | VARCHAR(255) | NOT NULL | What action was taken |
+| `resource_type` | VARCHAR(255) | NOT NULL | Type of resource affected |
+| `resource_id` | UUID | NULLABLE | ID of affected resource |
+| `resource_name` | VARCHAR(255) | NULLABLE | Name of the affected resource |
 | `old_value` | JSONB | NULLABLE | Previous state (for updates) |
 | `new_value` | JSONB | NULLABLE | New state (for creates/updates) |
-| `ip_address` | INET | NOT NULL | Actor's IP address |
+| `changed_fields` | TEXT[] | NULLABLE | Array of field names modified |
+| `ip_address` | INET | NULLABLE | Actor's IP address |
 | `user_agent` | TEXT | NULLABLE | Actor's user agent |
+| `trace_id` | VARCHAR(100) | NULLABLE | Telemetry correlation ID |
+| `service_name` | VARCHAR(50) | NULLABLE | Service where action originated |
+| `metadata` | JSONB | DEFAULT '{}' | Additional context |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | When action occurred |
 
 ### Indexes

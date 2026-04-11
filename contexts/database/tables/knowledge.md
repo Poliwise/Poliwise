@@ -46,26 +46,26 @@ owner: knowledge-service, ingestion-service
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, NOT NULL | Document unique identifier |
 | `original_filename` | VARCHAR(500) | NOT NULL | Original filename as uploaded |
-| `file_type` | VARCHAR(20) | NOT NULL | File extension/type (PDF, DOCX, XLSX, etc.) |
-| `file_size_bytes` | BIGINT | NOT NULL | File size in bytes |
-| `mime_type` | VARCHAR(100) | NOT NULL | MIME type (e.g., "application/pdf") |
-| `file_key` | VARCHAR(500) | NOT NULL | MinIO object key (path to file in bucket) |
-| `bucket_name` | VARCHAR(100) | NOT NULL | MinIO bucket name |
-| `status` | VARCHAR(50) | DEFAULT 'PENDING' | Processing status (PENDING, PROCESSING, COMPLETED, FAILED) |
-| `current_version` | INT | DEFAULT 1 | Current version number (cached from document_versions) |
-| `extracted_text` | TEXT | NULLABLE | Full extracted text (updated after ingestion) |
-| `page_count` | INT | NULLABLE | Number of pages (if applicable) |
-| `word_count` | INT | NULLABLE | Total word count |
-| `language` | VARCHAR(10) | DEFAULT 'en' | Detected language (ISO code, e.g., 'en', 'vi') |
-| `ocr_required` | BOOLEAN | DEFAULT false | Whether OCR was needed |
-| `chunking_strategy` | VARCHAR(50) | DEFAULT 'parent_child' | Strategy: 'parent_child' or 'recursive' |
-| `chunk_size` | INT | NULLABLE | Chunk size in characters/tokens |
+| `status` | VARCHAR(50) | DEFAULT 'PENDING' | Processing status |
+| `current_version` | INT | DEFAULT 1 | Current version number |
+| `language` | VARCHAR(10) | DEFAULT 'en' | Detected language |
+| `chunking_strategy` | VARCHAR(50) | DEFAULT 'parent_child' | Strategy used |
+| `chunk_size` | INT | NULLABLE | Chunk size |
 | `chunk_overlap` | INT | NULLABLE | Overlap between chunks |
-| `embedding_model` | VARCHAR(100) | NULLABLE | Model used (e.g., "BGE-M3") |
-| `embedding_dimension` | INT | NULLABLE | Vector dimension (e.g., 1024) |
 | `uploaded_by` | UUID | NOT NULL, FOREIGN KEY → core.users(id) | Who uploaded |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Upload timestamp |
 | `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
+
+### Indexes
+
+- `idx_documents_status` on `status`
+- `idx_documents_uploaded_by` on `uploaded_by`
+- `idx_documents_created_at` on `created_at` DESC
+
+### Notes
+
+- **Normalized File Storage**: File-specific metadata (file_key, size) has been moved to `document_versions` to support cleaner versioning.
+- **GitLab Handbook Alignment**: This table serves as the root container. The actual hierarchical grouping will rely on category metadata and section chunking.
 
 ### Indexes
 
@@ -153,31 +153,28 @@ WHERE is_current = true;
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, NOT NULL | Chunk unique identifier |
-| `document_id` | UUID | NOT NULL, FOREIGN KEY → knowledge.documents(id) | Parent document |
-| `document_version_id` | UUID | NOT NULL, FOREIGN KEY → knowledge.document_versions(id) | Version that created this chunk |
-| `is_latest` | BOOLEAN | DEFAULT true | Whether this chunk is from the latest version |
-| `chunk_type` | VARCHAR(10) | NOT NULL, CHECK (`chunk_type` IN ('parent','child')) | 'parent' or 'child' |
-| `parent_chunk_id` | UUID | NULLABLE, FOREIGN KEY → knowledge.chunks(id) | Parent chunk (for child chunks) |
-| `section_title` | VARCHAR(500) | NULLABLE | Section heading title (e.g., "Điều 15") |
-| `section_level` | INT | NULLABLE | Heading level (1=Chương, 2=Điều, 3=Khoản, 4=Điểm) |
-| `section_path` | JSONB | NULLABLE | Hierarchy path: `["Chương 2","Điều 5","Khoản 1"]` |
-| `content` | TEXT | NOT NULL | Chunk text content (for child) or merged content (for parent) |
-| `summary` | TEXT | NULLABLE | Summary (parent chunks only) |
+| `document_id` | UUID | NOT NULL | Parent document |
+| `document_version` | INT | NOT NULL | Version that created this chunk |
 | `chunk_index` | INT | NOT NULL | Position index within document version |
-| `start_char_index` | INT | NOT NULL | Char offset in original document text |
-| `end_char_index` | INT | NOT NULL | Char offset end |
-| `token_count` | INT | NOT NULL | Estimated token count (from tokenizer) |
-| `child_chunk_ids` | UUID[] | NULLABLE | Array of child chunk IDs (parent chunks only) |
-| `embedding_model` | VARCHAR(100) | NOT NULL | Model used (e.g., "BGE-M3") |
-| `embedding_dimension` | INT | NOT NULL | Vector dimension (e.g., 1024) |
-| `embedding_vector` | `vector(1024)` | NOT NULL | pgvector column - actual embedding vector |
-| `allowed_roles` | TEXT[] | DEFAULT '{}' | Flattened roles that can access (USER, MANAGER, ADMIN) |
-| `allowed_departments` | UUID[] | DEFAULT '{}' | Flattened department UUIDs that can access |
-| `allowed_users` | UUID[] | DEFAULT '{}' | Flattened specific user UUIDs that can access |
-| `access_level` | VARCHAR(20) | DEFAULT 'PUBLIC' | 'PUBLIC' or 'DEPARTMENT_ONLY' (from document metadata) |
-| `metadata` | JSONB | DEFAULT '{}' | Flexible metadata (source, confidence, custom fields) |
+| `content` | TEXT | NOT NULL | Chunk text content |
+| `content_length` | INT | NOT NULL | Character length |
+| `token_count` | INT | NULLABLE | Estimated token count |
+| `page_number` | INT | NULLABLE | Page or section number |
+| `start_char_index` | INT | NULLABLE | Char offset |
+| `end_char_index` | INT | NULLABLE | Char offset end |
+| `embedding_model` | VARCHAR(100) | NULLABLE | Model used |
+| `embedding_dimension` | INT | NULLABLE | Vector dimension |
+| `vector_indexed` | BOOLEAN | DEFAULT false | True if vector successfully saved |
+| `vector_id` | VARCHAR(100) | NULLABLE | Auxiliary vector ID |
+| `embedding_vector` | `vector(1024)` | NULLABLE | pgvector column - actual embedding vector |
+| `department_id` | UUID | NULLABLE | Department context |
+| `document_type` | VARCHAR(50) | NULLABLE | Type of document |
+| `effective_date` | DATE | NULLABLE | When policy is effective |
+| `expiry_date` | DATE | NULLABLE | When policy expires |
+| `metadata` | JSONB | DEFAULT '{}' | Flexible metadata (crucial for GitLab Handbook fields) |
+| `is_latest` | BOOLEAN | DEFAULT false | Latest version flag |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Chunk creation timestamp |
-| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update (for ACL sync) |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update |
 
 ### Indexes
 
@@ -248,13 +245,8 @@ ADD CONSTRAINT fk_chunks_parent
 
 ### Notes
 
-- **Read-Optimized ACL**: The `allowed_*` arrays are **denormalized copies** from `metadata.document_access_rules`. They are populated during ingestion and kept in sync via background jobs when permissions change. See `contexts/authorization/dual-strategy.md`.
-- **Parent-Child Chunking**:
-  - `chunk_type = 'parent'`: Large chunks (1000-1500 tokens) with `summary` and `child_chunk_ids`
-  - `chunk_type = 'child'`: Smaller chunks (300-500 tokens) with `parent_chunk_id` pointing to parent
-  - Retrieval: Find relevant child chunks, then fetch parent for rich context
-- **Section Metadata**: `section_title`, `section_level`, `section_path` extracted from document headings (e.g., Header 1, Header 2, Section, Subsection). Useful for structured navigation of enterprise guidelines (like the GitLab handbook).
-- **Vector Search**: `embedding_vector` uses `pgvector` with HNSW index. Dimension must match embedding model (BGE-M3 = 1024).
+- **Vector Storage**: Relies natively on `pgvector`. Ensure you are using a `pgvector`-enabled Docker image.
+- **GitLab Handbook Support (MISSING FIELDS)**: Currently, the structural fields necessary for the GitLab handbook (e.g., `section_title`, `section_path`, `section_level`) are missing. They either need to be added as dedicated columns or stored inside the `metadata` JSONB column. Storing them in dedicated GIN-indexed JSONB or separate columns is critical for high-performance section filtering.
 - **Versioning & Soft Delete (Data Bloat Prevention)**: When superseded by a new version, chunks are marked `is_latest = false`. Because vector embeddings consume massive disk space, a background cron job MUST definitively hard-delete old chunks (e.g., `is_latest = false` AND older than 3 months) to prevent database bloat.
 - **Query Pattern**:
   ```sql
