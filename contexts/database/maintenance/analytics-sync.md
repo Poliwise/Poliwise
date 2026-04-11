@@ -37,3 +37,6 @@ All VARCHAR columns with CHECK constraints have been migrated to native PostgreS
 ## Task 4: Standardize Timestamps - COMPLETED
 - [x] All tables use consistent `created_at` and `updated_at` tracking where appropriate.
 - [x] `hourly_aggregates` uses `datetime` as the unique timestamp column with `computed_at` for aggregation time.
+
+## Task 5: Soft Delete for Feedbacks - COMPLETED
+- [x] Added `deleted_at` to `analytics.feedbacks` with partial index.

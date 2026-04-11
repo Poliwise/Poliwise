@@ -752,6 +752,13 @@ Test full pipeline with:
 - [ ] Memory usage profiled on large documents
 - [ ] Soft delete: set `deleted_at` on chunks when `document.deleted` event received
 
+### Operational (Post-Merge TODOs)
+- [ ] HNSW index load testing on target dataset size (see `contexts/database/migration-strategy.md`)
+- [ ] Background ACL sync job: when `document_access_rules` changes, update flattened `allowed_*` arrays in `knowledge.chunks`
+- [ ] Cleanup cron: hard-delete soft-deleted records older than retention period (users: 1 year, feedbacks: 90 days, chunks: 3 months)
+- [ ] Cleanup cron: delete expired tokens from `core.access_token_blacklist` (`expired_at < NOW()`)
+- [ ] Cleanup cron: delete old `is_latest = false` chunks older than 3 months to free vector storage
+
 ---
 
 ## References

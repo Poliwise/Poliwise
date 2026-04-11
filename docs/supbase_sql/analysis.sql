@@ -53,7 +53,8 @@ CREATE TABLE analytics.feedbacks (
     
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+    deleted_at TIMESTAMPTZ,
+
     CONSTRAINT uq_user_message_feedback UNIQUE (user_id, message_id)
 );
 
@@ -61,6 +62,7 @@ CREATE INDEX idx_analytics_feedbacks_user_id ON analytics.feedbacks(user_id);
 CREATE INDEX idx_analytics_feedbacks_message_id ON analytics.feedbacks(message_id);
 CREATE INDEX idx_analytics_feedbacks_type ON analytics.feedbacks(type);
 CREATE INDEX idx_analytics_feedbacks_created_at ON analytics.feedbacks(created_at DESC);
+CREATE INDEX idx_analytics_feedbacks_deleted_at ON analytics.feedbacks(deleted_at) WHERE deleted_at IS NULL;
 
 -- ============================================================
 -- TABLE: analytics.usage_stats
