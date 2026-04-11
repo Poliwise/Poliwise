@@ -8,6 +8,8 @@
 -- ============================================================
 CREATE TYPE metadata.document_status AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED', 'EXPIRED');
 CREATE TYPE metadata.access_level AS ENUM ('PUBLIC', 'DEPARTMENT_ONLY', 'RESTRICTED');
+CREATE TYPE metadata.rule_target_type AS ENUM ('ROLE', 'DEPARTMENT', 'USER');
+CREATE TYPE metadata.rule_permission AS ENUM ('VIEW', 'DENY');
 
 -- ============================================================
 -- TABLE: metadata.categories
@@ -22,11 +24,13 @@ CREATE TABLE metadata.categories (
     display_order INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_metadata_categories_parent_id ON metadata.categories(parent_id);
 CREATE INDEX idx_metadata_categories_slug ON metadata.categories(slug);
+CREATE INDEX idx_metadata_categories_deleted_at ON metadata.categories(deleted_at) WHERE deleted_at IS NULL;
 
 -- ============================================================
 -- TABLE: metadata.tags
@@ -37,11 +41,13 @@ CREATE TABLE metadata.tags (
     slug VARCHAR(50) UNIQUE NOT NULL,
     color VARCHAR(7) DEFAULT '#6B7280',
     usage_count INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_metadata_tags_name ON metadata.tags(name);
 CREATE INDEX idx_metadata_tags_slug ON metadata.tags(slug);
+CREATE INDEX idx_metadata_tags_deleted_at ON metadata.tags(deleted_at) WHERE deleted_at IS NULL;
 
 -- ============================================================
 -- TABLE: metadata.document_metadata
@@ -103,17 +109,20 @@ CREATE INDEX idx_metadata_document_tags_tag_id ON metadata.document_tags(tag_id)
 CREATE TABLE metadata.document_access_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     document_metadata_id UUID NOT NULL REFERENCES metadata.document_metadata(id) ON DELETE CASCADE,
-    
-    target_type VARCHAR(20) NOT NULL CHECK (target_type IN ('ROLE', 'DEPARTMENT', 'USER')),
+
+    target_type metadata.rule_target_type NOT NULL,
     target_role core.user_role,
     target_department_id UUID REFERENCES core.departments(id) ON DELETE CASCADE,
     target_user_id UUID REFERENCES core.users(id) ON DELETE CASCADE,
-    
-    permission VARCHAR(20) NOT NULL CHECK (permission IN ('VIEW', 'DENY')),
-    
+
+    permission metadata.rule_permission NOT NULL,
+
     created_by UUID REFERENCES core.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
+    trace_id VARCHAR(100),
+    metadata JSONB DEFAULT '{}',
+
     CONSTRAINT chk_target_consistency CHECK (
         (target_type = 'ROLE' AND target_role IS NOT NULL AND target_department_id IS NULL AND target_user_id IS NULL) OR
         (target_type = 'DEPARTMENT' AND target_role IS NULL AND target_department_id IS NOT NULL AND target_user_id IS NULL) OR
@@ -122,3 +131,4 @@ CREATE TABLE metadata.document_access_rules (
 );
 
 CREATE INDEX idx_metadata_doc_access_rules_metadata_id ON metadata.document_access_rules(document_metadata_id);
+CREATE INDEX idx_metadata_doc_access_rules_trace_id ON metadata.document_access_rules(trace_id);

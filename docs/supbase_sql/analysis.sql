@@ -29,6 +29,8 @@ CREATE TYPE analytics.report_type AS ENUM (
     'USER_ENGAGEMENT', 'DOCUMENT_POPULARITY', 'UNANSWERED_QUESTIONS', 'DEPARTMENT_BREAKDOWN'
 );
 
+CREATE TYPE analytics.report_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
+
 -- ============================================================
 -- TABLE: analytics.feedbacks
 -- ============================================================
@@ -51,7 +53,8 @@ CREATE TABLE analytics.feedbacks (
     
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+    deleted_at TIMESTAMPTZ,
+
     CONSTRAINT uq_user_message_feedback UNIQUE (user_id, message_id)
 );
 
@@ -59,6 +62,7 @@ CREATE INDEX idx_analytics_feedbacks_user_id ON analytics.feedbacks(user_id);
 CREATE INDEX idx_analytics_feedbacks_message_id ON analytics.feedbacks(message_id);
 CREATE INDEX idx_analytics_feedbacks_type ON analytics.feedbacks(type);
 CREATE INDEX idx_analytics_feedbacks_created_at ON analytics.feedbacks(created_at DESC);
+CREATE INDEX idx_analytics_feedbacks_deleted_at ON analytics.feedbacks(deleted_at) WHERE deleted_at IS NULL;
 
 -- ============================================================
 -- TABLE: analytics.usage_stats
@@ -306,8 +310,8 @@ CREATE TABLE analytics.report_exports (
     format analytics.export_format NOT NULL,
     file_key VARCHAR(500),
     file_size_bytes INT,
-    
-    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')),
+
+    status analytics.report_status DEFAULT 'PENDING',
     error_message TEXT,
     
     requested_by UUID NOT NULL,

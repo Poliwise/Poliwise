@@ -4,7 +4,7 @@ services:
   # ============================================================
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: poliwise-postgres
     restart: unless-stopped
     environment:
@@ -149,6 +149,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
@@ -189,6 +190,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=knowledge
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -233,6 +235,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=metadata
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
@@ -271,13 +274,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=analytics
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
+      SPRING_RABBITMQ_VIRTUAL_HOST: /
       JAVA_OPTS: "-Xmx512m -Xms256m"
-      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      POLIWISE_JWT_ISSUER: poliwise-auth-service
     ports:
       - "8085:8085"
     depends_on:

@@ -3,24 +3,23 @@
 -- =====================================================
 -- Run this AFTER infrastructure/init-db/init.sql
 -- Adds indexes and columns needed for ingestion-service & ai-qa-service
+-- This script is IDEMPOTENT — safe to run multiple times.
 -- =====================================================
 
 -- Enable required extensions (safe to run even if already enabled)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgvector";
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- =====================================================
 -- KNOWLEDGE SCHEMA — AI Search Infrastructure
 -- =====================================================
 
--- 1. BM25: Full-text search vector (English)
--- This is a GENERATED column — PostgreSQL computes it automatically from `content`
+-- 1. BM25: Full-text search vector (English) — GENERATED column
 ALTER TABLE knowledge.chunks
 ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
 GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
 
 -- 2. HNSW index for vector similarity search (cosine distance)
--- This is CRITICAL for fast embedding lookup
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
 ON knowledge.chunks
 USING hnsw (embedding_vector vector_cosine_ops)
@@ -33,7 +32,10 @@ ON knowledge.chunks USING GIN (allowed_roles);
 CREATE INDEX IF NOT EXISTS idx_chunks_allowed_departments
 ON knowledge.chunks USING GIN (allowed_departments);
 
--- 4. GIN index for JSONB section_path (if querying by hierarchical path)
+CREATE INDEX IF NOT EXISTS idx_chunks_allowed_users
+ON knowledge.chunks USING GIN (allowed_users);
+
+-- 4. GIN index for JSONB section_path (hierarchical path queries)
 CREATE INDEX IF NOT EXISTS idx_chunks_section_path
 ON knowledge.chunks USING GIN (section_path);
 
@@ -43,12 +45,11 @@ CREATE INDEX IF NOT EXISTS idx_chunks_search_filters
 ON knowledge.chunks (is_latest, chunk_type, document_id)
 WHERE is_latest = true AND chunk_type = 'child';
 
--- 6. GIN index for BM25 full-text search (used in hybrid retrieval)
+-- 6. GIN index for BM25 full-text search (hybrid retrieval)
 CREATE INDEX IF NOT EXISTS idx_chunks_content_tsv
 ON knowledge.chunks USING GIN (content_tsv);
 
 -- 7. Unique constraint for idempotent chunk insertion
---    Ensures re-running ingestion for same version doesn't duplicate
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_chunk_per_version
 ON knowledge.chunks (document_version_id, chunk_index, chunk_type);
 
@@ -85,7 +86,11 @@ ON conversation.conversations (user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
 ON conversation.messages (conversation_id, created_at ASC);
 
--- Optional: Full-text search on message content (if implementing search in chat history)
+-- Soft-delete aware index for messages
+CREATE INDEX IF NOT EXISTS idx_messages_deleted_at
+ON conversation.messages (deleted_at) WHERE deleted_at IS NULL;
+
+-- Full-text search on message content (search in chat history)
 ALTER TABLE conversation.messages
 ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
 GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
@@ -99,7 +104,7 @@ ON conversation.messages USING GIN (content_tsv);
 
 -- Feedback queries by user
 CREATE INDEX IF NOT EXISTS idx_feedback_user
-ON analytics.feedback (user_id, created_at DESC);
+ON analytics.feedbacks (user_id, created_at DESC);
 
 -- Unanswered questions queue (admin review)
 CREATE INDEX IF NOT EXISTS idx_unanswered_priority
@@ -108,7 +113,7 @@ WHERE resolved = false;
 
 -- Usage stats aggregation by service/endpoint/date
 CREATE INDEX IF NOT EXISTS idx_usage_stats_service_date
-ON analytics.usage_stats (service_name, date, endpoint);
+ON analytics.usage_stats (service_name, created_at, endpoint);
 
 -- Daily aggregates for reporting
 CREATE INDEX IF NOT EXISTS idx_daily_aggregates_date

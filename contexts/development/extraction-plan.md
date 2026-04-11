@@ -2,7 +2,7 @@
 title: Extraction Service Implementation Plan
 description: Detailed implementation plan for Poliwise ingestion-service (Python FastAPI)
 type: development
-version: 1.0
+version: 1.3
 ---
 
 # Extraction Service Implementation Plan
@@ -24,17 +24,31 @@ This document provides the **complete technical implementation plan** for buildi
 
 ### Pipeline Flow
 
-```
-Knowledge Service (Spring Boot :8083)
-  1. Admin uploads file via Gateway
-  2. Save file to MinIO
-  3. Create Document, DocumentVersion, ProcessingJob entities
-  4. Fetch metadata (access rules, categories, tags)
-  5. Publish `ingestion.requested` to RabbitMQ with full payload
+The ingestion pipeline uses a **two-phase** approach: AI suggests metadata → user reviews/confirms → ingestion executes.
 
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │ ingestion.requested (RabbitMQ)
-                               ▼
+```
+PHASE 1: METADATA SUGGESTION (synchronous, < 5s)
+═══════════════════════════════════════════════════
+
+User uploads file → Gateway → Knowledge Service
+  1. Save file to MinIO
+  2. Extract text preview (first 4000 chars)
+  3. Call AI to suggest metadata:
+     { domain, content_quality, title, description, tags }
+  4. Return suggestions to UI → user reviews & modifies
+  5. User clicks "Ingest" → confirmed metadata
+
+PHASE 2: INGESTION (async via RabbitMQ)
+═══════════════════════════════════════════
+
+Knowledge Service
+  1. Create Document, DocumentVersion, ProcessingJob entities
+  2. Set knowledge.documents.domain + content_quality from user-confirmed values
+  3. Publish `ingestion.requested` to RabbitMQ with confirmed metadata
+
+└────────────────────────┬──────────────────────────────────────┘
+                         │ ingestion.requested (RabbitMQ)
+                         ▼
 
 Ingestion Service (Python FastAPI :8088)
   ↓ EXTRACTION LAYER
@@ -42,22 +56,22 @@ Ingestion Service (Python FastAPI :8088)
     • Route to format-specific extractor
     • Extract raw text + structural metadata
     • Return ExtractedDocument with text + metadata
-  
+
   ↓ STANDARDIZATION LAYER
     • Unicode NFC, whitespace cleanup
     • Document heading detection
-  
+
   ↓ CHUNKING LAYER
     • Parent-child chunking with metadata assignment from event payload
-  
+
   ↓ EMBEDDING LAYER
     • BGE-M3 dense (1024-dim) + sparse BM25 via LitServe
-  
+
   ↓ STORAGE LAYER
     • Save chunks to knowledge.chunks with access control tags
     • Update knowledge.documents (extracted_text, page_count, etc.)
     • Update knowledge.processing_jobs (status = COMPLETED)
-  
+
   ↓ PUBLISH `document.uploaded` to RabbitMQ
 ```
 
@@ -88,12 +102,14 @@ services/ingestion-service/
 │   │   ├── extraction.py                # Pydantic/dataclass models for extraction output
 │   │   ├── chunk.py                     # SQLAlchemy chunk model
 │   │   ├── document.py                  # SQLAlchemy document model
+│   │   ├── document_version.py          # SQLAlchemy document_version model
 │   │   └── processing_job.py            # SQLAlchemy job model
 │   ├── db/
 │   │   ├── session.py                   # asyncpg engine + session factory
 │   │   └── repositories/
 │   │       ├── chunk_repo.py
 │   │       ├── document_repo.py
+│   │       ├── version_repo.py
 │   │       └── job_repo.py
 │   └── events/
 │       ├── consumer.py                  # Consume ingestion.requested, document.deleted
@@ -111,10 +127,10 @@ services/ingestion-service/
 
 | Table | Key Columns |
 |-------|-------------|
-| `knowledge.documents` | `id`, `file_key`, `bucket_name`, `extracted_text`, `page_count`, `word_count`, `chunking_strategy`, `chunk_size`, `chunk_overlap`, `embedding_model`, `embedding_dimension` |
-| `knowledge.document_versions` | `id`, `document_id`, `version_number`, `file_key`, `bucket_name`, `extracted_text` |
-| `knowledge.chunks` | `id`, `document_id`, `document_version_id`, `chunk_type`, `parent_chunk_id`, `content`, `summary`, `section_title`, `section_level`, `section_path`, `chunk_index`, `start_char_index`, `end_char_index`, `token_count`, `child_chunk_ids`, `embedding_vector`, `embedding_model`, `embedding_dimension`, `allowed_roles`, `allowed_departments`, `access_level`, `is_latest` |
-| `knowledge.processing_jobs` | `id`, `document_id`, `document_version_id`, `job_type`, `status`, `progress_percent`, `error_message`, `error_details`, `output_metrics` |
+| `knowledge.documents` | `id`, `file_key`, `bucket_name`, `extracted_text`, `page_count`, `word_count`, `domain`, `content_quality`, `chunking_strategy`, `chunk_size`, `chunk_overlap`, `embedding_model` |
+| `knowledge.document_versions` | `id`, `document_id`, `version_number`, `file_key`, `bucket_name`, `changelog`, `extracted_text`, `is_current` |
+| `knowledge.chunks` | `id`, `document_id`, `document_version_id`, `chunk_type`, `parent_chunk_id`, `content`, `section_title`, `section_level`, `section_path`, `chunk_index`, `start_char_index`, `end_char_index`, `token_count`, `embedding_vector`, `embedding_model`, `embedding_dimension`, `allowed_roles`, `allowed_departments`, `allowed_users`, `access_level`, `is_latest`, `deleted_at` |
+| `knowledge.processing_jobs` | `id`, `document_id`, `document_version_id`, `job_type`, `status`, `progress_percent`, `error_message`, `error_details`, `output_metrics`, `deleted_at` |
 
 ### Schema Requirements
 
@@ -190,12 +206,13 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     
-    # Document Extraction
-    "PyMuPDF>=1.23.0",        # PDF
-    "python-docx>=1.1.0",     # DOCX
-    "openpyxl>=3.1.0",        # XLSX
-    "pytesseract>=0.3.10",    # OCR
-    "Pillow>=10.0.0",         # Images
+    # Document Extraction (local libraries only — no AI model required)
+    "PyMuPDF>=1.23.0",        # PDF — text extraction + OCR fallback
+    "python-docx>=1.1.0",     # DOCX — heading detection, tables
+    "openpyxl>=3.1.0",        # XLSX — sheet to markdown
+    "pytesseract>=0.3.10",    # OCR for scanned images/PDFs
+    "Pillow>=10.0.0",         # Image processing
+    "ruamel.yaml>=0.18.0",    # Hugo frontmatter parsing (preserves comments)
     
     # NLP & Tokenization
     "tiktoken>=0.8.0",        # Token counting
@@ -248,11 +265,91 @@ class ExtractionOrchestrator:
 
 | Format | Extension | Library | Key Features |
 |--------|-----------|---------|--------------|
-| PDF | `.pdf` | PyMuPDF (`fitz`) | Text extraction, image detection, OCR fallback |
-| Word | `.docx` | `python-docx` | Heading detection, table extraction |
-| Excel | `.xlsx` | `openpyxl` | Sheet extraction, table conversion to markdown |
-| Text | `.txt`, `.md` | Built-in | UTF-8 decode, markdown structure preservation |
+| Markdown | `.md` | Built-in | UTF-8 decode, Hugo frontmatter parsing, heading detection (`#`, `##`, etc.) |
+| Text | `.txt` | Built-in | UTF-8 decode, basic structure preservation |
+| PDF | `.pdf` | PyMuPDF (`fitz`) | Text extraction, page-level metadata, image detection, OCR fallback |
+| Word | `.docx` | `python-docx` | Heading detection, paragraph structure, table extraction |
+| Excel | `.xlsx` | `openpyxl` | Sheet iteration, cell-to-markdown conversion |
 | Images | `.png`, `.jpg`, etc. | `pytesseract` + `Pillow` | OCR with Vietnamese language support |
+
+**Design Principle**: All extractors are **local library-based** — no external AI model dependencies for extraction. This ensures:
+- **Stability**: No GPU free-tier sleep, no tunnel drops, no API rate limits
+- **Speed**: 200ms-2s/file on CPU-only
+- **Zero cost**: No token usage during extraction
+- **Predictability**: Deterministic output for testing and reproducibility
+
+**Optional Plugin — MinerU Extractor (Future)**:
+When dealing with complex scanned PDFs (multi-column layouts, complex tables, image-heavy documents), an optional `MinerUExtractor` can be added using the `opendatalab/MinerU2.5` model. This should be implemented as an opt-in plugin, not a core dependency:
+
+```python
+class MinerUExtractor(DocumentExtractor):
+    """Optional extractor for complex/scanned PDFs using MinerU model.
+    Requires: GPU access, MinerU API endpoint configured.
+    Falls back to PyMuPDFExtractor if unavailable."""
+
+    def supported_extensions(self):
+        return [".pdf"]  # Only activated when MINERU_ENABLED=true
+
+    async def extract(self, file_bytes, document_id, version_id):
+        if not settings.mineru_enabled:
+            raise MinerUNotAvailableError("Falling back to PyMuPDF")
+        # Call MinerU API endpoint (self-hosted or HF Space + tunnel)
+        ...
+```
+
+**When to enable MinerU**:
+- Bulk ingestion of scanned PDFs (not applicable to GitLab Handbook — all `.md`)
+- Complex table/column layouts that PyMuPDF fails to parse
+- When a stable GPU endpoint is available (not free-tier)
+
+**For now**: Stick with libraries only. GitLab Handbook is 100% `.md` files. PDF/DOCX demo files work fine with PyMuPDF + python-docx.
+
+### 2b. AI Metadata Suggestion (Phase 1)
+
+Before ingestion runs, the Knowledge Service calls a lightweight AI endpoint to suggest metadata. This runs **synchronously** during upload (< 5s target) so the user sees suggestions immediately.
+
+**Suggested metadata fields:**
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `domain` | AI classifies from content | e.g., `legal`, `engineering`, `hr`, `finance`, `security` |
+| `content_quality` | Rule-based | `REDIRECT` if frontmatter has `redirect_to`, `LOW` if < 500 chars, otherwise `HIGH`/`MEDIUM` |
+| `title` | Extract from first heading or frontmatter | Falls back to `original_filename` |
+| `description` | AI summarizes first 2000 chars into 1 sentence | Optional, for search preview |
+| `tags` | AI extracts 3-5 keywords | Stored in `metadata.tags` JSONB |
+| `is_controlled_document` | Frontmatter detection | Boolean, from Hugo frontmatter if present |
+
+**AI prompt pattern (lightweight, < 500 tokens):**
+
+```
+You are a document classifier. Given the first 4000 characters of a document,
+return ONLY a JSON object with these fields:
+{
+  "domain": "one of: legal, engineering, hr, finance, security, marketing, sales, general",
+  "title": "extracted title or null",
+  "description": "one-sentence summary or null",
+  "tags": ["3-5 keyword tags"],
+  "language": "en or vi",
+  "is_policy": true/false,
+  "is_controlled_document": true/false
+}
+
+Document content:
+---
+{first_4000_chars}
+---
+```
+
+**Fallback behavior:** If AI endpoint is unavailable, set `domain = 'general'`, `content_quality = 'MEDIUM'` and proceed. The user can always override.
+
+### 2c. GitLab Handbook Batch Ingestion
+
+When bulk-ingesting `.md` files from the GitLab Handbook repository, the flow skips Phase 1 (no user to review) and uses **deterministic extraction**:
+
+1. **`domain`** — derive from path: `content/handbook/<domain>/...` → first segment after `handbook/`
+2. **`content_quality`** — `REDIRECT` if frontmatter contains `redirect_to`, `LOW` if < 500 bytes after frontmatter removal, otherwise `HIGH`
+3. **`is_current = TRUE`** — mark this version as active, set `FALSE` on previous versions
+4. **Parse frontmatter** — merge all frontmatter keys into `knowledge.chunks.metadata` JSONB
 
 ### 3. Vietnamese Standardizer
 
@@ -323,13 +420,11 @@ async def bulk_insert(self, chunks: list[Chunk]):
     values = []
     for c in chunks:
         values.append({
-            "chunk_id": str(c.chunk_id),
             "document_id": c.document_id,
             "document_version_id": c.document_version_id,
             "chunk_type": c.chunk_type,
             "parent_chunk_id": str(c.parent_chunk_id) if c.parent_chunk_id else None,
             "content": c.content,
-            "summary": c.summary,
             "section_title": c.section_title,
             "section_level": c.section_level,
             "section_path": c.section_path,
@@ -337,15 +432,34 @@ async def bulk_insert(self, chunks: list[Chunk]):
             "start_char_index": c.start_char_index,
             "end_char_index": c.end_char_index,
             "token_count": c.token_count,
-            "child_chunk_ids": [str(uid) for uid in c.child_chunk_ids],
-            "allowed_roles": c.allowed_roles,        # Flattened from metadata
-            "allowed_departments": c.allowed_departments,  # Flattened from metadata
-            "access_level": c.access_level,          # Flattened from metadata
+            "embedding_vector": c.embedding_vector,
+            "embedding_model": c.embedding_model,
+            "embedding_dimension": c.embedding_dimension,
+            "allowed_roles": c.allowed_roles,
+            "allowed_departments": c.allowed_departments,
+            "allowed_users": c.allowed_users,
+            "access_level": c.access_level,
             "is_latest": True,
+            "metadata": c.metadata,  # frontmatter extras → JSONB
         })
-    
+
     await self.session.execute(text("""
-        INSERT INTO knowledge.chunks (...) VALUES (...)
+        INSERT INTO knowledge.chunks (
+            document_id, document_version_id, chunk_type, parent_chunk_id,
+            content, section_title, section_level, section_path,
+            chunk_index, start_char_index, end_char_index, token_count,
+            embedding_vector, embedding_model, embedding_dimension,
+            allowed_roles, allowed_departments, allowed_users, access_level,
+            is_latest, metadata
+        ) VALUES (
+            :document_id, :document_version_id, :chunk_type, :parent_chunk_id,
+            :content, :section_title, :section_level, :section_path,
+            :chunk_index, :start_char_index, :end_char_index, :token_count,
+            :embedding_vector, :embedding_model, :embedding_dimension,
+            :allowed_roles, :allowed_departments, :allowed_users, :access_level,
+            :is_latest, :metadata
+        )
+        ON CONFLICT (document_version_id, chunk_index, chunk_type) DO NOTHING
     """), values)
 ```
 
@@ -356,6 +470,14 @@ async def bulk_insert(self, chunks: list[Chunk]):
 UPDATE knowledge.chunks
 SET is_latest = false
 WHERE document_id = :document_id AND is_latest = true;
+
+-- Mark previous versions as not current
+UPDATE knowledge.document_versions
+SET is_current = false
+WHERE document_id = :document_id AND is_current = true;
+
+-- Insert new version as current
+INSERT INTO knowledge.document_versions (..., is_current) VALUES (..., true);
 
 -- Insert new chunks with is_latest = true
 INSERT INTO knowledge.chunks (..., is_latest) VALUES (..., true);
@@ -392,11 +514,15 @@ INSERT INTO knowledge.chunks (..., is_latest) VALUES (..., true);
     "bucket_name": "poliwise-documents",
     "job_id": "770e8400-e29b-41d4-a716-446655440002",
     "metadata": {
+      "domain": "legal",              ← AI suggested, user confirmed (or modified)
+      "content_quality": "HIGH",      ← Rule-based (redirect detection, size check)
+      "title": "GitLab Acceptable Use Policy",
+      "description": "Policy defining acceptable use of GitLab services",
+      "tags": ["policy", "legal", "compliance"],
       "allowed_roles": ["USER", "MANAGER", "ADMIN"],
       "allowed_departments": ["dept-uuid-1", "dept-uuid-2"],
       "allowed_users": ["user-uuid-1"],
       "access_level": "PUBLIC",
-      "title": "HR Policy 2024",
       "department_id": "dept-uuid-1",
       "document_metadata": {
         "category_id": "cat-uuid",
@@ -585,27 +711,63 @@ Test full pipeline with:
 
 ## Implementation Checklist
 
-- [ ] All table/column names match `docs/database.md` exactly
+### Phase 1: AI Metadata Suggestion (Knowledge Service)
+- [ ] AI classification endpoint: extract first 4000 chars → suggest domain, title, description, tags
+- [ ] Prompt returns JSON with `domain`, `title`, `description`, `tags`, `language`, `is_policy`, `is_controlled_document`
+- [ ] Response < 5s target; fallback to `domain=general`, `content_quality=MEDIUM` on timeout
+- [ ] UI shows suggestions with editable fields before user clicks "Ingest"
+- [ ] Confirmed metadata included in `ingestion.requested` event payload
+
+### Phase 2: Ingestion (Ingestion Service)
+- [ ] All table/column names match `contexts/database/tables/*.md` exactly
+- [ ] NO `summary` or `child_chunk_ids` columns in chunk model (use `parent_chunk_id` self-reference)
+- [ ] NO `embedding_dimension` in document model (only on chunks)
 - [ ] Unique constraint on `knowledge.chunks` (document_version_id, chunk_index, chunk_type)
-- [ ] `content_tsv` TSVECTOR generated column created
+- [ ] `content_tsv` TSVECTOR generated column — PostgreSQL auto-computes it, no need to set in code
 - [ ] HNSW index on `knowledge.chunks.embedding_vector`
-- [ ] GIN indexes on `allowed_roles`, `allowed_departments`, `content_tsv`
+- [ ] GIN indexes on `allowed_roles`, `allowed_departments`, `allowed_users`, `content_tsv`
+- [ ] Read `domain` + `content_quality` from event payload → write to `knowledge.documents`
+- [ ] Set `is_current = true` on new version, `false` on all previous versions
+- [ ] Query children via `WHERE parent_chunk_id = :parent_id` (not `child_chunk_ids` array)
+- [ ] All extractors use local libraries only (no external AI model for extraction)
+- [ ] Markdown extractor parses Hugo frontmatter → metadata JSONB
+- [ ] PDF extractor uses PyMuPDF with OCR fallback
+- [ ] MinerU extractor NOT a core dependency — opt-in plugin for future
+
+### GitLab Handbook Batch Ingestion (deterministic, no Phase 1)
+- [ ] Extract `domain` from file path (`content/handbook/<domain>/...`)
+- [ ] Detect `redirect_to` frontmatter → `content_quality = 'REDIRECT'`
+- [ ] Detect empty/tiny files (< 500 bytes) → `content_quality = 'LOW'`
+- [ ] Parse Hugo frontmatter → merge into `knowledge.chunks.metadata` JSONB
+
+### Resilience
 - [ ] RabbitMQ DLQ configured for `ingestion.requests`
 - [ ] Health check endpoints return proper status
 - [ ] Metrics endpoint enabled in production
 - [ ] Structured JSON logging enabled
 - [ ] Idempotency tested: replay same event twice → no duplicate chunks
-- [ ] Versioning tested: v1 → ingest → re-ingest → v2 chunks `is_latest=true`
+- [ ] Versioning tested: v1 → ingest → re-ingest → v2 chunks `is_latest=true`, old v1 `is_latest=false`
 - [ ] OCR fallback configurable and logged
 - [ ] Token count validated on Vietnamese sample
 - [ ] Memory usage profiled on large documents
+- [ ] Soft delete: set `deleted_at` on chunks when `document.deleted` event received
+
+### Operational (Post-Merge TODOs)
+- [ ] HNSW index load testing on target dataset size (see `contexts/database/migration-strategy.md`)
+- [ ] Background ACL sync job: when `document_access_rules` changes, update flattened `allowed_*` arrays in `knowledge.chunks`
+- [ ] Cleanup cron: hard-delete soft-deleted records older than retention period (users: 1 year, feedbacks: 90 days, chunks: 3 months)
+- [ ] Cleanup cron: delete expired tokens from `core.access_token_blacklist` (`expired_at < NOW()`)
+- [ ] Cleanup cron: delete old `is_latest = false` chunks older than 3 months to free vector storage
 
 ---
 
 ## References
 
-- **Database Schema**: `docs/database.md` - Table definitions
-- **Authorization**: `contexts/authorization/dual-strategy.md` - ACL flattening strategy
-- **Service Boundaries**: `contexts/service-boundaries/responsibilities.md` - Service ownership
-- **Event Contracts**: `contexts/service-boundaries/events.md` - RabbitMQ event specifications
-- **API Standards**: `contexts/service-boundaries/api-contracts.md` - Response formats
+- **Database Schema**: `contexts/database/tables/*.md` — Table definitions (source of truth)
+- **SQL Init Scripts**: `docs/supbase_sql/*.sql` — Actual DDL
+- **Authorization**: `contexts/authorization/dual-strategy.md` — ACL flattening strategy
+- **Service Boundaries**: `contexts/service-boundaries/responsibilities.md` — Service ownership
+- **Event Contracts**: `contexts/service-boundaries/events.md` — RabbitMQ event specifications
+- **API Standards**: `contexts/service-boundaries/api-contracts.md` — Response formats
+- **GitLab Handbook Analysis**: `contexts/development/extraction-plan.md` ← this document
+- **Maintenance Checklists**: `contexts/database/maintenance/*.md` — Schema sync status

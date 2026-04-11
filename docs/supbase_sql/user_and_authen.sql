@@ -55,9 +55,12 @@ CREATE TABLE core.users (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     deactivated_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ,
     
     CONSTRAINT chk_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
-    CONSTRAINT chk_username_format CHECK (username ~* '^[a-z0-9_]{3,50}$')
+    CONSTRAINT chk_username_format CHECK (username ~* '^[a-z0-9_]{3,50}$'),
+    CONSTRAINT chk_status_revoked CHECK (status != 'REVOKED' OR revoked_at IS NOT NULL),
+    CONSTRAINT chk_status_deactivated CHECK (status != 'DEACTIVATED' OR deactivated_at IS NOT NULL)
 );
 
 CREATE INDEX idx_core_users_email ON core.users(email);
@@ -65,6 +68,21 @@ CREATE INDEX idx_core_users_username ON core.users(username);
 CREATE INDEX idx_core_users_status ON core.users(status);
 CREATE INDEX idx_core_users_role ON core.users(role);
 CREATE INDEX idx_core_users_department_id ON core.users(department_id);
+CREATE INDEX idx_core_users_deleted_at ON core.users(deleted_at) WHERE deleted_at IS NULL;
+
+-- ============================================================
+-- TABLE: core.access_token_blacklist
+-- ============================================================
+CREATE TABLE core.access_token_blacklist (
+    jti VARCHAR(255) PRIMARY KEY,
+    user_id UUID NOT NULL,
+    expired_at TIMESTAMPTZ NOT NULL,
+    blacklisted_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    reason VARCHAR(100)
+);
+
+CREATE INDEX idx_core_access_token_blacklist_expired_at ON core.access_token_blacklist(expired_at);
+CREATE INDEX idx_core_access_token_blacklist_user_id ON core.access_token_blacklist(user_id);
 
 -- ============================================================
 -- TABLE: core.user_profiles
@@ -81,11 +99,13 @@ CREATE TABLE core.user_profiles (
     employee_code VARCHAR(20) UNIQUE,
     joined_date DATE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_core_user_profiles_full_name ON core.user_profiles(full_name);
 CREATE INDEX idx_core_user_profiles_employee_code ON core.user_profiles(employee_code);
+CREATE INDEX idx_core_user_profiles_user_id ON core.user_profiles(user_id);
 
 -- ============================================================
 -- TABLE: core.refresh_tokens

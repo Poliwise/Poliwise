@@ -54,6 +54,7 @@ owner: metadata-service
 - Hierarchical categories allow multi-level organization (Category → Subcategory → Sub-subcategory)
 - Used for document navigation and filtering in UI
 - Active categories only shown in dropdowns (filter by `is_active = true`)
+- **GitLab Mapping**: Matches top-level directories or sections (e.g., "Engineering", "Marketing"). The nested structure `parent_id` perfectly models the folder depth of the handbook repository.
 
 ---
 
@@ -138,7 +139,7 @@ owner: metadata-service
   - `PUBLIC`: All authenticated users can access (subject to additional rules)
   - `DEPARTMENT_ONLY`: Only users in `department_id` can access (unless specific override rules exist)
 - **Expiry Auto-Update**: Scheduled job (daily) sets status to `ARCHIVED` if `expiry_date < CURRENT_DATE` and not NULL. **CRITICAL:** When archiving, this job MUST publish a `document.status.changed` event so AI/RAG services can exclude its chunks from future searches.
-- **Version Sync (Distributed System Risk)**: `current_version` must always match the `is_current = true` record in `knowledge.document_versions`. Cross-service consistency MUST be enforced using RabbitMQ events with retry mechanisms (e.g., Saga/Outbox pattern) to handle network failures between `knowledge-service` and `metadata-service`.
+- **GitLab Mapping**: In the context of the GitLab Handbook, one `document_metadata` record represents one markdown file (`.md`) from the repository. The chunking of that document handles the internal sections (`<h2>`, `<h3>`).
 
 ---
 
@@ -187,8 +188,8 @@ owner: metadata-service
 | `target_role` | ENUM('USER','MANAGER','ADMIN') | NULLABLE (required if target_type = 'ROLE') | Role if target_type is ROLE |
 | `target_department_id` | UUID | NULLABLE (required if target_type = 'DEPARTMENT') | Department FK if target_type is DEPARTMENT |
 | `target_user_id` | UUID | NULLABLE (required if target_type = 'USER') | User FK if target_type is USER |
-| `permission` | ENUM('VIEW','EDIT','MANAGE','DENY') | DEFAULT 'VIEW' | Permission level granted |
-| `created_by` | UUID | NOT NULL, FOREIGN KEY → core.users(id) | Admin who created rule |
+| `permission` | VARCHAR(255) | DEFAULT 'VIEW' | Permission granted (VIEW, DENY) |
+| `created_by` | UUID | NULLABLE, FOREIGN KEY → core.users(id) | Admin who created rule |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Creation timestamp |
 
 ### Indexes
@@ -202,12 +203,12 @@ owner: metadata-service
 
 ```sql
 -- Ensure correct target field is set based on target_type
-ALTER TABLE metadata.document_access_rules ADD CONSTRAINT valid_target
-CHECK (
-  (target_type = 'ROLE' AND target_role IS NOT NULL AND target_department_id IS NULL AND target_user_id IS NULL) OR
-  (target_type = 'DEPARTMENT' AND target_department_id IS NOT NULL AND target_role IS NULL AND target_user_id IS NULL) OR
-  (target_type = 'USER' AND target_user_id IS NOT NULL AND target_role IS NULL AND target_department_id IS NULL)
-);
+ALTER TABLE metadata.document_access_rules ADD CONSTRAINT chk_target_consistency
+CHECK ( ... );
+
+-- Ensure correct permissions
+ALTER TABLE metadata.document_access_rules ADD CONSTRAINT document_access_rules_permission_check
+CHECK (permission IN ('VIEW', 'DENY'));
 ```
 
 ### Notes

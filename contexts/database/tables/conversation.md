@@ -79,16 +79,15 @@ owner: ai-qa-service
 | `latency_ms` | INT | NULLABLE | End-to-end response time (ms) |
 | `confidence` | ENUM('HIGH','MEDIUM','LOW') | NULLABLE | AI confidence based on retrieval scores |
 | `has_sources` | BOOLEAN | DEFAULT false | Whether response included citations |
+| `is_streaming` | BOOLEAN | DEFAULT false | True while assistant is actively typing |
+| `streaming_completed` | BOOLEAN | DEFAULT true | True when stream finishes or for non-streamed |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Message timestamp |
-| `deleted_at` | TIMESTAMP | NULLABLE | Soft delete timestamp (cascaded from conversation) |
 
 ### Indexes
 
 - `idx_messages_conversation_id` on `conversation_id`
 - `idx_messages_created_at` on `created_at` DESC
 - `idx_messages_role` on `role`
-- `idx_messages_confidence` on `confidence`
-- `idx_messages_deleted_at` on `deleted_at`
 
 ### Constraints
 
@@ -97,6 +96,10 @@ owner: ai-qa-service
 ALTER TABLE conversation.messages
 ADD CONSTRAINT assistant_has_model
 CHECK (role != 'ASSISTANT' OR model_used IS NOT NULL);
+
+ALTER TABLE conversation.messages
+ADD CONSTRAINT chk_tokens
+CHECK (tokens_total IS NULL OR tokens_total >= 0);
 ```
 
 ### Notes
@@ -136,19 +139,25 @@ CHECK (role != 'ASSISTANT' OR model_used IS NOT NULL);
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, NOT NULL | Record ID |
-| `user_id` | UUID | NOT ULLABLE, FOREIGN KEY → conversation.messages(id) ON DELETE SET NULL | Original AI message that failed |
-| `conversation_id` | UUID | NULLABLE, FOREIGN KEY → conversation.conversations(id) ON DELETE SET NULLl AI message that failed |
-| `conversation_id` | UUID | NOT NULL, FOREIGN KEY → conversation.conversations(id) | Conversation context |
+| `user_id` | UUID | NOT NULL | User who asked the question |
+| `message_id` | UUID | NULLABLE, FOREIGN KEY → conversation.messages(id) ON DELETE SET NULL | Original AI message that failed |
+| `conversation_id` | UUID | NULLABLE, FOREIGN KEY → conversation.conversations(id) ON DELETE SET NULL | Conversation context |
 | `question` | TEXT | NOT NULL | Original user question |
-| `question_normalized` | TEXT | NOT NULL | Lowercase, no diacritics for deduplication |
+| `question_normalized` | TEXT | NULLABLE | Lowercase, no diacritics for deduplication |
 | `search_query` | TEXT | NULLABLE | Query actually sent to vector search |
-| `top_similarity_score` | DECIMAL(3,2) | NULLABLE | Highest similarity score found (0.0-1.0) |
+| `attempted_context` | JSONB | DEFAULT '{}' | Snapshot of the chunks AI attempted to use |
+| `top_similarity_score` | DECIMAL(5,4) | NULLABLE | Highest similarity score found |
+| `user_department_id` | UUID | NULLABLE | Extracted from user profile at time of asking |
+| `user_role` | VARCHAR(20) | NULLABLE | E.g. USER, MANAGER for context |
 | `resolved` | BOOLEAN | DEFAULT false | Whether admins have addressed this gap |
 | `resolved_by` | UUID | NULLABLE, FOREIGN KEY → core.users(id) | Admin who marked resolved |
 | `resolved_at` | TIMESTAMP | NULLABLE | Resolution timestamp |
-| `resolution_notes` | TEXT | NULLABLE | Admin notes (e.g., "Added new policy doc") |
-| `priority` | ENUM('LOW','MEDIUM','HIGH') | DEFAULT 'MEDIUM' | Priority for content team |
+| `resolution_notes` | TEXT | NULLABLE | Admin notes |
+| `related_document_id` | UUID | NULLABLE | The document the admin uploaded to resolve this |
+| `category` | VARCHAR(100) | NULLABLE | Thematically grouped category of question |
+| `priority` | VARCHAR(20) | DEFAULT 'NORMAL' | Priority: LOW, NORMAL, HIGH, CRITICAL |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | When question was asked |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update |
 
 ### Indexes
 

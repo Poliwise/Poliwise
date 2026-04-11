@@ -45,7 +45,11 @@ owner: feedback-service
 | `question_text` | TEXT | NOT NULL | Snapshot of user's question (denormalized) |
 | `answer_text` | TEXT | NOT NULL | Snapshot of AI's answer (denormalized) |
 | `sources_used` | JSONB | NULLABLE | Array of sources cited: `[{document_id, title, page}]` |
+| `user_department_id` | UUID | NULLABLE | Track context of feedback |
+| `user_role` | VARCHAR(20) | NULLABLE | Track role context |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Feedback timestamp |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
+| `deleted_at` | TIMESTAMP | NULLABLE | Soft delete timestamp |
 
 ### Indexes
 
@@ -87,8 +91,18 @@ owner: feedback-service
 | `method` | VARCHAR(10) | NOT NULL | HTTP method (GET, POST, etc.) |
 | `response_time_ms` | INT | NOT NULL | End-to-end response time |
 | `status_code` | INT | NOT NULL | HTTP status code (200, 401, 500, etc.) |
+| `request_size_bytes` | INT | NULLABLE | Size of request payload |
+| `response_size_bytes` | INT | NULLABLE | Size of response payload |
+| `is_error` | BOOLEAN | DEFAULT false | Flag for failed requests |
+| `error_code` | VARCHAR(50) | NULLABLE | Specific error code if failed |
+| `error_message` | TEXT | NULLABLE | Error description |
 | `tokens_used` | INT | NULLABLE | Tokens consumed (if LLM call) |
 | `model_used` | VARCHAR(100) | NULLABLE | LLM model name (if applicable) |
+| `chunks_retrieved` | INT | NULLABLE | Number of chunks used in context |
+| `confidence` | VARCHAR(20) | NULLABLE | Overall confidence score |
+| `trace_id` | VARCHAR(100) | NULLABLE | Trace ID for telemetry |
+| `ip_address` | INET | NULLABLE | Request IP address |
+| `user_agent` | TEXT | NULLABLE | Browser/client string |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Request timestamp |
 
 ### Indexes
@@ -131,13 +145,19 @@ owner: feedback-service
 | `id` | UUID | PRIMARY KEY, NOT NULL | Audit entry ID |
 | `user_id` | UUID | NOT NULL, FOREIGN KEY → core.users(id) | Actor (who performed action) |
 | `username` | VARCHAR(100) | NOT NULL | Username at time of action (denormalized in case user deleted) |
-| `action` | ENUM('USER_CREATED','USER_UPDATED','USER_DELETED','DOCUMENT_UPLOADED','DOCUMENT_DELETED','PERMISSION_CHANGED','LOGIN_FAILED','TOKEN_REVOKED') | NOT NULL | What action was taken |
-| `resource_type` | ENUM('USER','DOCUMENT','DOCUMENT_VERSION','ACCESS_RULE','TOKEN') | NOT NULL | Type of resource affected |
-| `resource_id` | UUID | NOT NULL | ID of affected resource |
+| `user_role` | VARCHAR(20) | NULLABLE | Role at time of action |
+| `action` | ENUM(`analytics.audit_action`) | NOT NULL | What action was taken |
+| `resource_type` | ENUM(`analytics.resource_type`) | NOT NULL | Type of resource affected |
+| `resource_id` | UUID | NULLABLE | ID of affected resource |
+| `resource_name` | VARCHAR(255) | NULLABLE | Name of the affected resource |
 | `old_value` | JSONB | NULLABLE | Previous state (for updates) |
 | `new_value` | JSONB | NULLABLE | New state (for creates/updates) |
-| `ip_address` | INET | NOT NULL | Actor's IP address |
+| `changed_fields` | TEXT[] | NULLABLE | Array of field names modified |
+| `ip_address` | INET | NULLABLE | Actor's IP address |
 | `user_agent` | TEXT | NULLABLE | Actor's user agent |
+| `trace_id` | VARCHAR(100) | NULLABLE | Telemetry correlation ID |
+| `service_name` | VARCHAR(50) | NULLABLE | Service where action originated |
+| `metadata` | JSONB | DEFAULT '{}' | Additional context |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | When action occurred |
 
 ### Indexes
@@ -196,8 +216,25 @@ owner: feedback-service
 | `unique_users_asked` | INT | DEFAULT 0 | Distinct users who asked questions |
 | `total_likes` | INT | DEFAULT 0 | Total likes received |
 | `total_dislikes` | INT | DEFAULT 0 | Total dislikes received |
+| `feedback_ratio` | DECIMAL(5,4) | NULLABLE | Like/dislike ratio |
 | `avg_response_time_ms` | INT | NULLABLE | Average AI response time |
+| `p50_response_time_ms` | INT | NULLABLE | P50 response time |
+| `p95_response_time_ms` | INT | NULLABLE | P95 response time |
+| `p99_response_time_ms` | INT | NULLABLE | P99 response time |
+| `total_requests` | INT | DEFAULT 0 | Total API requests |
+| `total_errors` | INT | DEFAULT 0 | Total error responses |
+| `error_rate` | DECIMAL(5,4) | NULLABLE | Error percentage |
+| `total_tokens_used` | BIGINT | DEFAULT 0 | Total LLM tokens consumed |
+| `avg_tokens_per_question` | INT | NULLABLE | Average tokens per question |
+| `avg_chunks_retrieved` | DECIMAL(5,2) | NULLABLE | Average chunks per query |
+| `documents_uploaded` | INT | DEFAULT 0 | Documents uploaded this day |
+| `documents_published` | INT | DEFAULT 0 | Documents published this day |
+| `unique_active_users` | INT | DEFAULT 0 | Distinct active users |
+| `new_users` | INT | DEFAULT 0 | New users created |
+| `unanswered_questions` | INT | DEFAULT 0 | Unanswered questions count |
+| `resolved_questions` | INT | DEFAULT 0 | Resolved questions count |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Aggregation timestamp |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
 
 ### Notes
 
@@ -224,7 +261,10 @@ owner: feedback-service
 | `total_requests` | INT | DEFAULT 0 | All API requests |
 | `total_errors` | INT | DEFAULT 0 | Error responses (4xx + 5xx) |
 | `unique_users` | INT | DEFAULT 0 | Active unique users |
-| `created_at` | TIMESTAMP | DEFAULT NOW() | Aggregation timestamp |
+| `avg_response_time_ms` | INT | NULLABLE | Average response time |
+| `likes` | INT | DEFAULT 0 | Likes in this hour |
+| `dislikes` | INT | DEFAULT 0 | Dislikes in this hour |
+| `computed_at` | TIMESTAMP | DEFAULT NOW() | Aggregation timestamp |
 
 ### Notes
 
@@ -284,13 +324,18 @@ ADD CONSTRAINT uniq_dept_date UNIQUE (date, department_id);
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, NOT NULL | Record ID |
 | `question_normalized` | TEXT | NOT NULL | Normalized question (lowercase, no diacritics) |
-| `question_sample` | VARCHAR(500) | NOT NULL | Representative question text (most frequent variant) |
+| `question_sample` | TEXT | NOT NULL | Representative question text (most frequent variant) |
 | `ask_count` | INT | DEFAULT 1 | How many times asked (across all users) |
 | `unique_users_count` | INT | DEFAULT 1 | Distinct users who asked |
+| `first_asked_at` | TIMESTAMP | NOT NULL | First time this question was asked |
+| `last_asked_at` | TIMESTAMP | NOT NULL | Most recent ask timestamp |
 | `total_likes` | INT | DEFAULT 0 | Total likes on AI answers |
 | `total_dislikes` | INT | DEFAULT 0 | Total dislikes on AI answers |
-| `last_asked_at` | TIMESTAMP | DEFAULT NOW() | Most recent ask timestamp |
-| `created_at` | TIMESTAMP | DEFAULT NOW() | First time seen |
+| `common_source_documents` | JSONB | DEFAULT '[]' | Frequently cited docs for this question |
+| `detected_category` | VARCHAR(100) | NULLABLE | Auto-detected category |
+| `detected_department_id` | UUID | NULLABLE | Auto-detected department |
+| `created_at` | TIMESTAMP | DEFAULT NOW() | First seen in aggregation |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
 
 ### Indexes
 
@@ -336,8 +381,12 @@ ADD CONSTRAINT uniq_dept_date UNIQUE (date, department_id);
 | `unique_questions_cited` | INT | DEFAULT 0 | Distinct questions that cited this doc |
 | `citations_with_likes` | INT | DEFAULT 0 | Citations where user liked the answer |
 | `citations_with_dislikes` | INT | DEFAULT 0 | Citations where user disliked |
+| `first_cited_at` | TIMESTAMP | NULLABLE | First time this doc was cited |
 | `last_cited_at` | TIMESTAMP | DEFAULT NOW() | Most recent citation |
+| `citations_last_7_days` | INT | DEFAULT 0 | Citations in last 7 days |
+| `citations_last_30_days` | INT | DEFAULT 0 | Citations in last 30 days |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | First citation timestamp |
+| `updated_at` | TIMESTAMP | DEFAULT NOW() | Last update timestamp |
 
 ### Indexes
 
@@ -362,17 +411,22 @@ ADD CONSTRAINT uniq_dept_date UNIQUE (date, department_id);
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, NOT NULL | Export request ID |
-| `report_type` | ENUM('USAGE','FEEDBACK','AUDIT','UNANSWERED','DEPARTMENT') | NOT NULL | Type of report |
+| `report_type` | ENUM(`analytics.report_type`) | NOT NULL | Type of report |
 | `title` | VARCHAR(255) | NOT NULL | User-provided export title |
-| `format` | ENUM('PDF','EXCEL','CSV','JSON') | NOT NULL | Export format |
+| `date_from` | DATE | NULLABLE | Report start date filter |
+| `date_to` | DATE | NULLABLE | Report end date filter |
+| `department_id` | UUID | NULLABLE | Department filter |
+| `filters` | JSONB | DEFAULT '{}' | Additional query filters |
+| `format` | ENUM(`analytics.export_format`) | NOT NULL | Export format |
 | `file_key` | VARCHAR(500) | NULLABLE | MinIO key where file stored |
-| `bucket_name` | VARCHAR(100) | NULLABLE | MinIO bucket |
-| `status` | ENUM('PENDING','PROCESSING','COMPLETED','FAILED') | DEFAULT 'PENDING' | Export status |
-| `requested_by` | UUID | NOT NULL, FOREIGN KEY → core.users(id) | Who requested |
-| `download_count` | INT | DEFAULT 0 | Times downloaded |
+| `file_size_bytes` | INT | NULLABLE | Size of generated file |
+| `status` | ENUM(`analytics.report_status`) | DEFAULT 'PENDING' | Export status |
 | `error_message` | TEXT | NULLABLE | Error if failed |
+| `requested_by` | UUID | NOT NULL, FOREIGN KEY → core.users(id) | Who requested |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Request timestamp |
 | `completed_at` | TIMESTAMP | NULLABLE | When export finished |
+| `downloaded_at` | TIMESTAMP | NULLABLE | When file was downloaded |
+| `expires_at` | TIMESTAMP | NULLABLE | When export file expires |
 
 ### Notes
 
@@ -386,25 +440,50 @@ ADD CONSTRAINT uniq_dept_date UNIQUE (date, department_id);
 ### feedback_type
 
 ```sql
-CREATE TYPE feedback_type AS ENUM ('LIKE', 'DISLIKE');
+CREATE TYPE analytics.feedback_type AS ENUM ('LIKE', 'DISLIKE');
 ```
 
-### action_type
+### audit_action
 
 ```sql
-CREATE TYPE action_type AS ENUM (
-  'USER_CREATED', 'USER_UPDATED', 'USER_DELETED',
-  'DOCUMENT_UPLOADED', 'DOCUMENT_DELETED',
-  'PERMISSION_CHANGED',
-  'LOGIN_FAILED',
-  'TOKEN_REVOKED'
+CREATE TYPE analytics.audit_action AS ENUM (
+  'LOGIN_SUCCESS', 'LOGIN_FAILED', 'LOGOUT', 'TOKEN_REFRESH', 'PASSWORD_CHANGE',
+  'USER_CREATE', 'USER_UPDATE', 'USER_DEACTIVATE', 'USER_ACTIVATE', 'USER_REVOKE', 'USER_DELETE',
+  'DOCUMENT_UPLOAD', 'DOCUMENT_UPDATE', 'DOCUMENT_DELETE', 'DOCUMENT_PUBLISH', 'DOCUMENT_ARCHIVE', 'DOCUMENT_VERSION_CREATE',
+  'QUESTION_ASK', 'CONVERSATION_CREATE', 'CONVERSATION_DELETE',
+  'FEEDBACK_SUBMIT',
+  'SETTINGS_UPDATE', 'BULK_IMPORT', 'REPORT_EXPORT'
 );
 ```
 
 ### resource_type
 
 ```sql
-CREATE TYPE resource_type AS ENUM ('USER', 'DOCUMENT', 'DOCUMENT_VERSION', 'ACCESS_RULE', 'TOKEN');
+CREATE TYPE analytics.resource_type AS ENUM (
+  'USER', 'DOCUMENT', 'CONVERSATION', 'MESSAGE', 'FEEDBACK',
+  'DEPARTMENT', 'CATEGORY', 'TAG', 'SETTINGS'
+);
+```
+
+### export_format
+
+```sql
+CREATE TYPE analytics.export_format AS ENUM ('CSV', 'PDF', 'XLSX', 'JSON');
+```
+
+### report_type
+
+```sql
+CREATE TYPE analytics.report_type AS ENUM (
+  'USAGE_SUMMARY', 'QUESTION_ANALYTICS', 'FEEDBACK_ANALYSIS',
+  'USER_ENGAGEMENT', 'DOCUMENT_POPULARITY', 'UNANSWERED_QUESTIONS', 'DEPARTMENT_BREAKDOWN'
+);
+```
+
+### report_status
+
+```sql
+CREATE TYPE analytics.report_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
 ```
 
 ---
