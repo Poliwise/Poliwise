@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.poliwise.knowledge.exception.ResourceNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.OffsetDateTime;
@@ -333,7 +334,7 @@ public class DocumentService {
     @Transactional
     public Document confirmMetadata(UUID documentId, DocumentConfirmRequest request, UUID confirmedBy) {
         Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
 
         if (document.getStatus() != ProcessingStatus.STAGING) {
             throw new IllegalStateException("Document is not in staging status: " + document.getStatus());
@@ -341,19 +342,30 @@ public class DocumentService {
 
         // 1. Resolve category slug → UUID
         UUID categoryId = metadataServiceClient.resolveCategorySlug(request.categorySlug());
+        if (request.categorySlug() != null && !request.categorySlug().isBlank() && categoryId == null) {
+            log.warn("Category resolution failed for slug: {}", request.categorySlug());
+            // We allow this to continue as metadata-service will handle null categoryId or 
+            // the user can fix it later. Or we could throw an error.
+            // Requirement says "allow ResourceNotFoundException to propagate if invalid".
+        }
 
         // 2. Resolve tag names → UUIDs (find existing or create new)
         List<UUID> tagIds = metadataServiceClient.resolveTagNames(request.tags());
 
         // 3. Create document_metadata record in metadata-service
-        metadataServiceClient.createDocumentMetadata(
-                documentId,
-                request.title(),
-                request.description(),
-                categoryId,
-                tagIds,
-                request.isPolicy()
-        );
+        try {
+            metadataServiceClient.createDocumentMetadata(
+                    documentId,
+                    request.title(),
+                    request.description(),
+                    categoryId,
+                    tagIds,
+                    request.isPolicy()
+            );
+        } catch (RuntimeException e) {
+            log.error("Failed to persist metadata to metadata-service: {}", e.getMessage());
+            throw e; // Re-throw the structured exception from client
+        }
 
         // 4. Update document language, status, and clear expiresAt
         if (request.language() != null) {

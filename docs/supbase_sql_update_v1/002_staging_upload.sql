@@ -24,3 +24,25 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_documents_expires_at
 
 COMMENT ON COLUMN knowledge.documents.expires_at IS
     'Thời gian hết hạn cho staging documents. NULL cho documents đã confirmed.';
+
+-- ============================================================
+-- 3. CASCADING DELETE: Đảm bảo xóa document sẽ xóa luôn versions
+-- ============================================================
+-- Nếu constraint mặc định tồn tại (thường là documents_versions_document_id_fkey), 
+-- ta drop và recreate với ON DELETE CASCADE để đảm bảo đồng bộ.
+DO $$
+BEGIN
+    -- Drop old foreign key if exists (without cascade)
+    IF EXISTS (
+        SELECT 1 FROM information_schema.key_column_usage 
+        WHERE constraint_name = 'document_versions_document_id_fkey' 
+        AND table_schema = 'knowledge'
+    ) THEN
+        ALTER TABLE knowledge.document_versions DROP CONSTRAINT document_versions_document_id_fkey;
+    END IF;
+
+    -- Add it back with ON DELETE CASCADE
+    ALTER TABLE knowledge.document_versions
+        ADD CONSTRAINT document_versions_document_id_fkey 
+        FOREIGN KEY (document_id) REFERENCES knowledge.documents(id) ON DELETE CASCADE;
+END $$;

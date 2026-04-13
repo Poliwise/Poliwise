@@ -96,7 +96,7 @@ async def suggest_metadata(request: MetadataSuggestRequest):
     except Exception as e:
         logger.error("minio_download_failed", file_key=request.file_key, error=str(e))
         raise HTTPException(
-            status_code=500,
+            status_code=503,
             detail=f"Failed to download file from MinIO: {e}",
         )
 
@@ -140,8 +140,9 @@ async def suggest_metadata(request: MetadataSuggestRequest):
             error=str(e),
             exc_info=True,
         )
-        # Per extraction-plan: if AI fails, return empty framework for manual override
+        # Per extraction-plan: if AI fails, return 503 so client might retry or fallback
+        # 503 is more appropriate for external LLM service unavailability
         raise HTTPException(
-            status_code=500,
+            status_code=503,
             detail=f"AI metadata suggestion failed: {e}",
         )

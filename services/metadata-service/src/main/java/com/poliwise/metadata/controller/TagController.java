@@ -62,4 +62,11 @@ public class TagController {
         tagService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/resolve")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<com.poliwise.metadata.dto.ResolveTagsResponse> resolve(@Valid @RequestBody com.poliwise.metadata.dto.ResolveTagsRequest request) {
+        com.poliwise.metadata.dto.ResolveTagsResponse response = tagService.resolveTags(request.tagNames());
+        return ResponseEntity.ok(response);
+    }
 }
