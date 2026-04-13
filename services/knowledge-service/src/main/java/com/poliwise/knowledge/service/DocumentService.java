@@ -1,7 +1,9 @@
 package com.poliwise.knowledge.service;
 
+import com.poliwise.knowledge.client.MetadataServiceClient;
 import com.poliwise.knowledge.config.KnowledgeProperties;
 import com.poliwise.knowledge.config.MinioConfig;
+import com.poliwise.knowledge.dto.DocumentConfirmRequest;
 import com.poliwise.knowledge.dto.event.DocumentUploadedEvent;
 import com.poliwise.knowledge.dto.ProcessDocumentRequest;
 import com.poliwise.knowledge.dto.UploadDocumentRequest;
@@ -29,6 +31,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.scheduling.annotation.Scheduled;
+
 @Service
 public class DocumentService {
 
@@ -42,6 +46,7 @@ public class DocumentService {
     private final TextChunkingService chunkingService;
     private final DocumentEventPublisher eventPublisher;
     private final KnowledgeProperties properties;
+    private final MetadataServiceClient metadataServiceClient;
 
     public DocumentService(
             DocumentRepository documentRepository,
@@ -51,7 +56,8 @@ public class DocumentService {
             DocumentParsingService parsingService,
             TextChunkingService chunkingService,
             DocumentEventPublisher eventPublisher,
-            KnowledgeProperties properties) {
+            KnowledgeProperties properties,
+            MetadataServiceClient metadataServiceClient) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
         this.jobRepository = jobRepository;
@@ -60,6 +66,55 @@ public class DocumentService {
         this.chunkingService = chunkingService;
         this.eventPublisher = eventPublisher;
         this.properties = properties;
+        this.metadataServiceClient = metadataServiceClient;
+    }
+
+    @Transactional
+    public Document cancelUpload(UUID documentId) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+
+        if (document.getStatus() != ProcessingStatus.STAGING) {
+            throw new IllegalStateException("Document is not in staging status: " + document.getStatus());
+        }
+
+        // Delete from MinIO
+        storageService.deleteFile(document.getFileKey());
+
+        // Delete document version records
+        List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+        versionRepository.deleteAll(versions);
+
+        // Delete document record
+        documentRepository.delete(document);
+
+        log.info("Upload cancelled: id={}, fileKey={}", documentId, document.getFileKey());
+        return document;
+    }
+
+    @Scheduled(fixedRate = 600000) // Every 10 minutes
+    @Transactional
+    public void cleanupExpiredStaging() {
+        OffsetDateTime now = OffsetDateTime.now();
+        List<Document> expiredDocuments = documentRepository.findByStatusAndExpiresAtBefore(ProcessingStatus.STAGING, now);
+
+        if (expiredDocuments.isEmpty()) {
+            return;
+        }
+
+        log.info("Cleaning up {} expired staging documents", expiredDocuments.size());
+
+        for (Document document : expiredDocuments) {
+            try {
+                storageService.deleteFile(document.getFileKey());
+                List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(document.getId());
+                versionRepository.deleteAll(versions);
+                documentRepository.delete(document);
+                log.info("Cleaned up expired staging document: id={}", document.getId());
+            } catch (Exception e) {
+                log.error("Failed to clean up staging document {}: {}", document.getId(), e.getMessage(), e);
+            }
+        }
     }
 
     @Transactional
@@ -72,6 +127,10 @@ public class DocumentService {
         // Upload to MinIO
         String fileKey = storageService.uploadFile(file, documentId);
 
+        return createDocument(documentId, fileKey, request, uploadedBy);
+    }
+
+    private Document createDocument(UUID documentId, String fileKey, UploadDocumentRequest request, UUID uploadedBy) {
         // Determine chunking and embedding settings
         ChunkingStrategy chunkingStrategy = request.chunkingStrategy() != null
                 ? request.chunkingStrategy()
@@ -85,8 +144,10 @@ public class DocumentService {
         Integer chunkOverlap = request.chunkOverlap() != null
                 ? request.chunkOverlap()
                 : properties.getChunking().getDefaultOverlap();
+        String language = request.language() != null ? request.language() : "vi";
 
         OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime expiresAt = now.plusMinutes(properties.getStaging().getTtlMinutes());
 
         // Create document entity
         Document document = Document.builder()
@@ -94,17 +155,18 @@ public class DocumentService {
                 .originalFilename(request.fileName())
                 .fileType(request.fileType())
                 .fileSizeBytes(request.fileSizeBytes())
-                .mimeType(request.mimeType() != null ? request.mimeType() : file.getContentType())
+                .mimeType(request.mimeType() != null ? request.mimeType() : "application/octet-stream")
                 .fileKey(fileKey)
                 .bucketName(MinioConfig.BUCKET_NAME)
-                .status(ProcessingStatus.UPLOADED)
+                .status(ProcessingStatus.STAGING)
                 .currentVersion(1)
-                .language(request.language() != null ? request.language() : "vi")
+                .language(language)
                 .chunkingStrategy(chunkingStrategy)
                 .chunkSize(chunkSize)
                 .chunkOverlap(chunkOverlap)
                 .embeddingModel(embeddingModel)
                 .uploadedBy(uploadedBy)
+                .expiresAt(expiresAt)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
@@ -261,6 +323,51 @@ public class DocumentService {
 
     public Optional<Document> findById(UUID documentId) {
         return documentRepository.findById(documentId);
+    }
+
+    /**
+     * Phase 1: Confirm user-reviewed metadata and persist it in metadata-service.
+     * Updates document language and status to READY.
+     * Phase 2 (ingestion) is NOT triggered here.
+     */
+    @Transactional
+    public Document confirmMetadata(UUID documentId, DocumentConfirmRequest request, UUID confirmedBy) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+
+        if (document.getStatus() != ProcessingStatus.STAGING) {
+            throw new IllegalStateException("Document is not in staging status: " + document.getStatus());
+        }
+
+        // 1. Resolve category slug → UUID
+        UUID categoryId = metadataServiceClient.resolveCategorySlug(request.categorySlug());
+
+        // 2. Resolve tag names → UUIDs (find existing or create new)
+        List<UUID> tagIds = metadataServiceClient.resolveTagNames(request.tags());
+
+        // 3. Create document_metadata record in metadata-service
+        metadataServiceClient.createDocumentMetadata(
+                documentId,
+                request.title(),
+                request.description(),
+                categoryId,
+                tagIds,
+                request.isPolicy()
+        );
+
+        // 4. Update document language, status, and clear expiresAt
+        if (request.language() != null) {
+            document.setLanguage(request.language());
+        }
+        document.setStatus(ProcessingStatus.READY);
+        document.setExpiresAt(null);
+        document.setUpdatedAt(OffsetDateTime.now());
+        Document saved = documentRepository.save(document);
+
+        log.info("Document metadata confirmed: documentId={}, title='{}', categorySlug='{}'",
+                documentId, request.title(), request.categorySlug());
+
+        return saved;
     }
 
     public List<DocumentVersion> getVersions(UUID documentId) {

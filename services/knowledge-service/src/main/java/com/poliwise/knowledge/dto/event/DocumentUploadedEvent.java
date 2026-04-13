@@ -4,9 +4,12 @@ import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record DocumentUploadedEvent(
         UUID eventId,
         UUID documentId,

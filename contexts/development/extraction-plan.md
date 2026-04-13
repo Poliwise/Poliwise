@@ -27,24 +27,26 @@ This document provides the **complete technical implementation plan** for buildi
 The ingestion pipeline uses a **two-phase** approach: AI suggests metadata → user reviews/confirms → ingestion executes.
 
 ```
-PHASE 1: METADATA SUGGESTION (synchronous, < 5s)
-═══════════════════════════════════════════════════
+PHASE 1: UPLOAD & METADATA SUGGESTION (Cross-Service Synchronous, < 5s)
+════════════════════════════════════════════════════════════════════
 
-User uploads file → Gateway → Knowledge Service
-  1. Save file to MinIO
-  2. Extract text preview (first 4000 chars)
-  3. Call AI to suggest metadata:
-     { domain, content_quality, title, description, tags }
-  4. Return suggestions to UI → user reviews & modifies
-  5. User clicks "Ingest" → confirmed metadata
+User uploads file → Gateway → Knowledge-Service (Java)
+  1. Java: Save uploaded file to MinIO → get `file_key`.
+  2. Java: Fetch DB Context (Active Categories + Top 20 Tags).
+  3. Java: Sync HTTP POST to Ingestion-Service (Python): 
+     `POST /api/v1/metadata/suggest` with `{file_key, bucket_name, categories, top_tags}`.
+  4. Python: Download file from MinIO → Extract first 4000 chars (PyMuPDF) → Run AI prompt.
+  5. Python: Return metadata JSON to Java.
+  6. Java: Forward JSON to UI → User reviews & confirms.
 
-PHASE 2: INGESTION (async via RabbitMQ)
+PHASE 2: PERSISTENCE & INGESTION LAUNCH (async via RabbitMQ)
 ═══════════════════════════════════════════
 
 Knowledge Service
-  1. Create Document, DocumentVersion, ProcessingJob entities
-  2. Set knowledge.documents.domain + content_quality from user-confirmed values
-  3. Publish `ingestion.requested` to RabbitMQ with confirmed metadata
+  1. Create `knowledge.documents`, `knowledge.document_versions`, `knowledge.processing_jobs` entities.
+  2. Create 1-1 `metadata.document_metadata` mapping `category_id`, `department_id`, etc.
+  3. Resolve the tag list: create missing tags in `metadata.tags` and map via `metadata.document_tags`.
+  4. Publish `ingestion.requested` to RabbitMQ with `document_id` and raw metadata.
 
 └────────────────────────┬──────────────────────────────────────┘
                          │ ingestion.requested (RabbitMQ)
@@ -121,16 +123,21 @@ services/ingestion-service/
 
 ## Database Schema Alignment
 
-**CRITICAL**: All table and column definitions MUST match `docs/database.md` exactly.
+**CRITICAL PRINCIPLE (Single Source of Truth):**
+Do NOT rely on table structures written directly in implementation plans. You **MUST** read the definitive database schema models directly from the database context folder to avoid hallucination or outdated DB structures.
 
-### Tables Written by Ingestion-Service
+### Reference Schemas
+When implementing SQLAlchemy models, queries, or inserts, **always refer to these files**:
 
-| Table | Key Columns |
-|-------|-------------|
-| `knowledge.documents` | `id`, `file_key`, `bucket_name`, `extracted_text`, `page_count`, `word_count`, `domain`, `content_quality`, `chunking_strategy`, `chunk_size`, `chunk_overlap`, `embedding_model` |
-| `knowledge.document_versions` | `id`, `document_id`, `version_number`, `file_key`, `bucket_name`, `changelog`, `extracted_text`, `is_current` |
-| `knowledge.chunks` | `id`, `document_id`, `document_version_id`, `chunk_type`, `parent_chunk_id`, `content`, `section_title`, `section_level`, `section_path`, `chunk_index`, `start_char_index`, `end_char_index`, `token_count`, `embedding_vector`, `embedding_model`, `embedding_dimension`, `allowed_roles`, `allowed_departments`, `allowed_users`, `access_level`, `is_latest`, `deleted_at` |
-| `knowledge.processing_jobs` | `id`, `document_id`, `document_version_id`, `job_type`, `status`, `progress_percent`, `error_message`, `error_details`, `output_metrics`, `deleted_at` |
+- **[Knowledge Schema (`contexts/database/tables/knowledge.md`)](file:///c:/Users/Tien/university/TTCS/do_an_cuoi_ky/Poliwise/contexts/database/tables/knowledge.md)**
+  - `knowledge.documents` (Written globally by Phase 1, updated tracking in Phase 2)
+  - `knowledge.document_versions` (Phase 1 establishes it; Phase 2 updates text/metrics)
+  - `knowledge.chunks` (Phase 2 inserts massive chunking/embedding data)
+  - `knowledge.processing_jobs` (Phase 1 creates; Phase 2 updates percent/logs)
+- **[Metadata Schema (`contexts/database/tables/metadata.md`)](file:///c:/Users/Tien/university/TTCS/do_an_cuoi_ky/Poliwise/contexts/database/tables/metadata.md)**
+  - `metadata.document_metadata` (Phase 1 writes mapped category, title, description)
+  - `metadata.categories` (Phase 1 uses `slug` + `is_active` as DB-Context list)
+  - `metadata.tags` / `metadata.document_tags` (Phase 1 fetches top 20 usages, inserts novel tags)
 
 ### Schema Requirements
 
@@ -166,6 +173,10 @@ MINIO_SECURE=false
 # LitServe
 LITSERVE_EMBEDDING_URL=http://localhost:8001
 LITSERVE_RERANKER_URL=http://localhost:8002
+
+# LLM API (Groq for Metadata Suggestion)
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile  # Or llama-3.1-8b-instant for speed
 
 # Chunking
 CHUNKING_PARENT_SIZE=1500
@@ -214,8 +225,10 @@ dependencies = [
     "Pillow>=10.0.0",         # Image processing
     "ruamel.yaml>=0.18.0",    # Hugo frontmatter parsing (preserves comments)
     
-    # NLP & Tokenization
-    "tiktoken>=0.8.0",        # Token counting
+    # NLP, LLM & Tokenization
+    "groq>=0.11.0",           # Fast LLM inference for metadata suggestion
+    "instructor>=1.6.0",      # Structured JSON output from LLMs
+    "transformers>=4.38.0",   # Accurate token counting for BGE-M3
     "underthesea>=6.8.0",     # Vietnamese NLP
     
     # HTTP Client
@@ -304,34 +317,43 @@ class MinerUExtractor(DocumentExtractor):
 
 **For now**: Stick with libraries only. GitLab Handbook is 100% `.md` files. PDF/DOCX demo files work fine with PyMuPDF + python-docx.
 
-### 2b. AI Metadata Suggestion (Phase 1)
+### 2b. AI Metadata Suggestion (Phase 1 — Cross-Service Sync)
 
-Before ingestion runs, the Knowledge Service calls a lightweight AI endpoint to suggest metadata. This runs **synchronously** during upload (< 5s target) so the user sees suggestions immediately.
+To keep extraction logic centralized (DRY), `knowledge-service` (Java) delegates the heavy lifting of parsing and LLM prompts to `ingestion-service` (Python) via a synchronous HTTP call. This avoids running bulky Apache Tika parsing in Java just to preview 4000 characters.
 
-**Suggested metadata fields:**
+**Execution Flow:**
+1. **Java** retrieves available context from DB:
+   - `categories`: `SELECT slug FROM metadata.categories WHERE is_active = true`
+   - `top_tags`: `SELECT name FROM metadata.tags ORDER BY usage_count DESC LIMIT 20`
+2. **Java** sends a synchronous REST request to Python: 
+   `POST /api/v1/metadata/suggest`
+   Payload: `{ "file_key": "...", "bucket_name": "...", "available_categories": [...], "top_tags": [...] }`.
+3. **Python** connects to MinIO safely, downloads the file stream using `file_key`, and uses native PyMuPDF/docx to perfectly extract the first 4000 text characters.
+4. **Python** injects the text and the Java-provided context into the AI Prompt and returns the following JSON fields:
 
-| Field | Source | Notes |
-|-------|--------|-------|
-| `domain` | AI classifies from content | e.g., `legal`, `engineering`, `hr`, `finance`, `security` |
-| `content_quality` | Rule-based | `REDIRECT` if frontmatter has `redirect_to`, `LOW` if < 500 chars, otherwise `HIGH`/`MEDIUM` |
-| `title` | Extract from first heading or frontmatter | Falls back to `original_filename` |
-| `description` | AI summarizes first 2000 chars into 1 sentence | Optional, for search preview |
-| `tags` | AI extracts 3-5 keywords | Stored in `metadata.tags` JSONB |
-| `is_controlled_document` | Frontmatter detection | Boolean, from Hugo frontmatter if present |
+| Field | Source / Target | Notes |
+|-------|-----------------|-------|
+| `category_slug` | Maps to `metadata.document_metadata.category_id` | AI MUST choose this from the injected context array. |
+| `title` | `metadata.document_metadata.title` | Extract from first heading or summarize. |
+| `description` | `metadata.document_metadata.description` | AI summarizes first 2000 chars into 1 sentence. |
+| `tags` | Array of strings | Prioritizes reusing `top_tags`. UI creates new rows in `metadata.tags` if missing. |
 
-**AI prompt pattern (lightweight, < 500 tokens):**
+**AI prompt pattern (Constructed in Python, lightweight < 500 tokens):**
 
-```
-You are a document classifier. Given the first 4000 characters of a document,
-return ONLY a JSON object with these fields:
+```text
+You are a document classifier for a policy platform. Given the first 4000 characters of a document, return ONLY a JSON object evaluating its metadata.
+
+Constraints:
+1. "category_slug" MUST be chosen from this exact list: [{available_categories}]
+2. For "tags", generate 3-5 keywords. Prioritize reusing these existing tags if relevant: [{top_tags}]. Only invent new tags if absolutely necessary.
+
 {
-  "domain": "one of: legal, engineering, hr, finance, security, marketing, sales, general",
+  "category_slug": "chosen-slug",
   "title": "extracted title or null",
   "description": "one-sentence summary or null",
-  "tags": ["3-5 keyword tags"],
+  "tags": ["keyword1", "keyword2"],
   "language": "en or vi",
-  "is_policy": true/false,
-  "is_controlled_document": true/false
+  "is_policy": true/false
 }
 
 Document content:
@@ -340,16 +362,17 @@ Document content:
 ---
 ```
 
-**Fallback behavior:** If AI endpoint is unavailable, set `domain = 'general'`, `content_quality = 'MEDIUM'` and proceed. The user can always override.
+**Fallback behavior:** If Python AI endpoint is unavailable or times out (>5s), Java should catch the exception and return an empty framework to the UI for user manual override.
 
-### 2c. GitLab Handbook Batch Ingestion
+### 2c. GitLab Handbook Batch Ingestion (Markdown Processing)
 
-When bulk-ingesting `.md` files from the GitLab Handbook repository, the flow skips Phase 1 (no user to review) and uses **deterministic extraction**:
+When bulk-ingesting `.md` files from the GitLab Handbook repository, the flow skips Phase 1 (no user to review) and uses **deterministic extraction** tailored for Markdown properties:
 
 1. **`domain`** — derive from path: `content/handbook/<domain>/...` → first segment after `handbook/`
 2. **`content_quality`** — `REDIRECT` if frontmatter contains `redirect_to`, `LOW` if < 500 bytes after frontmatter removal, otherwise `HIGH`
 3. **`is_current = TRUE`** — mark this version as active, set `FALSE` on previous versions
 4. **Parse frontmatter** — merge all frontmatter keys into `knowledge.chunks.metadata` JSONB
+5. **Shortcode Cleanup** — Remove or process Hugo/Kramdown shortcodes (e.g., `{{% alert %}}`, `{{< include >}}`) to prevent semantic noise during embedding.
 
 ### 3. Vietnamese Standardizer
 
@@ -357,17 +380,20 @@ Detects Vietnamese document structure:
 
 ```python
 class DocumentPolicyStandardizer:
+    # Supports both English and Vietnamese Enterprise Policies
     HEADING_PATTERNS = [
-        (r"^(CHAPTER|Chapter)\s+([IVXLCDM]+|\d+)\s*[:\-]?\s*(.*)$", 1),
-        (r"^(ARTICLE|Article)\s+(\d+)\s*[:\-]?\s*(.*)$", 2),
-        (r"^(CLAUSE|Clause)\s+(\d+)\s*[:\-]?\s*(.*)$", 3),
-        (r"^(POINT|Point)\s+([a-z])\s*[:\-]?\s*(.*)$", 4),
-        (r"^(SECTION|Section)\s+(\d+)\s*[:\-]?\s*(.*)$", 2),
+        (r"^(PHẦN|Phần|PART|Part)\s+([IVXLCDM]+|\d+)\s*[:\-]?\s*(.*)$", 1),
+        (r"^(CHƯƠNG|Chương|CHAPTER|Chapter)\s+([IVXLCDM]+|\d+)\s*[:\-]?\s*(.*)$", 2),
+        (r"^(MỤC|Mục|SECTION|Section)\s+(\d+)\s*[:\-]?\s*(.*)$", 3),
+        (r"^(ĐIỀU|Điều|ARTICLE|Article)\s+(\d+)\s*[:\-]?\s*(.*)$", 4),
+        (r"^(KHOẢN|Khoản|CLAUSE|Clause)\s+(\d+)\s*[:\-]?\s*(.*)$", 5),
+        (r"^(ĐIỂM|Điểm|POINT|Point)\s+([a-zđ])\s*[:\-]?\s*(.*)$", 6),
     ]
     
     def normalize(self, raw_text: str) -> StructuredText:
-        # Unicode normalization, whitespace cleanup, heading detection
-        # Returns structured text with sections and headings
+        # Unicode normalization (NFC), whitespace cleanup
+        # Strip Hugo/Markdown shortcodes if raw_text is from .md
+        # Returns structured text with detected sections and headings
 ```
 
 ### 4. Parent-Child Chunker
@@ -380,13 +406,21 @@ class ParentChildChunker:
         self.parent_size = parent_size
         self.child_size = child_size
         self.child_overlap = child_overlap
-        self.enc = tiktoken.get_encoding("cl100k_base")
+        # Uses BGE-M3 tokenizer for accurate VI/EN token counts
+        from transformers import AutoTokenizer
+        self.enc = AutoTokenizer.from_pretrained("BAAI/bge-m3", local_files_only=False)
     
-    def chunk(self, structured_text, metadata: dict) -> list[Chunk]:
-        if structured_text.headings:
+    def chunk(self, structured_text, metadata: dict, is_markdown: bool = False) -> list[Chunk]:
+        if is_markdown:
+            return self._markdown_header_chunk(structured_text, metadata)
+        elif structured_text.headings:
             return self._hierarchical_chunk(structured_text, metadata)
         else:
             return self._recursive_chunk(structured_text.normalized_text, metadata)
+
+    def _markdown_header_chunk(self, structured_text, metadata: dict) -> list[Chunk]:
+        # Preserve Markdown heading hierarchy (##, ###) directly
+        pass
 ```
 
 ### 5. Embedding Service
@@ -711,12 +745,20 @@ Test full pipeline with:
 
 ## Implementation Checklist
 
-### Phase 1: AI Metadata Suggestion (Knowledge Service)
-- [ ] AI classification endpoint: extract first 4000 chars → suggest domain, title, description, tags
-- [ ] Prompt returns JSON with `domain`, `title`, `description`, `tags`, `language`, `is_policy`, `is_controlled_document`
-- [ ] Response < 5s target; fallback to `domain=general`, `content_quality=MEDIUM` on timeout
-- [ ] UI shows suggestions with editable fields before user clicks "Ingest"
-- [ ] Confirmed metadata included in `ingestion.requested` event payload
+### Phase 1: API Cross-Boundary Setup
+
+**Knowledge Service (Java) Task:**
+- [ ] **Enforce Boundaries:** Completely remove explicit internal `processDocument()` logic and `/{documentId}/process` API from Java.
+- [ ] DB Context Query: Fetch active category slugs & top 20 used tag names.
+- [ ] HTTP Client: Implement a Sync HTTP POST call to Ingestion Service's `/api/v1/metadata/suggest` endpoint passing `file_key`, `bucket_name` & contexts.
+- [ ] Validation & DB Insert: On user UI confirm, resolve `category_slug` -> `category_id` (UUID). Insert records accurately across `knowledge` & `metadata` schemas according to definitive Database Definitions.
+- [ ] Async Dispatch: Publish `ingestion.requested` RabbitMQ event payload with finalized UUIDs to trigger Phase 2.
+
+**Ingestion Service (Python FastAPI) Task:**
+- [ ] Endpoint Setup: Implement `POST /api/v1/metadata/suggest` accepting Pydantic schema model (`file_key`, DB context arrays).
+- [ ] MinIO Tooling: Function to quickly download stream of `file_key` bytes.
+- [ ] Extractor Core: Extract first 4000 chars natively (using PyMuPDF/Python-docx) directly from bytes.
+- [ ] AI Engine Call: Feed exact categories logic into structured LLM output (instructor / json_schema). Return clean JSON to Java.
 
 ### Phase 2: Ingestion (Ingestion Service)
 - [ ] All table/column names match `contexts/database/tables/*.md` exactly

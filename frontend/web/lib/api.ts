@@ -9,6 +9,7 @@ import type {
   Session,
   Document,
   DocumentSearchParams,
+  DocumentUploadResponse,
   Conversation,
   ConversationHistory,
   QuestionRequest,
@@ -269,11 +270,28 @@ class ApiClient {
       return response.data.data!;
     },
 
-    upload: async (formData: FormData): Promise<Document> => {
-      const response = await this.client.post<ApiResponse<Document>>('/api/v1/documents/upload', formData, {
+    upload: async (
+      file: File,
+      changelog?: string,
+      language?: string,
+    ): Promise<DocumentUploadResponse> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (changelog) formData.append('changelog', changelog);
+      if (language) formData.append('language', language);
+
+      // Multipart uploads go directly to knowledge-service to avoid gateway
+      // parsing issues with multipart/form-data (Express consumes the raw stream).
+      // All other API calls route through the gateway normally.
+      const ksUrl =
+        typeof window === 'undefined'
+          ? 'http://knowledge-service:8083'
+          : 'http://localhost:8083';
+
+      const response = await this.client.post<unknown>(`${ksUrl}/api/v1/documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return response.data.data!;
+      return response.data as DocumentUploadResponse;
     },
 
     delete: async (id: string): Promise<void> => {
@@ -285,6 +303,40 @@ class ApiClient {
         responseType: 'blob',
       });
       return response.data;
+    },
+
+    confirmMetadata: async (
+      documentId: string,
+      data: {
+        title: string;
+        description: string;
+        categorySlug: string;
+        tags: string[];
+        language: string;
+        isPolicy: boolean;
+      },
+    ): Promise<DocumentUploadResponse> => {
+      // Goes directly to knowledge-service like upload
+      const ksUrl =
+        typeof window === 'undefined'
+          ? 'http://knowledge-service:8083'
+          : 'http://localhost:8083';
+
+      const response = await this.client.post<unknown>(
+        `${ksUrl}/api/v1/documents/${documentId}/confirm`,
+        data,
+      );
+      return response.data as DocumentUploadResponse;
+    },
+
+    cancel: async (documentId: string): Promise<void> => {
+      // Goes directly to knowledge-service
+      const ksUrl =
+        typeof window === 'undefined'
+          ? 'http://knowledge-service:8083'
+          : 'http://localhost:8083';
+
+      await this.client.delete(`${ksUrl}/api/v1/documents/${documentId}/cancel`);
     },
   };
 
@@ -338,14 +390,15 @@ class ApiClient {
 
   // Metadata endpoints
   metadata = {
-    getCategories: async (): Promise<{ id: string; name: string }[]> => {
-      const response = await this.client.get<ApiResponse<{ id: string; name: string }[]>>('/api/v1/metadata/categories');
-      return response.data.data || [];
+    getCategories: async (): Promise<{ id: string; name: string; slug: string }[]> => {
+      // Public endpoint (no auth required)
+      const response = await this.client.get<unknown>('/api/v1/categories/active');
+      return Array.isArray(response.data) ? (response.data as { id: string; name: string; slug: string }[]) : ((response.data as { data?: { id: string; name: string; slug: string }[] })?.data || []);
     },
 
     getTags: async (): Promise<{ id: string; name: string }[]> => {
-      const response = await this.client.get<ApiResponse<{ id: string; name: string }[]>>('/api/v1/metadata/tags');
-      return response.data.data || [];
+      const response = await this.client.get<unknown>('/api/v1/metadata/tags');
+      return Array.isArray(response.data) ? (response.data as { id: string; name: string }[]) : ((response.data as { data?: { id: string; name: string }[] })?.data || []);
     },
   };
 }

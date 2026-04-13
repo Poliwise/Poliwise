@@ -12,6 +12,9 @@ public class KnowledgeProperties {
     private Embedding embedding = new Embedding();
     private FileValidation fileValidation = new FileValidation();
     private Processing processing = new Processing();
+    private Ingestion ingestion = new Ingestion();
+    private Metadata metadata = new Metadata();
+    private Staging staging = new Staging();
 
     public Chunking getChunking() { return chunking; }
     public void setChunking(Chunking chunking) { this.chunking = chunking; }
@@ -21,6 +24,12 @@ public class KnowledgeProperties {
     public void setFileValidation(FileValidation fileValidation) { this.fileValidation = fileValidation; }
     public Processing getProcessing() { return processing; }
     public void setProcessing(Processing processing) { this.processing = processing; }
+    public Ingestion getIngestion() { return ingestion; }
+    public void setIngestion(Ingestion ingestion) { this.ingestion = ingestion; }
+    public Metadata getMetadata() { return metadata; }
+    public void setMetadata(Metadata metadata) { this.metadata = metadata; }
+    public Staging getStaging() { return staging; }
+    public void setStaging(Staging staging) { this.staging = staging; }
 
     public static class Chunking {
         private ChunkingStrategy defaultStrategy = ChunkingStrategy.RECURSIVE;
@@ -69,5 +78,29 @@ public class KnowledgeProperties {
         public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
         public int getRetryDelaySeconds() { return retryDelaySeconds; }
         public void setRetryDelaySeconds(int retryDelaySeconds) { this.retryDelaySeconds = retryDelaySeconds; }
+    }
+
+    public static class Ingestion {
+        private String apiUrl = "http://localhost:8088";
+        private int suggestionTimeoutSeconds = 5;
+
+        public String getApiUrl() { return apiUrl; }
+        public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
+        public int getSuggestionTimeoutSeconds() { return suggestionTimeoutSeconds; }
+        public void setSuggestionTimeoutSeconds(int suggestionTimeoutSeconds) { this.suggestionTimeoutSeconds = suggestionTimeoutSeconds; }
+    }
+
+    public static class Metadata {
+        private String apiUrl = "http://localhost:8084";
+
+        public String getApiUrl() { return apiUrl; }
+        public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
+    }
+
+    public static class Staging {
+        private int ttlMinutes = 30;
+
+        public int getTtlMinutes() { return ttlMinutes; }
+        public void setTtlMinutes(int ttlMinutes) { this.ttlMinutes = ttlMinutes; }
     }
 }

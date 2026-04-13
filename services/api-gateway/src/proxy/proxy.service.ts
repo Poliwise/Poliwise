@@ -269,8 +269,9 @@ export class ProxyService {
     user: IUserContext | undefined,
     traceId?: string,
   ): Record<string, string> {
+    // Do NOT hardcode Content-Type — preserve the original request's Content-Type
+    // (e.g., multipart/form-data for file uploads must pass through unchanged)
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       'X-Forwarded-For': request.ip || request.socket.remoteAddress || '',
       'X-Forwarded-Proto': request.protocol,
       'X-Request-Start': Date.now().toString(),

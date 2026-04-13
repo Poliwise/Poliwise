@@ -96,6 +96,9 @@ public class Document {
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
+    @Column(name = "expires_at")
+    private OffsetDateTime expiresAt;
+
     /* ===== Helper methods cho pipeline ===== */
 
     public boolean isReady() {

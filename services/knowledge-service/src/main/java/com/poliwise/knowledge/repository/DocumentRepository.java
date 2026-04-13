@@ -3,6 +3,7 @@ package com.poliwise.knowledge.repository;
 import com.poliwise.knowledge.entity.Document;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import jakarta.persistence.LockModeType;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,8 @@ public interface DocumentRepository
                 extends JpaRepository<Document, UUID>, JpaSpecificationExecutor<Document> {
 
         Optional<Document> findByFileKey(String fileKey);
+
+        List<Document> findByStatusAndExpiresAtBefore(ProcessingStatus status, OffsetDateTime expiresAt);
 
         @Query("""
                         select d
