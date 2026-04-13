@@ -37,6 +37,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Read-only context endpoints for service-to-service calls
+                        .requestMatchers(HttpMethod.GET, "/api/v1/categories/active").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tags").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tags/popular").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

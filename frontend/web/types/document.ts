@@ -61,6 +61,26 @@ export interface UploadDocumentRequest {
   expireDate?: string;
 }
 
+export interface DocumentUploadResponse {
+  id: string;
+  originalFilename: string;
+  fileType: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  status: string;
+  currentVersion: number;
+  language: string;
+  createdAt: string;
+  updatedAt: string;
+  // AI suggestion fields (Phase 1)
+  suggestedLanguage: string | null;
+  suggestedCategorySlug: string | null;
+  suggestedTitle: string | null;
+  suggestedDescription: string | null;
+  suggestedTags: string[];
+  suggestedIsPolicy: boolean | null;
+}
+
 export interface DocumentSearchParams {
   page?: number;
   limit?: number;

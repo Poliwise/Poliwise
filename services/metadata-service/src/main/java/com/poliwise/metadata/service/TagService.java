@@ -100,6 +100,56 @@ public class TagService {
         log.info("Deleted tag: id={}", id);
     }
 
+    @Transactional
+    public com.poliwise.metadata.dto.ResolveTagsResponse resolveTags(List<String> tagNames) {
+        if (tagNames == null || tagNames.isEmpty()) {
+            return new com.poliwise.metadata.dto.ResolveTagsResponse(java.util.Collections.emptyMap(), java.util.Collections.emptyList());
+        }
+
+        // 1. Find existing tags in bulk
+        List<Tag> existingTags = tagRepository.findByNameInIgnoreCase(tagNames);
+        java.util.Map<String, UUID> resolvedMap = new java.util.HashMap<>();
+        
+        for (Tag tag : existingTags) {
+            resolvedMap.put(tag.getName().toLowerCase(), tag.getId());
+        }
+
+        // 2. Identify missing tags and create them
+        List<UUID> orderedTagIds = new java.util.ArrayList<>();
+        for (String name : tagNames) {
+            if (name == null || name.isBlank()) continue;
+            
+            String normalizedName = name.trim();
+            UUID id = resolvedMap.get(normalizedName.toLowerCase());
+            
+            if (id == null) {
+                // Not found, create it
+                String slug = generateSlug(normalizedName);
+                
+                // Final safety check against slug (case-insensitive find above was by name)
+                Tag newTag = tagRepository.findBySlug(slug)
+                        .orElseGet(() -> {
+                            Tag t = Tag.builder()
+                                    .id(UUID.randomUUID())
+                                    .name(normalizedName)
+                                    .slug(slug)
+                                    .color("#6366f1")
+                                    .usageCount(0)
+                                    .createdAt(OffsetDateTime.now())
+                                    .build();
+                            return tagRepository.save(t);
+                        });
+                
+                id = newTag.getId();
+                resolvedMap.put(normalizedName.toLowerCase(), id);
+                log.info("Auto-created tag during resolution: name={}, id={}", normalizedName, id);
+            }
+            orderedTagIds.add(id);
+        }
+
+        return new com.poliwise.metadata.dto.ResolveTagsResponse(resolvedMap, orderedTagIds);
+    }
+
     private String generateSlug(String name) {
         if (name == null) return "";
         return name.trim().toLowerCase()

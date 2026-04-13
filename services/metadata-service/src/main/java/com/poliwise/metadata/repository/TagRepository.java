@@ -24,6 +24,8 @@ public interface TagRepository extends JpaRepository<Tag, UUID>, JpaSpecificatio
     boolean existsBySlugIgnoreCase(String slug);
 
     boolean existsByNameIgnoreCase(String name);
+    
+    List<Tag> findByNameInIgnoreCase(java.util.Collection<String> names);
 
     List<Tag> findTopByOrderByUsageCountDesc();
 

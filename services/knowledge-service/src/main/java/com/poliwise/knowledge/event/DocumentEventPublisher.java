@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
+import java.util.Map;
 
 @Component
 public class DocumentEventPublisher {
@@ -24,7 +25,7 @@ public class DocumentEventPublisher {
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.KNOWLEDGE_EXCHANGE,
                     RabbitMQConfig.DOCUMENT_ROUTING_KEY_UPLOADED,
-                    event
+                    Map.of("payload", event)
             );
             log.info("Published DocumentUploadedEvent: documentId={}, fileName={}",
                     event.documentId(), event.fileName());
@@ -38,7 +39,7 @@ public class DocumentEventPublisher {
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.KNOWLEDGE_EXCHANGE,
                     RabbitMQConfig.DOCUMENT_ROUTING_KEY_DELETED,
-                    event
+                    Map.of("payload", event)
             );
             log.info("Published DocumentDeletedEvent: documentId={}", event.documentId());
         } catch (Exception e) {

@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "vector";
 -- ENUM TYPES (in knowledge schema)
 -- ============================================================
 CREATE TYPE knowledge.processing_status AS ENUM (
-    'UPLOADED', 'PARSING', 'PARSED', 'CHUNKING', 'CHUNKED',
+    'STAGING', 'UPLOADED', 'PARSING', 'PARSED', 'CHUNKING', 'CHUNKED',
     'EMBEDDING', 'EMBEDDED', 'INDEXING', 'INDEXED', 'READY', 'FAILED'
 );
 
@@ -63,6 +63,7 @@ CREATE TABLE knowledge.documents (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ,
 
     trace_id VARCHAR(100),
     metadata JSONB DEFAULT '{}',

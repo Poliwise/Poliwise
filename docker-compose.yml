@@ -202,6 +202,8 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
+      INGESTION_SERVICE_URL: http://ingestion-service:8088
+      METADATA_SERVICE_URL: http://metadata-service:8084
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8083:8083"
@@ -312,6 +314,57 @@ services:
   # folders are not present in this repository snapshot.
 
   # ============================================================
+  # Document Ingestion Service
+  # ============================================================
+
+  ingestion-service:
+    build:
+      context: ./services/ingestion-service
+      dockerfile: Dockerfile
+    container_name: poliwise-ingestion-service
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8088
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:-poliwise_secure_password}@postgres:5432/poliwise
+      DATABASE_SCHEMA: knowledge
+      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:-poliwise_secure_password}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: poliwise.events
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_SECURE: "false"
+      LITSERVE_EMBEDDING_URL: ${LITSERVE_EMBEDDING_URL:-http://host.docker.internal:8001}
+      LITSERVE_RERANKER_URL: ${LITSERVE_RERANKER_URL:-http://host.docker.internal:8002}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8088/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      - poliwise
+
+  # ============================================================
   # API Gateway
   # ============================================================
 
@@ -354,13 +407,7 @@ services:
       feedback-service:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 10s
       retries: 5

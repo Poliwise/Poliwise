@@ -15,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
+import { UploadModal } from '@/components/documents/UploadModal';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { Document, DocumentStatus } from '@/types';
@@ -43,6 +44,7 @@ export default function DocumentsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -93,6 +95,7 @@ export default function DocumentsPage() {
           {isAdmin && (
             <button
               className={styles.uploadButton}
+              onClick={() => setUploadModalOpen(true)}
             >
               <Upload size={18} />
               <span>Tải lên</span>
@@ -226,6 +229,15 @@ export default function DocumentsPage() {
             </button>
           </div>
         )}
+
+        <UploadModal
+          isOpen={uploadModalOpen}
+          onClose={() => setUploadModalOpen(false)}
+          onSuccess={() => {
+            setUploadModalOpen(false);
+            loadDocuments();
+          }}
+        />
       </div>
     </MainLayout>
   );

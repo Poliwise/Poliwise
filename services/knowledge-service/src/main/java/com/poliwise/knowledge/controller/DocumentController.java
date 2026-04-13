@@ -6,6 +6,8 @@ import com.poliwise.knowledge.entity.DocumentVersion;
 import com.poliwise.knowledge.security.SecurityUtils;
 import com.poliwise.knowledge.security.UserRole;
 import com.poliwise.knowledge.service.DocumentService;
+import com.poliwise.knowledge.service.MetadataContextService;
+import com.poliwise.knowledge.service.MetadataSuggestionService;
 import com.poliwise.knowledge.service.PolicyComparisonService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,10 +27,18 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final PolicyComparisonService comparisonService;
+    private final MetadataContextService metadataContextService;
+    private final MetadataSuggestionService metadataSuggestionService;
 
-    public DocumentController(DocumentService documentService, PolicyComparisonService comparisonService) {
+    public DocumentController(
+            DocumentService documentService,
+            PolicyComparisonService comparisonService,
+            MetadataContextService metadataContextService,
+            MetadataSuggestionService metadataSuggestionService) {
         this.documentService = documentService;
         this.comparisonService = comparisonService;
+        this.metadataContextService = metadataContextService;
+        this.metadataSuggestionService = metadataSuggestionService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -50,21 +60,40 @@ public class DocumentController {
         );
 
         Document document = documentService.upload(file, request, uploadedBy);
+        DocumentResponse response = processAndSuggest(document, uploadedBy);
 
-        // Start processing asynchronously
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    private DocumentResponse processAndSuggest(Document document, UUID uploadedBy) {
+        // Phase 1: Fetch context and request metadata suggestion from ingestion-service
+        MetadataSuggestionResponse suggestion = null;
         try {
-            documentService.processDocument(document.getId(), uploadedBy);
+            List<String> categorySlugs = metadataContextService.fetchActiveCategorySlugs();
+            List<String> topTags = metadataContextService.fetchTopTagNames(20);
+
+            MetadataSuggestionRequest suggestRequest = new MetadataSuggestionRequest(
+                    document.getFileKey(),
+                    document.getBucketName(),
+                    categorySlugs,
+                    topTags
+            );
+
+            suggestion = metadataSuggestionService.suggest(suggestRequest);
         } catch (Exception e) {
-            // Processing will be retried or done async
+            // Fallback: metadata suggestion unavailable, user will enter manually
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(document));
+        // Phase 2 processing disabled for Phase 1 manual testing
+        // documentService.processDocument(document.getId(), uploadedBy);
+
+        return toResponse(document, suggestion);
     }
 
     @GetMapping("/{documentId}")
     public ResponseEntity<DocumentResponse> get(@PathVariable UUID documentId) {
         return documentService.findById(documentId)
-                .map(this::toResponse)
+                .map(d -> toResponse(d, null))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -75,6 +104,24 @@ public class DocumentController {
         UUID deletedBy = SecurityUtils.getCurrentUserId();
         documentService.softDelete(documentId, deletedBy);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{documentId}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> cancelUpload(@PathVariable UUID documentId) {
+        documentService.cancelUpload(documentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{documentId}/confirm")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentResponse> confirm(
+            @PathVariable UUID documentId,
+            @Valid @RequestBody DocumentConfirmRequest request) {
+        UUID confirmedBy = SecurityUtils.getCurrentUserId();
+        com.poliwise.knowledge.entity.Document document =
+                documentService.confirmMetadata(documentId, request, confirmedBy);
+        return ResponseEntity.ok(toResponse(document));
     }
 
     @PostMapping("/{documentId}/process")
@@ -94,7 +141,16 @@ public class DocumentController {
         return ResponseEntity.ok(versions);
     }
 
-    private DocumentResponse toResponse(Document d) {
+    private DocumentResponse toResponse(Document d, MetadataSuggestionResponse suggestion) {
+        String suggestedLanguage = (suggestion != null && suggestion.language() != null && !suggestion.language().isBlank())
+                ? suggestion.language()
+                : null;
+        String categorySlug = suggestion != null ? suggestion.categorySlug() : null;
+        String title = suggestion != null ? suggestion.title() : null;
+        String description = suggestion != null ? suggestion.description() : null;
+        List<String> tags = suggestion != null ? suggestion.tags() : List.of();
+        Boolean isPolicy = suggestion != null ? suggestion.isPolicy() : null;
+
         return new DocumentResponse(
                 d.getId(),
                 d.getOriginalFilename(),
@@ -113,8 +169,18 @@ public class DocumentController {
                 d.getEmbeddingModel(),
                 d.getUploadedBy(),
                 d.getCreatedAt(),
-                d.getUpdatedAt()
+                d.getUpdatedAt(),
+                suggestedLanguage,
+                categorySlug,
+                title,
+                description,
+                tags,
+                isPolicy
         );
+    }
+
+    private DocumentResponse toResponse(Document d) {
+        return toResponse(d, null);
     }
 
     private DocumentVersionResponse toVersionResponse(DocumentVersion v) {

@@ -26,5 +26,12 @@ public record DocumentResponse(
         EmbeddingModel embeddingModel,
         UUID uploadedBy,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        // Metadata suggestion fields (Phase 1)
+        String suggestedLanguage,
+        String suggestedCategorySlug,
+        String suggestedTitle,
+        String suggestedDescription,
+        java.util.List<String> suggestedTags,
+        Boolean suggestedIsPolicy
 ) {}

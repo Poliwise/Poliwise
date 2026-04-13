@@ -2,7 +2,7 @@
 .env
 
 # Environment variables
-*.env          
+*.env
 .env.local
 .env.*.local
 
@@ -10,3 +10,22 @@
 data/minio/
 data/postgres/
 data/
+
+# Token files
+*.token.txt
+*_token.txt
+
+# Qwen settings
+.qwen/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Test artifacts
+*.json
+!codebase-map.json
+test-*.ps1
+test-*.bat
+test-*.md

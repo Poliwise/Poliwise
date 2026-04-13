@@ -38,12 +38,31 @@ public class AdminInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
         if (userRepository.existsByUsernameIgnoreCase(ADMIN_USERNAME)) {
-            log.info("Admin account '{}' already exists, skipping initialization.", ADMIN_USERNAME);
+            log.info("Admin account '{}' already exists, verifying credentials...", ADMIN_USERNAME);
+
+            // Optional: Reset password to ensure it matches current ADMIN_PASSWORD env var
+            // This handles the case where the password was set with a different value
+            var existingAdmin = userRepository.findByUsernameIgnoreCase(ADMIN_USERNAME);
+            if (existingAdmin.isPresent()) {
+                User admin = existingAdmin.get();
+
+                // Check if password needs resetting (compare encoded password)
+                // If password doesn't match, update it
+                if (!passwordEncoder.matches(ADMIN_PASSWORD, admin.getPasswordHash())) {
+                    log.warn("Admin password mismatch detected! Resetting to current ADMIN_PASSWORD...");
+                    admin.setPasswordHash(passwordEncoder.encode(ADMIN_PASSWORD));
+                    admin.setUpdatedAt(now);
+                    userRepository.save(admin);
+                    log.info("Admin account '{}' password has been reset successfully.", ADMIN_USERNAME);
+                } else {
+                    log.info("Admin account '{}' credentials verified.", ADMIN_USERNAME);
+                }
+            }
             return;
         }
-
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         User admin = User.builder()
                 .id(UUID.randomUUID())
@@ -60,6 +79,7 @@ public class AdminInitializer implements CommandLineRunner {
                 .build();
 
         userRepository.save(admin);
-        log.info("Admin account '{}' created successfully.", ADMIN_USERNAME);
+        log.info("Admin account '{}' created successfully with username='{}' and password='{}'.",
+                ADMIN_USERNAME, ADMIN_USERNAME, ADMIN_PASSWORD);
     }
 }

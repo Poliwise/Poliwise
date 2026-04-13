@@ -77,14 +77,32 @@ export class ProxyController {
     );
   }
 
+  /**
+   * Public endpoint for fetching active categories (no auth required).
+   * Used by the upload modal to populate the category dropdown.
+   */
+  @Get('categories/active')
+  handlePublicCategories(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/categories/active',
+    );
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('metadata/*path')
   @Roles(UserRole.ADMIN)
   handleMetadata(@Req() request: Request) {
+    // Gateway path: /api/v1/metadata/categories/active
+    // Metadata-service expects: /api/v1/categories/active
+    // Strip "/api/v1/metadata" prefix and prepend "/api/v1"
+    const relative = request.path.replace(/^\/api\/v1\/metadata/, '') || '/';
+    const downstream = `/api/v1${relative === '/' ? '' : relative}`;
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,
-      downstreamPath(request, '/api/v1/metadata'),
+      downstream,
     );
   }
 
