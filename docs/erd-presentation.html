@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poliwise — ERD Presentation</title>
+  <style>
+    /* ============================================
+       RESET & BASE
+    ============================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Brand palette */
+      --bg:           #0f1117;
+      --surface:      #1a1d27;
+      --surface2:     #21253a;
+      --border:       #2d3352;
+      --text:         #e2e8f0;
+      --text-muted:   #8892b0;
+      --accent:       #6c8ebf;
+      --accent-glow:  rgba(108, 142, 191, 0.25);
+
+      /* Entity group colors */
+      --col-user:       #dae8fc;
+      --col-user-stroke:#5b89d4;
+      --col-dept:       #dae8fc;
+      --col-dept-stroke:#5b89d4;
+      --col-doc:        #fff2cc;
+      --col-doc-stroke: #c8a600;
+      --col-cat:        #d5e8d4;
+      --col-cat-stroke: #4e8c4e;
+      --col-conv:       #e1d5e7;
+      --col-conv-stroke:#8b5a9e;
+      --col-fb:         #f8cecc;
+      --col-fb-stroke:  #b85450;
+      --col-audit:      #f5f5f5;
+      --col-audit-stroke:#888;
+      --col-rel:        #ffe6cc;
+      --col-rel-stroke: #d79b00;
+
+      /* Dimensions */
+      --radius:   12px;
+      --radius-sm: 8px;
+      --slide-w:  1200px;
+      --slide-h:  675px;
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ============================================
+       PROGRESS BAR
+    ============================================ */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), #8ab4f8);
+      width: 0%;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1000;
+    }
+
+    /* ============================================
+       SLIDE CONTAINER
+    ============================================ */
+    #slides-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .slide {
+      width: 100%;
+      max-width: var(--slide-w);
+      min-height: var(--slide-h);
+      margin: 0 auto;
+      padding: 56px 64px 72px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      scroll-margin-top: 20px;
+    }
+
+    /* ============================================
+       COVER SLIDE
+    ============================================ */
+    .slide-cover {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(ellipse at 50% 40%, rgba(108,142,191,0.12) 0%, transparent 70%);
+    }
+
+    .cover-badge {
+      display: inline-block;
+      padding: 6px 18px;
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    .cover-title {
+      font-size: 3.4rem;
+      font-weight: 800;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #e2e8f0 0%, #8892b0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .cover-subtitle {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+    }
+
+    .cover-meta {
+      display: flex;
+      gap: 32px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .cover-meta span { display: flex; align-items: center; gap: 6px; }
+
+    /* ============================================
+       SLIDE HEADER
+    ============================================ */
+    .slide-header {
+      margin-bottom: 32px;
+    }
+
+    .slide-number {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .slide-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+    }
+
+    .slide-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .slide-divider {
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      margin-top: 16px;
+      margin-bottom: 4px;
+      width: 180px;
+    }
+
+    /* ============================================
+       COVER / TOC CARDS
+    ============================================ */
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .toc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .toc-card:hover {
+      border-color: var(--accent);
+      background: var(--surface2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .toc-card-num {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .toc-card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .toc-card-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ============================================
+       ENTITY BOX (ERD style)
+    ============================================ */
+    .entity-table {
+      display: inline-block;
+      border-radius: var(--radius);
+      overflow: hidden;
+      vertical-align: top;
+    }
+
+    .entity-header {
+      padding: 10px 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .entity-body { background: var(--surface); }
+
+    .entity-row {
+      display: flex;
+      align-items: center;
+      padding: 6px 16px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+      font-size: 0.8rem;
+      min-width: 200px;
+    }
+
+    .entity-row:first-child { border-top: none; }
+
+    .attr-key {
+      font-style: italic;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .attr-name {
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    /* Entity type colors */
+    .entity-user .entity-header  { background: var(--col-user);      color: #1a3a6b; border-bottom: 2px solid var(--col-user-stroke); }
+    .entity-dept .entity-header  { background: var(--col-dept);      color: #1a3a6b; border-bottom: 2px solid var(--col-dept-stroke); }
+    .entity-doc .entity-header   { background: var(--col-doc);       color: #5a4000; border-bottom: 2px solid var(--col-doc-stroke); }
+    .entity-cat .entity-header   { background: var(--col-cat);       color: #1e4a1e; border-bottom: 2px solid var(--col-cat-stroke); }
+    .entity-conv .entity-header  { background: var(--col-conv);      color: #4a1a6b; border-bottom: 2px solid var(--col-conv-stroke); }
+    .entity-fb .entity-header    { background: var(--col-fb);         color: #6b1a1a; border-bottom: 2px solid var(--col-fb-stroke); }
+    .entity-audit .entity-header{ background: var(--col-audit);      color: #333;    border-bottom: 2px solid var(--col-audit-stroke); }
+    .entity-rel .entity-header  { background: var(--col-rel);        color: #5a3000; border-bottom: 2px solid var(--col-rel-stroke); }
+
+    /* ============================================
+       TWO-COLUMN LAYOUT
+    ============================================ */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      flex: 1;
+      align-items: start;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      flex: 1;
+      align-items: start;
+    }
+
+    .col-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ============================================
+       RELATIONSHIP DIAGRAM (M-N style)
+    ============================================ */
+    .rel-diagram {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      font-size: 0.82rem;
+      overflow: hidden;
+    }
+
+    .rel-side {
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.78rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .rel-entity-a { background: var(--col-user);    color: #1a3a6b; }
+    .rel-entity-b { background: var(--col-dept);    color: #1a3a6b; }
+    .rel-entity-c { background: var(--col-doc);     color: #5a4000; }
+    .rel-entity-d { background: var(--col-cat);     color: #1e4a1e; }
+    .rel-entity-e { background: var(--col-conv);     color: #4a1a6b; }
+    .rel-entity-f { background: var(--col-fb);       color: #6b1a1a; }
+    .rel-entity-g { background: var(--col-audit);   color: #333; }
+    .rel-entity-h { background: var(--col-rel);       color: #5a3000; }
+
+    .rel-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      padding: 4px 0;
+    }
+
+    .rel-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 16px;
+      text-align: center;
+      width: 100%;
+      max-width: 160px;
+    }
+
+    .rel-name { font-weight: 700; color: var(--accent); font-size: 0.78rem; letter-spacing: 0.5px; }
+    .rel-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+    .rel-cardinality { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; font-style: italic; }
+
+    /* ============================================
+       STATS / OVERVIEW CARDS
+    ============================================ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ============================================
+       ENTITY LIST (overview)
+    ============================================ */
+    .entity-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .entity-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      transition: all 0.15s;
+    }
+
+    .entity-chip:hover { border-color: var(--accent); transform: translateX(2px); }
+
+    .chip-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .chip-name { font-weight: 600; flex: 1; }
+    .chip-count { font-size: 0.7rem; color: var(--text-muted); }
+
+    /* ============================================
+       RELATIONSHIP TABLE
+    ============================================ */
+    .rel-table-wrap {
+      overflow-x: auto;
+      flex: 1;
+    }
+
+    .rel-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    .rel-table th {
+      background: var(--surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.68rem;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border);
+      text-align: left;
+    }
+
+    .rel-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .rel-table tr:hover td { background: rgba(108,142,191,0.05); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+
+    .badge-1n { background: rgba(232, 100, 100, 0.15); color: #e86464; }
+    .badge-11 { background: rgba(100, 200, 232, 0.15); color: #64c8e8; }
+    .badge-0n { background: rgba(232, 180, 100, 0.15); color: #e8b464; }
+    .badge-01 { background: rgba(160, 232, 100, 0.15); color: #a0e864; }
+
+    /* ============================================
+       TAG / STATUS BADGE
+    ============================================ */
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ============================================
+       BODY CONTENT
+    ============================================ */
+    .body-text {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-top: 4px;
+    }
+
+    /* ============================================
+       FOOTER
+    ============================================ */
+    .slide-footer {
+      position: absolute;
+      bottom: 20px;
+      left: 64px;
+      right: 64px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .footer-brand { font-weight: 600; color: var(--accent); }
+
+    /* ============================================
+       NAVIGATION
+    ============================================ */
+    #nav-dots {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 900;
+    }
+
+    .nav-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      padding: 0;
+    }
+
+    .nav-dot.active {
+      background: var(--accent);
+      transform: scale(1.4);
+    }
+
+    .nav-dot:hover { background: var(--text-muted); }
+
+    /* ============================================
+       SLIDE COUNTER
+    ============================================ */
+    #slide-counter {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      z-index: 900;
+    }
+
+    /* ============================================
+       KEYBOARD HINT
+    ============================================ */
+    .kbd-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      z-index: 900;
+      display: flex;
+      gap: 16px;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.65rem;
+    }
+
+    /* ============================================
+       SPECIAL: GROUP HEADER
+    ============================================ */
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .group-icon {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .group-icon.core    { background: rgba(91,137,212,0.15); }
+    .group-icon.doc     { background: rgba(200,166,0,0.15); }
+    .group-icon.cat     { background: rgba(78,140,78,0.15); }
+    .group-icon.conv    { background: rgba(139,90,158,0.15); }
+    .group-icon.analytics { background: rgba(136,136,136,0.15); }
+
+    .group-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .group-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* ============================================
+       SPECIAL: MINI ER GRID
+    ============================================ */
+    .mini-er {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .mini-box {
+      border: 2px solid;
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mini-arrow {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* ============================================
+       END SLIDE
+    ============================================ */
+    .slide-end {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(ellipse at 50% 50%, rgba(108,142,191,0.08) 0%, transparent 65%);
+    }
+
+    .end-title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #e2e8f0, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .end-sub {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+
+    /* ============================================
+       SCROLLBAR
+    ============================================ */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ============================================
+       RESPONSIVE
+    ============================================ */
+    @media (max-width: 800px) {
+      .slide { padding: 32px 24px 56px; }
+      .two-col, .three-col { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .entity-list { grid-template-columns: 1fr 1fr; }
+      .toc-grid { grid-template-columns: 1fr 1fr; }
+      .cover-title { font-size: 2.2rem; }
+      .slide-title { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Progress Bar -->
+  <div id="progress-bar"></div>
+
+  <!-- Navigation Dots -->
+  <nav id="nav-dots"></nav>
+
+  <!-- Slide Counter -->
+  <div id="slide-counter">1 / <span id="total-slides">--</span></div>
+
+  <!-- Keyboard Hints -->
+  <div class="kbd-hint">
+    <span><kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> hoặc scroll</span>
+    <span><kbd class="kbd">Home</kbd> <kbd class="kbd">End</kbd></span>
+    <span><kbd class="kbd">.</kbd> next</span>
+  </div>
+
+  <!-- ==========================================
+       SLIDES
+  ========================================== -->
+  <div id="slides-wrapper">
+
+    <!-- ========== SLIDE 1: COVER ========== -->
+    <section class="slide slide-cover" id="slide-1">
+      <div class="cover-badge">Poliwise — Kiến trúc Hệ thống</div>
+      <h1 class="cover-title">Entity Relationship Diagram</h1>
+      <p class="cover-subtitle">Mô hình dữ liệu tổng thể — 16 thực thể, 16 quan hệ, 5 nhóm chức năng</p>
+      <div class="cover-meta">
+        <span>📅 Tháng 4 / 2026</span>
+        <span>🔢 16 Entities</span>
+        <span>🔗 16 Relationships</span>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 2: TOC ========== -->
+    <section class="slide" id="slide-2">
+      <div class="slide-header">
+        <div class="slide-number">Overview</div>
+        <h2 class="slide-title">Nội dung trình bày</h2>
+        <div class="slide-divider"></div>
+      </div>
+      <div class="toc-grid">
+        <a href="#slide-3"  class="toc-card"><div class="toc-card-num">01</div><div class="toc-card-title">Tổng quan ERD</div><div class="toc-card-desc">16 thực thể theo 5 nhóm chức năng, sơ đồ quan hệ tổng thể</div></a>
+        <a href="#slide-4"  class="toc-card"><div class="toc-card-num">02</div><div class="toc-card-title">Nhóm Core</div><div class="toc-card-desc">USER &amp; DEPARTMENT — người dùng và cấu trúc tổ chức</div></a>
+        <a href="#slide-5"  class="toc-card"><div class="toc-card-num">03</div><div class="toc-card-title">Nhóm Document</div><div class="toc-card-desc">DOCUMENT, VERSION, CHUNK — vòng đời tài liệu</div></a>
+        <a href="#slide-6"  class="toc-card"><div class="toc-card-num">04</div><div class="toc-card-title">Nhóm Classification</div><div class="toc-card-desc">CATEGORY, TAG, ACCESS_RULE — phân loại &amp; quyền truy cập</div></a>
+        <a href="#slide-7"  class="toc-card"><div class="toc-card-num">05</div><div class="toc-card-title">Nhóm Conversation</div><div class="toc-card-desc">CONVERSATION, MESSAGE, FEEDBACK — hội thoại AI</div></a>
+        <a href="#slide-8"  class="toc-card"><div class="toc-card-num">06</div><div class="toc-card-title">Nhóm Analytics</div><div class="toc-card-desc">AUDIT_LOG, REPORT_EXPORT, UNANSWERED_QUESTION</div></a>
+        <a href="#slide-9"  class="toc-card"><div class="toc-card-num">07</div><div class="toc-card-title">Tổng hợp quan hệ</div><div class="toc-card-desc">Ma trận 16 quan hệ ERD đầy đủ</div></a>
+        <a href="#slide-10" class="toc-card"><div class="toc-card-num">08</div><div class="toc-card-title">Tóm tắt</div><div class="toc-card-desc">Điểm chính và tổng kết</div></a>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 3: OVERVIEW ========== -->
+    <section class="slide" id="slide-3">
+      <div class="slide-header">
+        <div class="slide-number">01 — ERD Overview</div>
+        <h2 class="slide-title">Tổng quan Entity Relationship Diagram</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div class="stats-grid" style="margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-num">16</div><div class="stat-label">Thực thể</div></div>
+        <div class="stat-card"><div class="stat-num">16</div><div class="stat-label">Quan hệ</div></div>
+        <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">Nhóm chức năng</div></div>
+        <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">Schema DB</div></div>
+      </div>
+
+      <div class="entity-list">
+        <!-- Core -->
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-user-stroke)"></span><span class="chip-name">USER</span><span class="chip-count">auth</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-dept-stroke)"></span><span class="chip-name">DEPARTMENT</span><span class="chip-count">user</span></div>
+        <!-- Doc -->
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-doc-stroke)"></span><span class="chip-name">DOCUMENT</span><span class="chip-count">knowledge</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-doc-stroke)"></span><span class="chip-name">DOCUMENT_VERSION</span><span class="chip-count">knowledge</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-doc-stroke)"></span><span class="chip-name">CHUNK</span><span class="chip-count">knowledge</span></div>
+        <!-- Classification -->
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-cat-stroke)"></span><span class="chip-name">CATEGORY</span><span class="chip-count">metadata</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-cat-stroke)"></span><span class="chip-name">TAG</span><span class="chip-count">metadata</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-rel-stroke)"></span><span class="chip-name">ACCESS_RULE</span><span class="chip-count">metadata</span></div>
+        <!-- Conversation -->
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-conv-stroke)"></span><span class="chip-name">CONVERSATION</span><span class="chip-count">feedback</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-conv-stroke)"></span><span class="chip-name">MESSAGE</span><span class="chip-count">feedback</span></div>
+        <!-- Analytics -->
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-fb-stroke)"></span><span class="chip-name">FEEDBACK</span><span class="chip-count">feedback</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-fb-stroke)"></span><span class="chip-name">UNANSWERED_QUESTION</span><span class="chip-count">feedback</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-audit-stroke)"></span><span class="chip-name">AUDIT_LOG</span><span class="chip-count">analytics</span></div>
+        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-audit-stroke)"></span><span class="chip-name">REPORT_EXPORT</span><span class="chip-count">analytics</span></div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="group-header" style="margin-bottom:12px;">
+          <div class="group-icon core">🏛️</div>
+          <div><div class="group-name">5 Nhóm chức năng chính</div></div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+          <div class="tag" style="border-color:var(--col-user-stroke);color:var(--col-user)">🏛️ Core — USER, DEPARTMENT</div>
+          <div class="tag" style="border-color:var(--col-doc-stroke);color:var(--col-doc-stroke)">📄 Document — DOCUMENT, VERSION, CHUNK</div>
+          <div class="tag" style="border-color:var(--col-cat-stroke);color:#4e8c4e">🏷️ Classification — CATEGORY, TAG, ACCESS_RULE</div>
+          <div class="tag" style="border-color:var(--col-conv-stroke);color:var(--col-conv-stroke)">💬 Conversation — CONVERSATION, MESSAGE, FEEDBACK</div>
+          <div class="tag" style="border-color:var(--col-audit-stroke);color:#999">📊 Analytics — AUDIT_LOG, REPORT_EXPORT, UNANSWERED_QUESTION</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 4: CORE ========== -->
+    <section class="slide" id="slide-4">
+      <div class="slide-header">
+        <div class="slide-number">02 — Nhóm Core</div>
+        <h2 class="slide-title">USER &amp; DEPARTMENT — Người dùng &amp; Tổ chức</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div class="two-col">
+        <!-- Left: USER -->
+        <div class="col-content">
+          <div class="group-header">
+            <div class="group-icon core">👤</div>
+            <div><div class="group-name">USER</div><div class="group-desc">poliwise_auth · 16 thuộc tính</div></div>
+          </div>
+
+          <div class="entity-table entity-user">
+            <div class="entity-header">USER</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">userId</span></div>
+              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">username</span></div>
+              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">email</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">passwordHash</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">role</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">status</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">fullName</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">phone · position · avatarUrl</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">employeeCode · joinedDate · dateOfBirth</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">bio · mustChangePassword</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">createdAt</span></div>
+            </div>
+          </div>
+
+          <div style="margin-top:8px;">
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">Vai trò:</div>
+            <div class="tag-list">
+              <span class="tag">USER</span>
+              <span class="tag">MANAGER</span>
+              <span class="tag">ADMIN</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">Trạng thái:</div>
+            <div class="tag-list">
+              <span class="tag">ACTIVE</span>
+              <span class="tag">DEACTIVATED</span>
+              <span class="tag">REVOKED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: DEPARTMENT + REL -->
+        <div class="col-content">
+          <div class="group-header">
+            <div class="group-icon core">🏢</div>
+            <div><div class="group-name">DEPARTMENT</div><div class="group-desc">poliwise_user · 6 thuộc tính</div></div>
+          </div>
+
+          <div class="entity-table entity-dept" style="margin-bottom:16px;">
+            <div class="entity-header">DEPARTMENT</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">departmentId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">name</span></div>
+              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">code</span></div>
+              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">parentDepartmentId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">isActive</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">description</span></div>
+            </div>
+          </div>
+
+          <!-- Relationships -->
+          <div style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:8px;">Quan hệ</div>
+
+          <div class="rel-diagram" style="margin-bottom:8px;">
+            <span class="rel-side rel-entity-a">USER</span>
+            <div class="rel-center">
+              <div class="rel-card">
+                <div class="rel-name">BELONGS_TO</div>
+                <div class="rel-cardinality">(1,N) ↔ (1,1)</div>
+                <div class="rel-desc">User bắt buộc thuộc 1 Dept. Dept chứa nhiều User.</div>
+              </div>
+            </div>
+            <span class="rel-side rel-entity-b">DEPARTMENT</span>
+          </div>
+
+          <div class="rel-diagram" style="margin-bottom:8px;">
+            <span class="rel-side rel-entity-b">DEPARTMENT</span>
+            <div class="rel-center">
+              <div class="rel-card">
+                <div class="rel-name">HAS_CHILD</div>
+                <div class="rel-cardinality">(0,N) ↔ (0,1)</div>
+                <div class="rel-desc">Dept có nhiều Dept con. Cấu trúc cây phân cấp tổ chức.</div>
+              </div>
+            </div>
+            <span class="rel-side rel-entity-b">DEPARTMENT</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 5: DOCUMENT ========== -->
+    <section class="slide" id="slide-5">
+      <div class="slide-header">
+        <div class="slide-number">03 — Nhóm Document</div>
+        <h2 class="slide-title">DOCUMENT, VERSION &amp; CHUNK — Vòng đời Tài liệu</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Flow -->
+        <div class="rel-diagram" style="justify-content:center;gap:16px;">
+          <span class="rel-side rel-entity-a" style="font-size:0.72rem;">USER</span>
+          <div class="rel-center" style="max-width:100px;"><div class="rel-card" style="max-width:100px;"><div class="rel-name" style="font-size:0.7rem;">UPLOADS</div><div class="rel-cardinality">(0,N)→(0,1)</div></div></div>
+          <span class="rel-side rel-entity-c" style="font-size:0.72rem;">DOCUMENT</span>
+          <div class="rel-center" style="max-width:100px;"><div class="rel-card" style="max-width:100px;"><div class="rel-name" style="font-size:0.7rem;">HAS_VERSION</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
+          <span class="rel-side rel-entity-c" style="font-size:0.72rem;background:var(--col-doc);color:#5a4000;">DOC_VERSION</span>
+          <div class="rel-center" style="max-width:100px;"><div class="rel-card" style="max-width:100px;"><div class="rel-name" style="font-size:0.7rem;">IS_SPLIT_INTO</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
+          <span class="rel-side rel-entity-c" style="font-size:0.72rem;">CHUNK</span>
+        </div>
+
+        <div class="three-col">
+          <!-- DOCUMENT -->
+          <div class="col-content">
+            <div class="group-header">
+              <div class="group-icon doc">📄</div>
+              <div><div class="group-name">DOCUMENT</div><div class="group-desc">poliwise_knowledge · 16 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-doc">
+              <div class="entity-header">DOCUMENT</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">documentId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">originalFilename · fileKey · fileType</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">fileSizeBytes</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">title · description</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">status · language</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">currentVersion · processingStatus</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">accessLevel</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">effectiveDate · expiryDate</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">chunkingStrategy · createdAt</span></div>
+              </div>
+            </div>
+            <div class="tag-list" style="margin-top:8px;">
+              <span class="tag">DRAFT</span><span class="tag">PUBLISHED</span><span class="tag">ARCHIVED</span>
+              <span class="tag">PUBLIC</span><span class="tag">DEPARTMENT</span><span class="tag">RESTRICTED</span>
+            </div>
+          </div>
+
+          <!-- DOCUMENT_VERSION -->
+          <div class="col-content">
+            <div class="group-header">
+              <div class="group-icon doc">🗂️</div>
+              <div><div class="group-name">DOCUMENT_VERSION</div><div class="group-desc">poliwise_knowledge · 4 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-doc" style="font-size:0.78rem;">
+              <div class="entity-header">DOCUMENT_VERSION</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">versionId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">documentId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">versionNumber</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">extractedText</span></div>
+              </div>
+            </div>
+            <p class="body-text" style="margin-top:10px;font-size:0.8rem;">Mỗi phiên bản là bất biến — lưu nội dung text đã trích xuất tại thời điểm xử lý. Không thể sửa đổi sau khi tạo.</p>
+          </div>
+
+          <!-- CHUNK -->
+          <div class="col-content">
+            <div class="group-header">
+              <div class="group-icon doc">✂️</div>
+              <div><div class="group-name">CHUNK</div><div class="group-desc">poliwise_knowledge · 8 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-doc" style="font-size:0.78rem;">
+              <div class="entity-header">CHUNK</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">chunkId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">documentId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">content</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">embeddingVector</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">chunkIndex</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">allowedRoles · allowedDepartments</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">sectionTitle</span></div>
+              </div>
+            </div>
+            <p class="body-text" style="margin-top:10px;font-size:0.8rem;">Vector embedding phục vụ RAG — AI tìm kiếm ngữ nghĩa để trả lời câu hỏi người dùng.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 6: CLASSIFICATION ========== -->
+    <section class="slide" id="slide-6">
+      <div class="slide-header">
+        <div class="slide-number">04 — Nhóm Classification</div>
+        <h2 class="slide-title">CATEGORY, TAG &amp; ACCESS_RULE — Phân loại &amp; Quyền truy cập</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div class="two-col">
+        <!-- Left -->
+        <div class="col-content">
+          <!-- CATEGORY -->
+          <div class="group-header">
+            <div class="group-icon cat">📁</div>
+            <div><div class="group-name">CATEGORY</div><div class="group-desc">poliwise_metadata · 5 thuộc tính</div></div>
+          </div>
+          <div class="entity-table entity-cat" style="margin-bottom:20px;">
+            <div class="entity-header">CATEGORY</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">categoryId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">name</span></div>
+              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">slug</span></div>
+              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">parentCategoryId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">displayOrder</span></div>
+            </div>
+          </div>
+
+          <!-- TAG -->
+          <div class="group-header">
+            <div class="group-icon cat"> 🏷️</div>
+            <div><div class="group-name">TAG</div><div class="group-desc">poliwise_metadata · 5 thuộc tính</div></div>
+          </div>
+          <div class="entity-table entity-cat" style="margin-bottom:16px;">
+            <div class="entity-header">TAG</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">tagId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">name</span></div>
+              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">slug</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">color · usageCount</span></div>
+            </div>
+          </div>
+
+          <div class="rel-diagram" style="margin-bottom:8px;">
+            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">DOCUMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">CLASSIFIED_INTO</div><div class="rel-cardinality">(0,N) ↔ (0,N)</div></div></div>
+            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">CATEGORY</span>
+          </div>
+          <div class="rel-diagram">
+            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">CATEGORY</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">HAS_CHILD</div><div class="rel-cardinality">(0,N) ↔ (0,1)</div></div></div>
+            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">CATEGORY</span>
+          </div>
+        </div>
+
+        <!-- Right: ACCESS_RULE + more rels -->
+        <div class="col-content">
+          <div class="group-header">
+            <div class="group-icon" style="background:rgba(255,230,204,0.15);">🔐</div>
+            <div><div class="group-name">ACCESS_RULE</div><div class="group-desc">poliwise_metadata · 4 thuộc tính</div></div>
+          </div>
+          <div class="entity-table entity-rel" style="margin-bottom:16px;">
+            <div class="entity-header">ACCESS_RULE</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">ruleId</span></div>
+              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">documentId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">targetType</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">permission</span></div>
+            </div>
+          </div>
+
+          <div class="rel-diagram" style="margin-bottom:8px;">
+            <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.7rem;">DOCUMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">GOVERNS</div><div class="rel-cardinality">(1,1) → (0,N)</div></div></div>
+            <span class="rel-side" style="background:var(--col-rel);color:#5a3000;font-size:0.7rem;">ACCESS_RULE</span>
+          </div>
+
+          <div style="margin-top:20px;">
+            <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:10px;">Các quan hệ còn lại của DOCUMENT</div>
+            <div class="rel-diagram" style="margin-bottom:8px;">
+              <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">DOCUMENT</span>
+              <div class="rel-center"><div class="rel-card"><div class="rel-name">TAGGED_WITH</div><div class="rel-cardinality">(0,N) ↔ (0,N)</div></div></div>
+              <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">TAG</span>
+            </div>
+            <div class="rel-diagram" style="margin-bottom:8px;">
+              <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.7rem;">DOCUMENT</span>
+              <div class="rel-center"><div class="rel-card"><div class="rel-name">BELONGS_TO_DEPT</div><div class="rel-cardinality">(0,N) ↔ (0,1)</div></div></div>
+              <span class="rel-side" style="background:var(--col-dept);color:#1a3a6b;font-size:0.7rem;">DEPARTMENT</span>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div style="font-size:0.78rem;color:var(--text-muted);">targetType: <span class="tag">ROLE</span> <span class="tag">DEPARTMENT</span> <span class="tag">USER</span></div>
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">permission: <span class="tag">VIEW</span> <span class="tag">DENY</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 7: CONVERSATION ========== -->
+    <section class="slide" id="slide-7">
+      <div class="slide-header">
+        <div class="slide-number">05 — Nhóm Conversation</div>
+        <h2 class="slide-title">CONVERSATION, MESSAGE &amp; FEEDBACK — Hội thoại AI</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Flow -->
+        <div class="rel-diagram" style="justify-content:center;gap:12px;">
+          <span class="rel-side rel-entity-a" style="font-size:0.72rem;">USER</span>
+          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">OWNS</div><div class="rel-cardinality">(0,N)→(1,1)</div></div></div>
+          <span class="rel-side" style="background:var(--col-conv);color:#4a1a6b;font-size:0.72rem;">CONVERSATION</span>
+          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">CONTAINS</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
+          <span class="rel-side" style="background:var(--col-conv);color:#4a1a6b;font-size:0.72rem;">MESSAGE</span>
+          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">HAS</div><div class="rel-cardinality">(0,1)→(0,N)</div></div></div>
+          <span class="rel-side" style="background:var(--col-fb);color:#6b1a1a;font-size:0.72rem;">FEEDBACK</span>
+        </div>
+
+        <div class="three-col">
+          <!-- CONVERSATION -->
+          <div class="col-content">
+            <div class="group-header">
+              <div class="group-icon conv">💬</div>
+              <div><div class="group-name">CONVERSATION</div><div class="group-desc">poliwise_analytics · 5 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-conv">
+              <div class="entity-header">CONVERSATION</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">conversationId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">title</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">messageCount</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">lastMessageAt</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MESSAGE -->
+          <div class="col-content">
+            <div class="group-header">
+              <div class="group-icon conv">🗨️</div>
+              <div><div class="group-name">MESSAGE</div><div class="group-desc">poliwise_analytics · 7 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-conv">
+              <div class="entity-header">MESSAGE</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">messageId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">conversationId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">role</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">content</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">sources (JSONB)</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">confidence</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">tokensTotal</span></div>
+              </div>
+            </div>
+            <div class="tag-list" style="margin-top:8px;">
+              <span class="tag">HIGH</span><span class="tag">MEDIUM</span><span class="tag">LOW</span><span class="tag">UNKNOWN</span>
+            </div>
+          </div>
+
+          <!-- FEEDBACK + UQ -->
+          <div class="col-content">
+            <div class="group-header">
+              <div class="group-icon fb">👍</div>
+              <div><div class="group-name">FEEDBACK</div><div class="group-desc">poliwise_analytics · 5 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-fb" style="margin-bottom:16px;">
+              <div class="entity-header">FEEDBACK</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">feedbackId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">messageId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">type</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">comment (optional)</span></div>
+              </div>
+            </div>
+
+            <div class="group-header">
+              <div class="group-icon" style="background:rgba(184,84,80,0.15);">❓</div>
+              <div><div class="group-name">UNANSWERED_QUESTION</div><div class="group-desc">poliwise_analytics · 6 thuộc tính</div></div>
+            </div>
+            <div class="entity-table entity-fb">
+              <div class="entity-header">UNANSWERED_QUESTION</div>
+              <div class="entity-body">
+                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">uqId</span></div>
+                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId · conversationId</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">question</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">resolved</span></div>
+                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">priority</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 8: ANALYTICS ========== -->
+    <section class="slide" id="slide-8">
+      <div class="slide-header">
+        <div class="slide-number">06 — Nhóm Analytics</div>
+        <h2 class="slide-title">AUDIT_LOG &amp; REPORT_EXPORT — Kiểm toán &amp; Báo cáo</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div class="two-col">
+        <!-- AUDIT_LOG -->
+        <div class="col-content">
+          <div class="group-header">
+            <div class="group-icon analytics">📋</div>
+            <div><div class="group-name">AUDIT_LOG</div><div class="group-desc">poliwise_analytics · 7 thuộc tính</div></div>
+          </div>
+          <div class="entity-table entity-audit" style="margin-bottom:16px;">
+            <div class="entity-header">AUDIT_LOG</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">auditId</span></div>
+              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">action</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">resourceType</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">resourceId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">oldValue (JSONB)</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">newValue (JSONB)</span></div>
+            </div>
+          </div>
+
+          <div class="rel-diagram" style="margin-bottom:12px;">
+            <span class="rel-side rel-entity-a" style="font-size:0.7rem;">USER</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">PERFORMED_BY</div><div class="rel-cardinality">(1,N) → (1,1)</div></div></div>
+            <span class="rel-side" style="background:var(--col-audit);color:#333;font-size:0.7rem;">AUDIT_LOG</span>
+          </div>
+
+          <div style="font-size:0.8rem;color:var(--text-muted);">Ví dụ actions:</div>
+          <div class="tag-list">
+            <span class="tag">LOGIN</span><span class="tag">DOCUMENT_UPLOAD</span><span class="tag">USER_DEACTIVATE</span>
+            <span class="tag">CATEGORY_CREATE</span><span class="tag">FEEDBACK_SUBMIT</span>
+          </div>
+        </div>
+
+        <!-- REPORT_EXPORT -->
+        <div class="col-content">
+          <div class="group-header">
+            <div class="group-icon analytics">📊</div>
+            <div><div class="group-name">REPORT_EXPORT</div><div class="group-desc">poliwise_analytics · 6 thuộc tính</div></div>
+          </div>
+          <div class="entity-table entity-audit" style="margin-bottom:16px;">
+            <div class="entity-header">REPORT_EXPORT</div>
+            <div class="entity-body">
+              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">reportId</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">reportType</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">format</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">status</span></div>
+              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">fileKey (MinIO/S3)</span></div>
+              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">requestedBy</span></div>
+            </div>
+          </div>
+
+          <div class="rel-diagram" style="margin-bottom:16px;">
+            <span class="rel-side rel-entity-a" style="font-size:0.7rem;">USER</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">REQUESTS</div><div class="rel-cardinality">(0,N) → (1,1)</div></div></div>
+            <span class="rel-side" style="background:var(--col-audit);color:#333;font-size:0.7rem;">REPORT_EXPORT</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">reportType:</div>
+              <span class="tag">USAGE_STATS</span>
+              <span class="tag">FEEDBACK_ANALYTICS</span>
+              <span class="tag">UNANSWERED_Q</span>
+            </div>
+            <div>
+              <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">status / format:</div>
+              <span class="tag">PENDING</span>
+              <span class="tag">PROCESSING</span>
+              <span class="tag">COMPLETED</span>
+              <span class="tag">CSV</span>
+              <span class="tag">PDF</span>
+              <span class="tag">XLSX</span>
+            </div>
+          </div>
+
+          <p class="body-text" style="margin-top:12px;font-size:0.8rem;">Xử lý bất đồng bộ (async) — user gửi yêu cầu và nhận thông báo khi file sẵn sàng tải.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 9: RELATIONSHIPS MATRIX ========== -->
+    <section class="slide" id="slide-9">
+      <div class="slide-header">
+        <div class="slide-number">07 — Tổng hợp quan hệ</div>
+        <h2 class="slide-title">Ma trận 16 Quan hệ ERD</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div class="rel-table-wrap">
+        <table class="rel-table">
+          <thead>
+            <tr>
+              <th style="width:32%">Quan hệ</th>
+              <th style="width:14%">Thực thể A</th>
+              <th style="width:8%">Card A</th>
+              <th style="width:14%">Thực thể B</th>
+              <th style="width:8%">Card B</th>
+              <th style="width:24%">Mô tả</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong style="color:var(--col-user-stroke)">BELONGS_TO</strong></td>
+              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
+              <td><span class="badge badge-1n">(1,N)</span></td>
+              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td>User bắt buộc thuộc 1 Dept. Mỗi Dept chứa nhiều User.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-dept-stroke)">HAS_CHILD</strong> <small style="color:var(--text-muted)">(Dept)</small></td>
+              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
+              <td><span class="badge badge-01">(0,1)</span></td>
+              <td>Cây phân cấp tổ chức. Dept con có thể có Dept cha.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-user-stroke)">OWNS</strong></td>
+              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">CONVERSATION</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td>User sở hữu nhiều Conversation. Mỗi Conversation chỉ 1 User.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-conv-stroke)">CONTAINS</strong></td>
+              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">CONVERSATION</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td>
+              <td><span class="badge badge-1n">(1,N)</span></td>
+              <td>Conversation bắt buộc chứa ít nhất 1 Message.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-conv-stroke)">HAS</strong></td>
+              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td>
+              <td><span class="badge badge-01">(0,1)</span></td>
+              <td><span class="badge" style="background:var(--col-fb);color:#6b1a1a">FEEDBACK</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td>Message có thể có 0-N Feedback (like/dislike).</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-conv-stroke)">GENERATES</strong></td>
+              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-fb);color:#6b1a1a">UNANSWERED_QUESTION</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td>Message sinh ra câu hỏi chưa trả lời khi AI không tìm được nguồn.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-user-stroke)">UPLOADS</strong></td>
+              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-01">(0,1)</span></td>
+              <td>User upload nhiều Document. Mỗi Document có 1 người upload (ADMIN).</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-doc-stroke)">HAS_VERSION</strong></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOC_VERSION</span></td>
+              <td><span class="badge badge-1n">(1,N)</span></td>
+              <td>Document bắt buộc có ít nhất 1 phiên bản. Phiên bản bất biến.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-doc-stroke)">IS_SPLIT_INTO</strong></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">CHUNK</span></td>
+              <td><span class="badge badge-1n">(1,N)</span></td>
+              <td>Document chia thành nhiều Chunk phục vụ tìm kiếm ngữ nghĩa (RAG).</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#4e8c4e">CLASSIFIED_INTO</strong></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td>Document phân loại đa giá trị vào nhiều Category.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#4e8c4e">HAS_CHILD</strong> <small style="color:var(--text-muted)">(Cat)</small></td>
+              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td>
+              <td><span class="badge badge-01">(0,1)</span></td>
+              <td>Category có thể chứa Category con. Cấu trúc cây phân loại.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#4e8c4e">TAGGED_WITH</strong></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">TAG</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td>Document gắn nhiều Tag. Tag là danh sách phẳng không phân cấp.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-rel-stroke)">GOVERNS</strong></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td><span class="badge" style="background:var(--col-rel);color:#5a3000">ACCESS_RULE</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td>Document có quyền truy cập mặc định + nhiều Access_Rule bổ sung.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-dept-stroke)">BELONGS_TO_DEPT</strong></td>
+              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
+              <td><span class="badge badge-01">(0,1)</span></td>
+              <td>Document thuộc Dept sở hữu. Phân biệt với USER.BELONGS_TO.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-audit-stroke)">PERFORMED_BY</strong></td>
+              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
+              <td><span class="badge badge-1n">(1,N)</span></td>
+              <td><span class="badge" style="background:var(--col-audit);color:#333">AUDIT_LOG</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td>Mọi thao tác quan trọng (login, upload, xóa...) đều được ghi nhận.</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--col-audit-stroke)">REQUESTS</strong></td>
+              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
+              <td><span class="badge badge-0n">(0,N)</span></td>
+              <td><span class="badge" style="background:var(--col-audit);color:#333">REPORT_EXPORT</span></td>
+              <td><span class="badge badge-11">(1,1)</span></td>
+              <td>User yêu cầu xuất báo cáo. Xử lý async, file lưu trên MinIO/S3.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 10: SUMMARY ========== -->
+    <section class="slide" id="slide-10">
+      <div class="slide-header">
+        <div class="slide-number">08 — Tóm tắt</div>
+        <h2 class="slide-title">Tổng kết &amp; Điểm chính</h2>
+        <div class="slide-divider"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1;">
+        <!-- Left: Key points -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="font-size:0.9rem;font-weight:700;color:var(--accent);margin-bottom:4px;">Điểm chính</div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">🏛️ 5 Nhóm chức năng rõ ràng</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">Core · Document · Classification · Conversation · Analytics — Mỗi nhóm thuộc 1 microservice riêng biệt, tách biệt schema DB.</div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">📦 RAG Pipeline hoàn chỉnh</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">DOCUMENT → DOCUMENT_VERSION (bất biến) → CHUNK (vector) → Tìm kiếm ngữ nghĩa → AI trả lời → MESSAGE</div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">🔐 Phân quyền nhiều lớp</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">accessLevel (public/dept/restricted) + ACCESS_RULE (role/dept/user) + CHUNK.allowedRoles + CHUNK.allowedDepartments</div>
+          </div>
+
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">🐰 RabbitMQ — Event-Driven</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">User.status.changed · Document.uploaded · Unanswered.question — Cross-service communication.</div>
+          </div>
+        </div>
+
+        <!-- Right: DB Schema map -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="font-size:0.9rem;font-weight:700;color:var(--accent);margin-bottom:4px;">Schema &amp; Service Ownership</div>
+
+          <div class="rel-table-wrap" style="flex:1;">
+            <table class="rel-table">
+              <thead>
+                <tr>
+                  <th>Schema</th>
+                  <th>Service</th>
+                  <th>Port</th>
+                  <th>Entities</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">poliwise_auth</span></td>
+                  <td>auth-service</td>
+                  <td><span class="badge">8081</span></td>
+                  <td>USER</td>
+                </tr>
+                <tr>
+                  <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">poliwise_user</span></td>
+                  <td>user-service</td>
+                  <td><span class="badge">8082</span></td>
+                  <td>DEPARTMENT</td>
+                </tr>
+                <tr>
+                  <td><span class="badge" style="background:var(--col-doc);color:#5a4000">poliwise_knowledge</span></td>
+                  <td>knowledge-service</td>
+                  <td><span class="badge">8083</span></td>
+                  <td>DOC, VERSION, CHUNK</td>
+                </tr>
+                <tr>
+                  <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">poliwise_metadata</span></td>
+                  <td>metadata-service</td>
+                  <td><span class="badge">8084</span></td>
+                  <td>CATEGORY, TAG, ACCESS_RULE</td>
+                </tr>
+                <tr>
+                  <td><span class="badge" style="background:var(--col-audit);color:#333">poliwise_analytics</span></td>
+                  <td>feedback-service</td>
+                  <td><span class="badge">8085</span></td>
+                  <td>CONV, MSG, FEEDBACK, UQ, AUDIT, REPORT</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="background:radial-gradient(ellipse at 50% 50%,rgba(108,142,191,0.1) 0%,transparent 70%);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;">
+            <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">
+              API Gateway (port <strong style="color:var(--accent)">3001</strong>) — JWT · RBAC · Rate Limit · Proxy<br/>
+              Frontend (port <strong style="color:var(--accent)">3000</strong>) — Next.js 16 App Router
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SLIDE 11: END ========== -->
+    <section class="slide slide-end" id="slide-11">
+      <div class="cover-badge">Poliwise — ERD Presentation</div>
+      <h2 class="end-title">Cảm ơn bạn đã theo dõi</h2>
+      <p class="end-sub">Entity Relationship Diagram — Poliwise System Architecture</p>
+      <div style="margin-top:32px;display:flex;gap:24px;justify-content:center;">
+        <div style="text-align:center;">
+          <div style="font-size:1.5rem;">🏛️</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">16 Entities</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:1.5rem;">🔗</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">16 Relations</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:1.5rem;">📦</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">5 Services</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:1.5rem;">🐰</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Event-Driven</div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /slides-wrapper -->
+
+  <!-- ==========================================
+       JAVASCRIPT
+  ========================================== -->
+  <script>
+    (() => {
+      const slides    = document.querySelectorAll('.slide');
+      const dots      = document.getElementById('nav-dots');
+      const progress  = document.getElementById('progress-bar');
+      const counter   = document.getElementById('slide-counter');
+      const totalSpan = document.getElementById('total-slides');
+      const total     = slides.length;
+      totalSpan.textContent = total;
+
+      // Build nav dots
+      slides.forEach((_, i) => {
+        const dot = document.createElement('button');
+        dot.className = 'nav-dot';
+        dot.setAttribute('aria-label', `Slide ${i + 1}`);
+        dot.addEventListener('click', () => slides[i].scrollIntoView({ behavior: 'smooth' }));
+        dots.appendChild(dot);
+      });
+
+      const dotList = document.querySelectorAll('.nav-dot');
+
+      // Intersection Observer
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const idx = Array.from(slides).indexOf(e.target);
+            dotList.forEach((d, i) => d.classList.toggle('active', i === idx));
+            counter.innerHTML = `${idx + 1} / <span id="total-slides">${total}</span>`;
+            progress.style.width = `${((idx + 1) / total) * 100}%`;
+          }
+        });
+      }, { threshold: 0.45 });
+
+      slides.forEach(s => obs.observe(s));
+
+      // Keyboard navigation
+      document.addEventListener('keydown', e => {
+        const active = Array.from(dotList).findIndex(d => d.classList.contains('active'));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === '.') {
+          if (active < slides.length - 1) slides[active + 1].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === ',') {
+          if (active > 0) slides[active - 1].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'Home') {
+          slides[0].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'End') {
+          slides[slides.length - 1].scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      // Smooth scroll anchor links
+      document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', e => {
+          e.preventDefault();
+          const target = document.querySelector(a.getAttribute('href'));
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+    })();
+  </script>
+
+</body>
+</html>

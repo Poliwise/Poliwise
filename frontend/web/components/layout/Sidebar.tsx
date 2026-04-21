@@ -6,15 +6,18 @@ import {
   MessageSquare,
   BookOpen,
   BarChart3,
+  FileText,
+  Users,
+  Tags,
+  FolderOpen,
+  Shield,
+  FileBarChart,
+  ScrollText,
+  Brain,
   Settings,
   User,
   X,
   LogOut,
-  Shield,
-  FileText,
-  Users,
-  Tags,
-  Brain,
 } from 'lucide-react';
 import { useUserRole, useAuthStore } from '@/store';
 import { UserRole } from '@/types';
@@ -30,9 +33,10 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   roles?: UserRole[];
+  dividerBefore?: boolean;
 }
 
-const navItems: NavItem[] = [
+const NAV_ITEMS: NavItem[] = [
   {
     label: 'Hỏi đáp AI',
     href: '/',
@@ -51,12 +55,13 @@ const navItems: NavItem[] = [
   },
 ];
 
-const adminItems: NavItem[] = [
+const ADMIN_ITEMS: NavItem[] = [
   {
     label: 'Quản lý tài liệu',
     href: '/admin/documents',
     icon: <FileText size={20} />,
     roles: [UserRole.ADMIN],
+    dividerBefore: true,
   },
   {
     label: 'Quản lý người dùng',
@@ -65,15 +70,41 @@ const adminItems: NavItem[] = [
     roles: [UserRole.ADMIN],
   },
   {
-    label: 'Quản lý metadata',
-    href: '/admin/metadata',
+    label: 'Danh mục',
+    href: '/admin/metadata/categories',
+    icon: <FolderOpen size={20} />,
+    roles: [UserRole.ADMIN],
+  },
+  {
+    label: 'Nhãn',
+    href: '/admin/metadata/tags',
     icon: <Tags size={20} />,
     roles: [UserRole.ADMIN],
+  },
+  {
+    label: 'Quyền truy cập',
+    href: '/admin/access-rules',
+    icon: <Shield size={20} />,
+    roles: [UserRole.ADMIN],
+  },
+  {
+    label: 'Nhật ký hệ thống',
+    href: '/admin/audit-logs',
+    icon: <ScrollText size={20} />,
+    roles: [UserRole.ADMIN],
+    dividerBefore: true,
   },
   {
     label: 'Câu hỏi chưa trả lời',
     href: '/admin/unanswered',
     icon: <Brain size={20} />,
+    roles: [UserRole.ADMIN, UserRole.MANAGER],
+    dividerBefore: true,
+  },
+  {
+    label: 'Xuất báo cáo',
+    href: '/analytics/reports',
+    icon: <FileBarChart size={20} />,
     roles: [UserRole.ADMIN, UserRole.MANAGER],
   },
 ];
@@ -82,13 +113,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const userRole = useUserRole();
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.roles || item.roles.includes(userRole as UserRole)
-  );
+  const filterByRole = (items: NavItem[]) =>
+    items.filter((item) => !item.roles || item.roles.includes(userRole as UserRole));
 
-  const filteredAdminItems = adminItems.filter(
-    (item) => !item.roles || item.roles.includes(userRole as UserRole)
-  );
+  const filteredNav = filterByRole(NAV_ITEMS);
+  const filteredAdmin = filterByRole(ADMIN_ITEMS);
 
   const handleLogout = () => {
     useAuthStore.getState().logout();
@@ -96,9 +125,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     window.location.href = '/login';
   };
 
+  const renderNavItem = (item: NavItem) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={`${styles.navItem} ${pathname === item.href ? styles.active : ''}`}
+      onClick={onClose}
+    >
+      {item.icon}
+      <span>{item.label}</span>
+    </Link>
+  );
+
   return (
     <>
-      {/* Overlay */}
       {isOpen && (
         <div
           className={styles.overlay}
@@ -107,81 +147,49 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
         <div className={styles.header}>
           <span className={styles.title}>Menu</span>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="Close sidebar"
-          >
+          <button className={styles.closeButton} onClick={onClose} aria-label="Close sidebar">
             <X size={20} />
           </button>
         </div>
 
         <nav className={styles.nav}>
+          {/* Main navigation */}
           <div className={styles.section}>
             <span className={styles.sectionTitle}>Chính</span>
-            {filteredNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${styles.navItem} ${
-                  pathname === item.href ? styles.active : ''
-                }`}
-                onClick={onClose}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            ))}
+            {filteredNav.map(renderNavItem)}
           </div>
 
-          {filteredAdminItems.length > 0 && (
+          {/* Admin section */}
+          {filteredAdmin.length > 0 && (
             <div className={styles.section}>
               <span className={styles.sectionTitle}>
                 <Shield size={14} />
                 Quản trị
               </span>
-              {filteredAdminItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`${styles.navItem} ${
-                    pathname === item.href ? styles.active : ''
-                  }`}
-                  onClick={onClose}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
+              {filteredAdmin.map((item) => (
+                <div key={item.href}>
+                  {item.dividerBefore && <div className={styles.divider} />}
+                  {renderNavItem(item)}
+                </div>
               ))}
             </div>
           )}
         </nav>
 
+        {/* Footer */}
         <div className={styles.footer}>
-          <Link
-            href="/profile"
-            className={styles.navItem}
-            onClick={onClose}
-          >
+          <Link href="/profile" className={styles.navItem} onClick={onClose}>
             <User size={20} />
             <span>Trang cá nhân</span>
           </Link>
-          <Link
-            href="/settings"
-            className={styles.navItem}
-            onClick={onClose}
-          >
+          <Link href="/admin/settings" className={styles.navItem} onClick={onClose}>
             <Settings size={20} />
             <span>Cài đặt</span>
           </Link>
-          <button
-            className={styles.navItem}
-            onClick={handleLogout}
-          >
+          <button className={styles.navItem} onClick={handleLogout}>
             <LogOut size={20} />
             <span>Đăng xuất</span>
           </button>

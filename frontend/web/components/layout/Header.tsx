@@ -19,47 +19,37 @@ import { api } from '@/lib/api';
 import { UserRole } from '@/types';
 import styles from './Header.module.css';
 
-interface HeaderProps {
-  onMenuClick: () => void;
-}
+const ROLE_BADGE_CLASS: Record<UserRole, string> = {
+  [UserRole.ADMIN]: styles.roleAdmin,
+  [UserRole.MANAGER]: styles.roleManager,
+  [UserRole.USER]: styles.roleUser,
+};
 
-export default function Header({ onMenuClick }: HeaderProps) {
+const ROLE_LABEL: Record<UserRole, string> = {
+  [UserRole.ADMIN]: 'Admin',
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.USER]: 'User',
+};
+
+export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const isManager = useIsManager();
 
   const handleLogout = async () => {
+    setShowUserMenu(false);
     try {
       await api.auth.logout();
-    } catch {
-      // Ignore errors
-    }
+    } catch { /* ignore */ }
     logout();
     window.location.href = '/login';
   };
 
-  const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case UserRole.ADMIN:
-        return { label: 'Admin', className: 'bg-red-100 text-red-700' };
-      case UserRole.MANAGER:
-        return { label: 'Manager', className: 'bg-blue-100 text-blue-700' };
-      default:
-        return { label: 'User', className: 'bg-green-100 text-green-700' };
-    }
-  };
-
-  const roleBadge = user?.role ? getRoleBadge(user.role) : null;
-
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <button
-          className={styles.menuButton}
-          onClick={onMenuClick}
-          aria-label="Toggle menu"
-        >
+        <button className={styles.menuButton} onClick={onMenuClick} aria-label="Toggle menu">
           <Menu size={20} />
         </button>
 
@@ -100,20 +90,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
       </nav>
 
       <div className={styles.right}>
-        {user && (
+        {user ? (
           <div className={styles.userMenu}>
             <button
               className={styles.userButton}
               onClick={() => setShowUserMenu(!showUserMenu)}
             >
               <div className={styles.avatar}>
-                <User size={18} />
+                <User size={16} />
               </div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user.username}</span>
-                {roleBadge && (
-                  <span className={`${styles.roleBadge} ${roleBadge.className}`}>
-                    {roleBadge.label}
+                {user.role && (
+                  <span className={`${styles.roleBadge} ${ROLE_BADGE_CLASS[user.role]}`}>
+                    {ROLE_LABEL[user.role]}
                   </span>
                 )}
               </div>
@@ -122,22 +112,24 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
             {showUserMenu && (
               <div className={styles.dropdown}>
-                <Link href="/profile" className={styles.dropdownItem}>
+                <Link href="/profile" className={styles.dropdownItem} onClick={() => setShowUserMenu(false)}>
                   <User size={16} />
                   <span>Trang cá nhân</span>
                 </Link>
 
                 {user.role === UserRole.ADMIN && (
-                  <Link href="/admin" className={styles.dropdownItem}>
+                  <Link href="/admin/settings" className={styles.dropdownItem} onClick={() => setShowUserMenu(false)}>
+                    <Settings size={16} />
+                    <span>Cài đặt</span>
+                  </Link>
+                )}
+
+                {user.role === UserRole.ADMIN && (
+                  <Link href="/admin" className={styles.dropdownItem} onClick={() => setShowUserMenu(false)}>
                     <Shield size={16} />
                     <span>Quản trị</span>
                   </Link>
                 )}
-
-                <Link href="/settings" className={styles.dropdownItem}>
-                  <Settings size={16} />
-                  <span>Cài đặt</span>
-                </Link>
 
                 <div className={styles.divider} />
 
@@ -148,9 +140,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
             )}
           </div>
-        )}
-
-        {!user && (
+        ) : (
           <Link href="/login" className={styles.loginButton}>
             Đăng nhập
           </Link>
