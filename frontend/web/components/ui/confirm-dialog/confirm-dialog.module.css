@@ -1,0 +1,61 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  margin-bottom: 0.5rem;
+}
+
+.danger .iconWrapper {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.warning .iconWrapper {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.info .iconWrapper {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4338ca;
+}
+
+.help .iconWrapper {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4338ca;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.message {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.actions > * {
+  flex: 1;
+}

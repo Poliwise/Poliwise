@@ -1,13 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import NextLink from 'next/link';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { Button, Input, Checkbox } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
 import { AccountStatus } from '@/types';
 import styles from './login.module.css';
+
+interface LoginError {
+  code: string;
+  message: string;
+}
+
+const ERROR_MESSAGES: Record<string, string> = {
+  UNAUTHORIZED: 'Tên đăng nhập hoặc mật khẩu không đúng.',
+  ACCOUNT_DEACTIVATED: 'Tài khoản đã bị vô hiệu hóa. Liên hệ quản trị viên.',
+  ACCOUNT_REVOKED: 'Tài khoản đã bị thu hồi. Liên hệ quản trị viên.',
+  RATE_LIMIT_EXCEEDED: 'Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau.',
+  VALIDATION_ERROR: 'Thông tin đăng nhập không hợp lệ.',
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,18 +29,18 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<LoginError | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(null);
     setIsLoading(true);
 
     try {
       const response = await api.auth.login({ username, password });
 
-      // Store user info first
       setUser({
         userId: response.user.userId,
         username: response.user.username,
@@ -35,26 +49,37 @@ export default function LoginPage() {
         status: AccountStatus.ACTIVE,
         department: null,
       });
-
-      // Store tokens (this also sets isAuthenticated)
       setTokens(response.accessToken, response.refreshToken);
 
-      // Store in localStorage for API client
       if (typeof window !== 'undefined') {
         localStorage.setItem('userId', response.user.userId);
         localStorage.setItem('userRole', response.user.role);
+        if (rememberMe) {
+          localStorage.setItem('rememberUsername', username);
+        } else {
+          localStorage.removeItem('rememberUsername');
+        }
       }
 
       router.push('/');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
-      if (error.response?.data?.error?.message) {
-        setError(error.response.data.error.message);
-      } else if (error.message) {
-        setError(error.message);
-      } else {
-        setError('Đã xảy ra lỗi. Vui lòng thử lại.');
-      }
+      const axiosError = err as {
+        response?: {
+          data?: {
+            success?: boolean;
+            error?: { code?: string; message?: string };
+          };
+        };
+        message?: string;
+      };
+      const errorCode = axiosError.response?.data?.error?.code;
+      const errorMessage = axiosError.response?.data?.error?.message;
+      const fallbackMessage = axiosError.message || 'Đã xảy ra lỗi không xác định.';
+
+      setError({
+        code: errorCode || 'UNKNOWN',
+        message: errorMessage || ERROR_MESSAGES[errorCode || ''] || fallbackMessage,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -73,82 +98,72 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className={styles.form}>
           {error && (
-            <div className={styles.error}>
-              {error}
+            <div className={styles.error} role="alert">
+              {error.message}
             </div>
           )}
 
-          <div className={styles.field}>
-            <label htmlFor="username" className={styles.label}>
-              Tên đăng nhập
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={styles.input}
-              placeholder="Nhập tên đăng nhập"
-              required
-              autoComplete="username"
-            />
-          </div>
+          <Input
+            label="Tên đăng nhập"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Nhập tên đăng nhập"
+            required
+            autoComplete="username"
+            leftIcon={<span className={styles.inputIcon}>@</span>}
+            autoFocus
+          />
 
-          <div className={styles.field}>
-            <label htmlFor="password" className={styles.label}>
-              Mật khẩu
-            </label>
-            <div className={styles.passwordWrapper}>
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={styles.input}
-                placeholder="Nhập mật khẩu"
-                required
-                autoComplete="current-password"
-              />
+          <Input
+            label="Mật khẩu"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Nhập mật khẩu"
+            required
+            autoComplete="current-password"
+            rightIcon={
               <button
                 type="button"
-                className={styles.passwordToggle}
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className={styles.passwordToggle}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-            </div>
-          </div>
+            }
+          />
 
-          <div className={styles.actions}>
-            <NextLink href="/forgot-password" className={styles.forgotLink}>
+          <div className={styles.rememberRow}>
+            <Checkbox
+              id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              label="Ghi nhớ tôi"
+            />
+            <Link href="/forgot-password" className={styles.forgotLink}>
               Quên mật khẩu?
-            </NextLink>
+            </Link>
           </div>
 
-          <button
+          <Button
             type="submit"
-            className={styles.submitButton}
-            disabled={isLoading}
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={isLoading}
+            disabled={isLoading || !username.trim() || !password}
           >
-            {isLoading ? (
-              <>
-                <Loader2 size={18} className={styles.spinner} />
-                <span>Đang đăng nhập...</span>
-              </>
-            ) : (
-              <span>Đăng nhập</span>
-            )}
-          </button>
+            {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+          </Button>
         </form>
 
-          <p className={styles.footer}>
-            Cần tài khoản? Liên hệ{' '}
-            <span className={styles.adminContact}>
-              Quản trị viên
-            </span>{' '}
-            để được tạo tài khoản.
-          </p>
+        <p className={styles.footer}>
+          Cần tài khoản? Liên hệ{' '}
+          <span className={styles.adminContact}>Quản trị viên</span>{' '}
+          để được tạo tài khoản.
+        </p>
       </div>
 
       <div className={styles.background}>
