@@ -1,33 +1,21 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .loading {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   min-height: 400px;
-  gap: 1rem;
-  color: var(--muted-foreground);
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
 }
@@ -36,67 +24,43 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--foreground);
-  margin-bottom: 0.25rem;
+  margin: 0 0 0.25rem;
 }
 
 .subtitle {
   color: var(--muted-foreground);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
 .actions {
   display: flex;
   gap: 0.75rem;
+  align-items: center;
 }
 
 .periodSelect {
-  padding: 0.625rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 0.875rem;
-  cursor: pointer;
+  width: 10rem;
 }
 
-.exportButton {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.exportButton:hover {
-  opacity: 0.9;
-}
-
+/* Stats Grid */
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.statCard {
-  display: flex;
   gap: 1rem;
-  padding: 1.5rem;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
-.statIcon {
-  width: 48px;
-  height: 48px;
-  border-radius: 0.75rem;
+.statCardInner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.statIconWrap {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.625rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -106,130 +70,103 @@
 .statContent {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
 }
 
 .statLabel {
   font-size: 0.8125rem;
   color: var(--muted-foreground);
-  margin-bottom: 0.25rem;
 }
 
 .statValue {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: 700;
   color: var(--foreground);
+  line-height: 1.2;
 }
 
-.statChange {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+.statMeta {
   font-size: 0.75rem;
-  color: #10b981;
-  margin-top: 0.25rem;
-}
-
-.chartsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.chartCard {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-}
-
-.chartHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
   color: var(--muted-foreground);
 }
 
-.chartHeader h3 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--foreground);
+/* Charts */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
-.chartPlaceholder {
+.chartCard {
+  min-height: 0;
+}
+
+.chartEmpty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 200px;
+  gap: 0.75rem;
   color: var(--muted-foreground);
-  gap: 0.5rem;
 }
 
-.chartPlaceholder p {
+.chartEmpty span {
   font-size: 0.875rem;
 }
 
+/* Top Lists */
 .listsGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.listCard {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-}
-
-.listHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
   margin-bottom: 1rem;
-  color: var(--muted-foreground);
 }
 
-.listHeader h3 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.listContent {
+.topList {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
-.listItem {
+.topItem {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--muted);
-  border-radius: 0.5rem;
+  padding: 0.625rem;
+  border-radius: var(--radius);
+  transition: background 0.15s;
 }
 
-.listRank {
-  width: 24px;
-  height: 24px;
+.topItem:hover {
+  background: var(--muted);
+}
+
+.topRank {
+  width: 1.5rem;
+  height: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--primary);
-  color: white;
+  color: var(--primary-foreground);
   border-radius: 50%;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
-.listText {
+.topInfo {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.topQuestion {
   font-size: 0.875rem;
   color: var(--foreground);
   overflow: hidden;
@@ -237,70 +174,17 @@
   white-space: nowrap;
 }
 
-.listCount {
+.topMeta {
   font-size: 0.75rem;
   color: var(--muted-foreground);
-  flex-shrink: 0;
 }
 
-.feedbackSection {
-  margin-top: 2rem;
-}
-
-.feedbackCard {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-}
-
-.feedbackHeader {
-  margin-bottom: 1.5rem;
-}
-
-.feedbackHeader h3 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.feedbackContent {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3rem;
-}
-
-.feedbackStat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.likeIcon {
-  color: #10b981;
-}
-
-.dislikeIcon {
-  color: #ef4444;
-}
-
-.feedbackValue {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--foreground);
-}
-
-.feedbackLabel {
+.emptyText {
   font-size: 0.875rem;
   color: var(--muted-foreground);
-}
-
-.feedbackDivider {
-  width: 1px;
-  height: 64px;
-  background: var(--border);
+  text-align: center;
+  padding: 2rem;
+  margin: 0;
 }
 
 @media (max-width: 1024px) {
@@ -330,15 +214,5 @@
 
   .actions {
     flex-direction: column;
-  }
-
-  .feedbackContent {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .feedbackDivider {
-    width: 64px;
-    height: 1px;
   }
 }

@@ -1,70 +1,145 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  BarChart3,
-  TrendingUp,
   MessageSquare,
+  ThumbsUp,
   FileText,
   Users,
-  ThumbsUp,
-  ThumbsDown,
   Download,
-  Loader2,
-  ArrowUp,
+  TrendingUp,
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import {
+  Button,
+  Select,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Spinner,
+  EmptyState,
+} from '@/components/ui';
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsManager } from '@/store';
-import type { DashboardStats } from '@/types';
+import type { DashboardStats, AnalyticsOverview } from '@/types';
 import styles from './analytics.module.css';
 
 type Period = 'today' | 'week' | 'month';
 
+const PIE_COLORS = ['#4f46e5', '#22c55e', '#f59e0b', '#ef4444'];
+
 export default function AnalyticsPage() {
-  const isManager = useIsManager();
   const router = useRouter();
+  const isManager = useIsManager();
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>('today');
 
-  const loadStats = useCallback(async () => {
+  const [trends, setTrends] = useState<{
+    date: string; questions: number; likes: number; dislikes: number;
+  }[]>([]);
+  const [topQuestions, setTopQuestions] = useState<{
+    question: string; askCount: number; lastAskedAt: string;
+  }[]>([]);
+  const [topDocuments, setTopDocuments] = useState<{
+    documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
+  }[]>([]);
+
+  const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const data = await api.analytics.getDashboard();
-      setStats(data);
-    } catch (err) {
-      console.error('Failed to load analytics:', err);
+      const [statsData, overviewData, trendsData, questionsData, docsData] = await Promise.all([
+        api.analytics.getDashboard(),
+        api.analytics.getOverview(),
+        api.analytics.getTrends(period === 'today' ? 1 : period === 'week' ? 7 : 30),
+        api.analytics.getTopQuestions(5),
+        api.analytics.getTopDocuments(5),
+      ]);
+      setStats(statsData);
+      setOverview(overviewData);
+      setTrends(trendsData);
+      setTopQuestions(questionsData);
+      setTopDocuments(docsData);
+    } catch {
+      setError('Không thể tải dữ liệu phân tích.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     if (!isManager) {
       router.push('/');
       return;
     }
-    loadStats();
-  }, [isManager, loadStats, router]);
+    loadData();
+  }, [isManager, loadData, router]);
 
   const getStatValue = (key: keyof DashboardStats) => {
     if (!stats) return 0;
-    switch (key) {
-      case 'questionsToday':
-        return period === 'today' ? stats.questionsToday : period === 'week' ? stats.questionsThisWeek : stats.questionsThisMonth;
-      default:
-        return stats[key] as number;
+    if (key === 'questionsToday') {
+      return period === 'today' ? stats.questionsToday
+        : period === 'week' ? stats.questionsThisWeek
+        : stats.questionsThisMonth;
     }
+    return stats[key] as number;
   };
+
+  const likeCount = overview?.totalFeedback?.like ?? 0;
+  const dislikeCount = overview?.totalFeedback?.dislike ?? 0;
+  const totalFeedback = likeCount + dislikeCount;
+  const satisfactionRate = totalFeedback > 0 ? Math.round((likeCount / totalFeedback) * 100) : 0;
+
+  const pieData = [
+    { name: 'Hữu ích', value: likeCount },
+    { name: 'Không hữu ích', value: dislikeCount },
+  ].filter((d) => d.value > 0);
+
+  const periodOptions = [
+    { value: 'today', label: 'Hôm nay' },
+    { value: 'week', label: 'Tuần này' },
+    { value: 'month', label: 'Tháng này' },
+  ];
 
   if (loading) {
     return (
       <MainLayout>
         <div className={styles.loading}>
-          <Loader2 size={32} className={styles.spinner} />
-          <span>Đang tải dữ liệu...</span>
+          <Spinner size="lg" label="Đang tải dữ liệu phân tích..." />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <MainLayout>
+        <div className={styles.container}>
+          <EmptyState
+            icon={<TrendingUp size={32} />}
+            title="Không thể tải dữ liệu"
+            description={error || 'Đã xảy ra lỗi khi tải dữ liệu phân tích.'}
+            action={<Button variant="secondary" onClick={loadData}>Thử lại</Button>}
+          />
         </div>
       </MainLayout>
     );
@@ -73,171 +148,232 @@ export default function AnalyticsPage() {
   return (
     <MainLayout>
       <div className={styles.container}>
+        {/* Header */}
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Báo cáo phân tích</h1>
             <p className={styles.subtitle}>Theo dõi hoạt động và hiệu suất hệ thống</p>
           </div>
           <div className={styles.actions}>
-            <select
+            <Select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
+              options={periodOptions}
+              selectSize="sm"
               className={styles.periodSelect}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Download size={16} />}
+              onClick={() => router.push('/analytics/reports')}
             >
-              <option value="today">Hôm nay</option>
-              <option value="week">Tuần này</option>
-              <option value="month">Tháng này</option>
-            </select>
-            <button className={styles.exportButton}>
-              <Download size={18} />
-              <span>Xuất báo cáo</span>
-            </button>
+              Xuất báo cáo
+            </Button>
           </div>
         </div>
 
         {/* Stats Cards */}
         <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' }}>
-              <MessageSquare size={24} />
+          <Card padding="md">
+            <div className={styles.statCardInner}>
+              <div className={styles.statIconWrap} style={{ background: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' }}>
+                <MessageSquare size={22} />
+              </div>
+              <div className={styles.statContent}>
+                <span className={styles.statLabel}>Câu hỏi</span>
+                <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
+                {stats.questionsThisWeek > 0 && (
+                  <span className={styles.statMeta}>
+                    {stats.questionsThisMonth.toLocaleString()} tháng này
+                  </span>
+                )}
+              </div>
             </div>
-            <div className={styles.statContent}>
-              <span className={styles.statLabel}>Câu hỏi</span>
-              <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
-              <span className={styles.statChange}>
-                <ArrowUp size={14} />
-                12% so với tuần trước
-              </span>
-            </div>
-          </div>
+          </Card>
 
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-              <ThumbsUp size={24} />
+          <Card padding="md">
+            <div className={styles.statCardInner}>
+              <div className={styles.statIconWrap} style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
+                <ThumbsUp size={22} />
+              </div>
+              <div className={styles.statContent}>
+                <span className={styles.statLabel}>Tỷ lệ hài lòng</span>
+                <span className={styles.statValue}>{satisfactionRate}%</span>
+                <span className={styles.statMeta}>
+                  {likeCount} hữu ích / {dislikeCount} không
+                </span>
+              </div>
             </div>
-            <div className={styles.statContent}>
-              <span className={styles.statLabel}>Tỷ lệ hài lòng</span>
-              <span className={styles.statValue}>{stats?.satisfactionRate || 0}%</span>
-              <span className={styles.statChange}>
-                <ArrowUp size={14} />
-                5% cải thiện
-              </span>
-            </div>
-          </div>
+          </Card>
 
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-              <FileText size={24} />
+          <Card padding="md">
+            <div className={styles.statCardInner}>
+              <div className={styles.statIconWrap} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                <FileText size={22} />
+              </div>
+              <div className={styles.statContent}>
+                <span className={styles.statLabel}>Tài liệu hoạt động</span>
+                <span className={styles.statValue}>{stats.activeDocuments}</span>
+                <span className={styles.statMeta}>{stats.totalDocuments} tổng cộng</span>
+              </div>
             </div>
-            <div className={styles.statContent}>
-              <span className={styles.statLabel}>Tài liệu</span>
-              <span className={styles.statValue}>{stats?.activeDocuments || 0}</span>
-              <span className={styles.statChange}>
-                <ArrowUp size={14} />
-                {stats?.totalDocuments || 0} tổng cộng
-              </span>
-            </div>
-          </div>
+          </Card>
 
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-              <Users size={24} />
+          <Card padding="md">
+            <div className={styles.statCardInner}>
+              <div className={styles.statIconWrap} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                <Users size={22} />
+              </div>
+              <div className={styles.statContent}>
+                <span className={styles.statLabel}>Người dùng hoạt động</span>
+                <span className={styles.statValue}>{stats.activeUsers}</span>
+                <span className={styles.statMeta}>{stats.totalUsers} tổng cộng</span>
+              </div>
             </div>
-            <div className={styles.statContent}>
-              <span className={styles.statLabel}>Người dùng hoạt động</span>
-              <span className={styles.statValue}>{stats?.activeUsers || 0}</span>
-              <span className={styles.statChange}>
-                <ArrowUp size={14} />
-                {stats?.totalUsers || 0} tổng cộng
-              </span>
-            </div>
-          </div>
+          </Card>
         </div>
 
-        {/* Charts Section */}
+        {/* Charts Row */}
         <div className={styles.chartsGrid}>
-          <div className={styles.chartCard}>
-            <div className={styles.chartHeader}>
-              <h3>Số câu hỏi theo thời gian</h3>
-              <BarChart3 size={20} />
-            </div>
-            <div className={styles.chartPlaceholder}>
-              <TrendingUp size={48} />
-              <p>Biểu đồ xu hướng câu hỏi</p>
-            </div>
-          </div>
+          {/* Trends Chart */}
+          <Card padding="md" className={styles.chartCard}>
+            <CardHeader>
+              <CardTitle as="h3">Xu hướng câu hỏi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {trends.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={trends}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tickFormatter={(v) => {
+                        const d = new Date(v);
+                        return `${d.getDate()}/${d.getMonth() + 1}`;
+                      }}
+                    />
+                    <YAxis tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.8125rem',
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
+                    <Line type="monotone" dataKey="questions" stroke="#4f46e5" strokeWidth={2} name="Câu hỏi" dot={false} />
+                    <Line type="monotone" dataKey="likes" stroke="#22c55e" strokeWidth={2} name="Hữu ích" dot={false} />
+                    <Line type="monotone" dataKey="dislikes" stroke="#ef4444" strokeWidth={2} name="Không hữu ích" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className={styles.chartEmpty}>
+                  <TrendingUp size={32} />
+                  <span>Chưa có dữ liệu xu hướng</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <div className={styles.chartCard}>
-            <div className={styles.chartHeader}>
-              <h3>Phân bố theo phòng ban</h3>
-              <Users size={20} />
-            </div>
-            <div className={styles.chartPlaceholder}>
-              <Users size={48} />
-              <p>Biểu đồ phân bố</p>
-            </div>
-          </div>
+          {/* Feedback Pie Chart */}
+          <Card padding="md" className={styles.chartCard}>
+            <CardHeader>
+              <CardTitle as="h3">Tỷ lệ phản hồi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {pieData.map((_, index) => (
+                        <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.8125rem',
+                      }}
+                      formatter={(value: number) => [`${value} phản hồi`, '']}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className={styles.chartEmpty}>
+                  <ThumbsUp size={32} />
+                  <span>Chưa có phản hồi</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Top Lists */}
+        {/* Top Questions + Documents */}
         <div className={styles.listsGrid}>
-          <div className={styles.listCard}>
-            <div className={styles.listHeader}>
-              <h3>Câu hỏi phổ biến</h3>
-              <MessageSquare size={20} />
-            </div>
-            <div className={styles.listContent}>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={styles.listItem}>
-                  <span className={styles.listRank}>{i}</span>
-                  <span className={styles.listText}>
-                    Cách thức làm việc từ xa được quy định như thế nào?
-                  </span>
-                  <span className={styles.listCount}>156 lượt</span>
+          <Card padding="md">
+            <CardHeader>
+              <CardTitle as="h3">Câu hỏi phổ biến</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topQuestions.length > 0 ? (
+                <div className={styles.topList}>
+                  {topQuestions.map((q, i) => (
+                    <div key={i} className={styles.topItem}>
+                      <span className={styles.topRank}>{i + 1}</span>
+                      <div className={styles.topInfo}>
+                        <span className={styles.topQuestion}>{q.question}</span>
+                        <span className={styles.topMeta}>
+                          {q.askCount} lượt · {new Date(q.lastAskedAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              ) : (
+                <p className={styles.emptyText}>Chưa có dữ liệu câu hỏi phổ biến.</p>
+              )}
+            </CardContent>
+          </Card>
 
-          <div className={styles.listCard}>
-            <div className={styles.listHeader}>
-              <h3>Tài liệu được trích dẫn nhiều</h3>
-              <FileText size={20} />
-            </div>
-            <div className={styles.listContent}>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={styles.listItem}>
-                  <span className={styles.listRank}>{i}</span>
-                  <span className={styles.listText}>
-                    Quy chế làm việc từ xa 2024
-                  </span>
-                  <span className={styles.listCount}>89 lượt</span>
+          <Card padding="md">
+            <CardHeader>
+              <CardTitle as="h3">Tài liệu được trích dẫn nhiều</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topDocuments.length > 0 ? (
+                <div className={styles.topList}>
+                  {topDocuments.map((d, i) => (
+                    <div key={i} className={styles.topItem}>
+                      <span className={styles.topRank}>{i + 1}</span>
+                      <div className={styles.topInfo}>
+                        <span className={styles.topQuestion}>{d.title}</span>
+                        <span className={styles.topMeta}>
+                          {d.totalCitations} lượt trích dẫn
+                          {d.citationsLast7Days > 0 && ` · +${d.citationsLast7Days} tuần này`}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Feedback Summary */}
-        <div className={styles.feedbackSection}>
-          <div className={styles.feedbackCard}>
-            <div className={styles.feedbackHeader}>
-              <h3>Tổng quan phản hồi</h3>
-            </div>
-            <div className={styles.feedbackContent}>
-              <div className={styles.feedbackStat}>
-                <ThumbsUp size={32} className={styles.likeIcon} />
-                <span className={styles.feedbackValue}>847</span>
-                <span className={styles.feedbackLabel}>Hữu ích</span>
-              </div>
-              <div className={styles.feedbackDivider} />
-              <div className={styles.feedbackStat}>
-                <ThumbsDown size={32} className={styles.dislikeIcon} />
-                <span className={styles.feedbackValue}>42</span>
-                <span className={styles.feedbackLabel}>Không hữu ích</span>
-              </div>
-            </div>
-          </div>
+              ) : (
+                <p className={styles.emptyText}>Chưa có dữ liệu tài liệu phổ biến.</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </MainLayout>
