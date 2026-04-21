@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   FileText,
@@ -8,42 +9,50 @@ import {
   Upload,
   Grid,
   List,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
   Tag,
-  Loader2,
 } from 'lucide-react';
-import { MainLayout } from '@/components/layout';
+import {
+  Button,
+  Input,
+  Select,
+  Badge,
+  Card,
+  Pagination,
+  EmptyState,
+  Spinner,
+} from '@/components/ui';
 import { UploadModal } from '@/components/documents/UploadModal';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { Document, DocumentStatus } from '@/types';
 import styles from './documents.module.css';
 
-const statusColors: Record<DocumentStatus, { bg: string; text: string }> = {
-  [DocumentStatus.PUBLISHED]: { bg: 'bg-green-100', text: 'text-green-700' },
-  [DocumentStatus.DRAFT]: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
-  [DocumentStatus.ARCHIVED]: { bg: 'bg-gray-100', text: 'text-gray-700' },
-  [DocumentStatus.EXPIRED]: { bg: 'bg-red-100', text: 'text-red-700' },
+const STATUS_CONFIG: Record<DocumentStatus, { label: string; variant: 'success' | 'warning' | 'neutral' | 'destructive' }> = {
+  [DocumentStatus.PUBLISHED]: { label: 'Đã xuất bản', variant: 'success' },
+  [DocumentStatus.DRAFT]: { label: 'Nháp', variant: 'warning' },
+  [DocumentStatus.ARCHIVED]: { label: 'Đã lưu trữ', variant: 'neutral' },
+  [DocumentStatus.EXPIRED]: { label: 'Hết hạn', variant: 'destructive' },
 };
 
-const statusLabels: Record<DocumentStatus, string> = {
-  [DocumentStatus.PUBLISHED]: 'Đã xuất bản',
-  [DocumentStatus.DRAFT]: 'Nháp',
-  [DocumentStatus.ARCHIVED]: 'Đã lưu trữ',
-  [DocumentStatus.EXPIRED]: 'Hết hạn',
-};
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: DocumentStatus.PUBLISHED, label: 'Đã xuất bản' },
+  { value: DocumentStatus.DRAFT, label: 'Nháp' },
+  { value: DocumentStatus.ARCHIVED, label: 'Đã lưu trữ' },
+  { value: DocumentStatus.EXPIRED, label: 'Hết hạn' },
+];
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const isAdmin = useIsAdmin();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<DocumentStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const loadDocuments = useCallback(async () => {
@@ -53,10 +62,11 @@ export default function DocumentsPage() {
         page,
         limit: 12,
         search: search || undefined,
-        status: statusFilter || undefined,
+        status: (statusFilter as DocumentStatus) || undefined,
       });
       setDocuments(response.data);
       setTotalPages(response.pagination.totalPages);
+      setTotal(response.pagination.total);
     } catch (err) {
       console.error('Failed to load documents:', err);
     } finally {
@@ -68,9 +78,29 @@ export default function DocumentsPage() {
     loadDocuments();
   }, [loadDocuments]);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US');
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  const handleDownload = async (doc: Document, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const blob = await api.documents.download(doc.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -79,115 +109,118 @@ export default function DocumentsPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const getFileIcon = () => {
-    return <FileText size={24} />;
-  };
-
   return (
-    <MainLayout>
-      <div className={styles.container}>
-        {/* Header */}
-        <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}>Kho tài liệu</h1>
-            <p className={styles.subtitle}>Tìm kiếm và quản lý tài liệu</p>
-          </div>
-          {isAdmin && (
-            <button
-              className={styles.uploadButton}
-              onClick={() => setUploadModalOpen(true)}
-            >
-              <Upload size={18} />
-              <span>Tải lên</span>
-            </button>
-          )}
+    <div className={styles.container}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div>
+          <h1>Kho tài liệu</h1>
+          <p>{total > 0 ? `${total} tài liệu` : 'Tìm kiếm và quản lý tài liệu'}</p>
         </div>
-
-        {/* Filters */}
-        <div className={styles.filters}>
-          <div className={styles.searchWrapper}>
-            <Search size={18} className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Tìm kiếm tài liệu..."
-              value={search}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-              className={styles.searchInput}
-            />
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value as DocumentStatus | '')}
-            className={styles.filterSelect}
+        {isAdmin && (
+          <Button
+            variant="primary"
+            icon={<Upload size={16} />}
+            onClick={() => setUploadModalOpen(true)}
           >
-            <option value="">Tất cả trạng thái</option>
-            <option value={DocumentStatus.PUBLISHED}>Đã xuất bản</option>
-            <option value={DocumentStatus.DRAFT}>Nháp</option>
-            <option value={DocumentStatus.ARCHIVED}>Đã lưu trữ</option>
-            <option value={DocumentStatus.EXPIRED}>Hết hạn</option>
-          </select>
+            Tải lên
+          </Button>
+        )}
+      </div>
 
-          <div className={styles.viewToggle}>
-            <button
-              className={`${styles.viewButton} ${viewMode === 'grid' ? styles.active : ''}`}
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid size={18} />
-            </button>
-            <button
-              className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`}
-              onClick={() => setViewMode('list')}
-            >
-              <List size={18} />
-            </button>
-          </div>
+      {/* Filters */}
+      <div className={styles.filters}>
+        <Input
+          placeholder="Tìm kiếm tài liệu..."
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+          leftIcon={<Search size={18} />}
+          inputSize="sm"
+          className={styles.searchInput}
+        />
+
+        <Select
+          value={statusFilter}
+          onChange={(e) => handleStatusChange(e.target.value)}
+          options={STATUS_OPTIONS}
+          selectSize="sm"
+          className={styles.statusSelect}
+        />
+
+        <div className={styles.viewToggle}>
+          <button
+            type="button"
+            className={`${styles.viewButton} ${viewMode === 'grid' ? styles.active : ''}`}
+            onClick={() => setViewMode('grid')}
+          >
+            <Grid size={16} />
+          </button>
+          <button
+            type="button"
+            className={`${styles.viewButton} ${viewMode === 'list' ? styles.active : ''}`}
+            onClick={() => setViewMode('list')}
+          >
+            <List size={16} />
+          </button>
         </div>
+      </div>
 
-        {/* Document Grid/List */}
-        {loading ? (
-          <div className={styles.loading}>
-            <Loader2 size={32} className={styles.spinner} />
-            <span>Đang tải...</span>
-          </div>
-        ) : documents.length === 0 ? (
-          <div className={styles.empty}>
-            <FileText size={48} />
-            <h3>Không tìm thấy tài liệu</h3>
-            <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-          </div>
-        ) : (
-          <div className={viewMode === 'grid' ? styles.grid : styles.list}>
-            {documents.map((doc) => (
-              <div key={doc.id} className={styles.documentCard}>
-                <div className={styles.documentIcon}>
-                  {getFileIcon()}
+      {/* Document Grid/List */}
+      {loading ? (
+        <div className={styles.loading}>
+          <Spinner size="lg" label="Đang tải tài liệu..." />
+        </div>
+      ) : documents.length === 0 ? (
+        <EmptyState
+          icon={<FileText size={32} />}
+          title="Không tìm thấy tài liệu"
+          description={search || statusFilter ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm' : 'Tải lên tài liệu đầu tiên để bắt đầu'}
+          action={
+            isAdmin ? (
+              <Button variant="primary" icon={<Upload size={16} />} onClick={() => setUploadModalOpen(true)}>
+                Tải lên tài liệu
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className={viewMode === 'grid' ? styles.grid : styles.list}>
+          {documents.map((doc) => {
+            const status = STATUS_CONFIG[doc.status];
+            return (
+              <Card
+                key={doc.id}
+                padding="md"
+                className={`${styles.docCard} ${viewMode === 'list' ? styles.listCard : ''}`}
+                onClick={() => router.push(`/documents/${doc.id}`)}
+              >
+                <div className={styles.docIcon}>
+                  <FileText size={24} />
                 </div>
-                <div className={styles.documentInfo}>
-                  <h3 className={styles.documentTitle}>{doc.title}</h3>
+                <div className={styles.docInfo}>
+                  <div className={styles.docTitleRow}>
+                    <h3 className={styles.docTitle}>{doc.title}</h3>
+                    <Badge variant={status.variant}>{status.label}</Badge>
+                  </div>
                   {doc.description && (
-                    <p className={styles.documentDesc}>{doc.description}</p>
+                    <p className={styles.docDesc}>{doc.description}</p>
                   )}
-                  <div className={styles.documentMeta}>
-                    <span className={`${styles.status} ${statusColors[doc.status].bg} ${statusColors[doc.status].text}`}>
-                      {statusLabels[doc.status]}
-                    </span>
-                    <span className={styles.metaItem}>
-                      <FileText size={14} />
-                      {formatFileSize(doc.fileSize)}
-                    </span>
+                  <div className={styles.docMeta}>
+                    <span className={styles.metaItem}>{formatFileSize(doc.fileSize)}</span>
                     {doc.uploadedAt && (
                       <span className={styles.metaItem}>
-                        <Calendar size={14} />
-                        {formatDate(doc.uploadedAt)}
+                        {new Date(doc.uploadedAt).toLocaleDateString('vi-VN')}
                       </span>
+                    )}
+                    {doc.version > 1 && (
+                      <Badge variant="neutral">v{doc.version}</Badge>
                     )}
                   </div>
                   {doc.tags && doc.tags.length > 0 && (
                     <div className={styles.tags}>
                       {doc.tags.slice(0, 3).map((tag) => (
                         <span key={tag} className={styles.tag}>
-                          <Tag size={12} />
+                          <Tag size={11} />
                           {tag}
                         </span>
                       ))}
@@ -197,48 +230,41 @@ export default function DocumentsPage() {
                     </div>
                   )}
                 </div>
-                <div className={styles.documentActions}>
-                  <button className={styles.actionButton} title="Tải xuống">
+                <div className={styles.docActions}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => handleDownload(doc, e)}
+                    title="Tải xuống"
+                  >
                     <Download size={16} />
-                  </button>
+                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className={styles.pagination}>
-            <button
-              className={styles.pageButton}
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <span className={styles.pageInfo}>
-              Trang {page} / {totalPages}
-            </span>
-            <button
-              className={styles.pageButton}
-              disabled={page === totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        )}
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
 
-        <UploadModal
-          isOpen={uploadModalOpen}
-          onClose={() => setUploadModalOpen(false)}
-          onSuccess={() => {
-            setUploadModalOpen(false);
-            loadDocuments();
-          }}
-        />
-      </div>
-    </MainLayout>
+      <UploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onSuccess={() => {
+          setUploadModalOpen(false);
+          loadDocuments();
+        }}
+      />
+    </div>
   );
 }

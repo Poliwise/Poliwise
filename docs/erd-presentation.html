@@ -5,13 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Poliwise — ERD Presentation</title>
   <style>
-    /* ============================================
-       RESET & BASE
-    ============================================ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      /* Brand palette */
       --bg:           #0f1117;
       --surface:      #1a1d27;
       --surface2:     #21253a;
@@ -21,11 +17,8 @@
       --accent:       #6c8ebf;
       --accent-glow:  rgba(108, 142, 191, 0.25);
 
-      /* Entity group colors */
       --col-user:       #dae8fc;
       --col-user-stroke:#5b89d4;
-      --col-dept:       #dae8fc;
-      --col-dept-stroke:#5b89d4;
       --col-doc:        #fff2cc;
       --col-doc-stroke: #c8a600;
       --col-cat:        #d5e8d4;
@@ -39,7 +32,6 @@
       --col-rel:        #ffe6cc;
       --col-rel-stroke: #d79b00;
 
-      /* Dimensions */
       --radius:   12px;
       --radius-sm: 8px;
       --slide-w:  1200px;
@@ -56,12 +48,9 @@
       overflow-x: hidden;
     }
 
-    /* ============================================
-       PROGRESS BAR
-    ============================================ */
+    /* ===== PROGRESS BAR ===== */
     #progress-bar {
-      position: fixed;
-      top: 0; left: 0;
+      position: fixed; top: 0; left: 0;
       height: 3px;
       background: linear-gradient(90deg, var(--accent), #8ab4f8);
       width: 0%;
@@ -69,14 +58,11 @@
       z-index: 1000;
     }
 
-    /* ============================================
-       SLIDE CONTAINER
-    ============================================ */
+    /* ===== SLIDE CONTAINER ===== */
     #slides-wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0;
     }
 
     .slide {
@@ -84,16 +70,14 @@
       max-width: var(--slide-w);
       min-height: var(--slide-h);
       margin: 0 auto;
-      padding: 56px 64px 72px;
+      padding: 48px 56px 64px;
       position: relative;
       display: flex;
       flex-direction: column;
       scroll-margin-top: 20px;
     }
 
-    /* ============================================
-       COVER SLIDE
-    ============================================ */
+    /* ===== COVER SLIDE ===== */
     .slide-cover {
       justify-content: center;
       align-items: center;
@@ -115,7 +99,7 @@
     }
 
     .cover-title {
-      font-size: 3.4rem;
+      font-size: 3.2rem;
       font-weight: 800;
       line-height: 1.15;
       background: linear-gradient(135deg, #e2e8f0 0%, #8892b0 100%);
@@ -126,64 +110,234 @@
     }
 
     .cover-subtitle {
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       color: var(--text-muted);
       margin-bottom: 40px;
     }
 
     .cover-meta {
       display: flex;
-      gap: 32px;
+      gap: 28px;
       color: var(--text-muted);
-      font-size: 0.85rem;
+      font-size: 0.82rem;
     }
 
     .cover-meta span { display: flex; align-items: center; gap: 6px; }
 
-    /* ============================================
-       SLIDE HEADER
-    ============================================ */
-    .slide-header {
-      margin-bottom: 32px;
-    }
+    /* ===== SLIDE HEADER ===== */
+    .slide-header { margin-bottom: 24px; }
 
     .slide-number {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .slide-title {
-      font-size: 2rem;
+      font-size: 1.85rem;
       font-weight: 700;
       color: var(--text);
       line-height: 1.25;
     }
 
-    .slide-subtitle {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
     .slide-divider {
       height: 1px;
       background: linear-gradient(90deg, var(--accent), transparent);
-      margin-top: 16px;
-      margin-bottom: 4px;
-      width: 180px;
+      margin-top: 14px;
+      width: 160px;
     }
 
-    /* ============================================
-       COVER / TOC CARDS
-    ============================================ */
+    /* ===== ENTITY TABLE (full attribute spec) ===== */
+    .entity-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .entity-table-header {
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .entity-table-spec {
+      display: grid;
+      grid-template-columns: 70px 1fr 90px 2fr;
+      font-size: 0.76rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .spec-head {
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.68rem;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 7px 12px;
+    }
+
+    .spec-row {
+      display: contents;
+    }
+
+    .spec-row:hover .spec-cell { background: rgba(108,142,191,0.06); }
+
+    .spec-cell {
+      padding: 7px 12px;
+      border-top: 1px solid rgba(45,51,82,0.6);
+      vertical-align: middle;
+    }
+
+    .spec-pk   { font-weight: 700; color: #e8c864; }
+    .spec-uq   { font-weight: 700; color: #64c8e8; }
+    .spec-fk   { font-weight: 700; color: #e86464; }
+    .spec-norm { color: var(--text); }
+    .spec-type { color: var(--text-muted); font-size: 0.72rem; }
+    .spec-desc { color: var(--text-muted); font-size: 0.72rem; line-height: 1.45; }
+
+    /* Entity colors */
+    .entity-user   .entity-table-header { background: var(--col-user);    color: #1a3a6b; border-bottom: 2px solid var(--col-user-stroke); }
+    .entity-dept   .entity-table-header { background: var(--col-dept);    color: #1a3a6b; border-bottom: 2px solid var(--col-user-stroke); }
+    .entity-doc    .entity-table-header { background: var(--col-doc);     color: #5a4000; border-bottom: 2px solid var(--col-doc-stroke); }
+    .entity-cat    .entity-table-header { background: var(--col-cat);     color: #1e4a1e; border-bottom: 2px solid var(--col-cat-stroke); }
+    .entity-conv   .entity-table-header { background: var(--col-conv);    color: #4a1a6b; border-bottom: 2px solid var(--col-conv-stroke); }
+    .entity-fb     .entity-table-header { background: var(--col-fb);      color: #6b1a1a; border-bottom: 2px solid var(--col-fb-stroke); }
+    .entity-audit  .entity-table-header { background: var(--col-audit);  color: #333;    border-bottom: 2px solid var(--col-audit-stroke); }
+    .entity-rel    .entity-table-header { background: var(--col-rel);    color: #5a3000; border-bottom: 2px solid var(--col-rel-stroke); }
+
+    /* ===== LAYOUT ===== */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      flex: 1;
+      align-items: start;
+    }
+
+    .col-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .group-icon {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .group-icon.core      { background: rgba(91,137,212,0.15); }
+    .group-icon.doc       { background: rgba(200,166,0,0.15); }
+    .group-icon.cat       { background: rgba(78,140,78,0.15); }
+    .group-icon.conv      { background: rgba(139,90,158,0.15); }
+    .group-icon.analytics { background: rgba(136,136,136,0.15); }
+
+    .group-name  { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .group-desc  { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* ===== TAG ===== */
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+    /* ===== REL DIAGRAM ===== */
+    .rel-diagram {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 0.78rem;
+    }
+
+    .rel-side {
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.72rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .rel-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      padding: 2px 0;
+    }
+
+    .rel-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 14px;
+      text-align: center;
+      width: 100%;
+      max-width: 160px;
+    }
+
+    .rel-name  { font-weight: 700; color: var(--accent); font-size: 0.72rem; letter-spacing: 0.3px; }
+    .rel-cardinality { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
+    .rel-desc  { font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+
+    /* ===== DRAWIO EMBED ===== */
+    .drawio-embed {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+      flex: 1;
+      min-height: 400px;
+    }
+
+    .drawio-embed iframe {
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+      border: none;
+      display: block;
+    }
+
+    /* ===== TOC ===== */
     .toc-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 14px;
       margin-top: 8px;
     }
 
@@ -191,7 +345,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px 22px;
+      padding: 18px 20px;
       cursor: pointer;
       transition: all 0.2s ease;
       text-decoration: none;
@@ -206,242 +360,61 @@
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
 
-    .toc-card-num {
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 8px;
-    }
+    .toc-card-num  { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+    .toc-card-title{ font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .toc-card-desc { font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; }
 
-    .toc-card-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .toc-card-desc {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    /* ============================================
-       ENTITY BOX (ERD style)
-    ============================================ */
-    .entity-table {
-      display: inline-block;
-      border-radius: var(--radius);
-      overflow: hidden;
-      vertical-align: top;
-    }
-
-    .entity-header {
-      padding: 10px 20px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-align: center;
-    }
-
-    .entity-body { background: var(--surface); }
-
-    .entity-row {
-      display: flex;
-      align-items: center;
-      padding: 6px 16px;
-      border-top: 1px solid var(--border);
-      gap: 12px;
-      font-size: 0.8rem;
-      min-width: 200px;
-    }
-
-    .entity-row:first-child { border-top: none; }
-
-    .attr-key {
-      font-style: italic;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      width: 80px;
-      flex-shrink: 0;
-    }
-
-    .attr-name {
-      font-weight: 600;
-      color: var(--text);
-      flex: 1;
-    }
-
-    /* Entity type colors */
-    .entity-user .entity-header  { background: var(--col-user);      color: #1a3a6b; border-bottom: 2px solid var(--col-user-stroke); }
-    .entity-dept .entity-header  { background: var(--col-dept);      color: #1a3a6b; border-bottom: 2px solid var(--col-dept-stroke); }
-    .entity-doc .entity-header   { background: var(--col-doc);       color: #5a4000; border-bottom: 2px solid var(--col-doc-stroke); }
-    .entity-cat .entity-header   { background: var(--col-cat);       color: #1e4a1e; border-bottom: 2px solid var(--col-cat-stroke); }
-    .entity-conv .entity-header  { background: var(--col-conv);      color: #4a1a6b; border-bottom: 2px solid var(--col-conv-stroke); }
-    .entity-fb .entity-header    { background: var(--col-fb);         color: #6b1a1a; border-bottom: 2px solid var(--col-fb-stroke); }
-    .entity-audit .entity-header{ background: var(--col-audit);      color: #333;    border-bottom: 2px solid var(--col-audit-stroke); }
-    .entity-rel .entity-header  { background: var(--col-rel);        color: #5a3000; border-bottom: 2px solid var(--col-rel-stroke); }
-
-    /* ============================================
-       TWO-COLUMN LAYOUT
-    ============================================ */
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 32px;
-      flex: 1;
-      align-items: start;
-    }
-
-    .three-col {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      flex: 1;
-      align-items: start;
-    }
-
-    .col-content {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* ============================================
-       RELATIONSHIP DIAGRAM (M-N style)
-    ============================================ */
-    .rel-diagram {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px 20px;
-      font-size: 0.82rem;
-      overflow: hidden;
-    }
-
-    .rel-side {
-      padding: 8px 14px;
-      border-radius: var(--radius-sm);
-      font-weight: 700;
-      font-size: 0.78rem;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .rel-entity-a { background: var(--col-user);    color: #1a3a6b; }
-    .rel-entity-b { background: var(--col-dept);    color: #1a3a6b; }
-    .rel-entity-c { background: var(--col-doc);     color: #5a4000; }
-    .rel-entity-d { background: var(--col-cat);     color: #1e4a1e; }
-    .rel-entity-e { background: var(--col-conv);     color: #4a1a6b; }
-    .rel-entity-f { background: var(--col-fb);       color: #6b1a1a; }
-    .rel-entity-g { background: var(--col-audit);   color: #333; }
-    .rel-entity-h { background: var(--col-rel);       color: #5a3000; }
-
-    .rel-center {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      flex: 1;
-      padding: 4px 0;
-    }
-
-    .rel-card {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 8px 16px;
-      text-align: center;
-      width: 100%;
-      max-width: 160px;
-    }
-
-    .rel-name { font-weight: 700; color: var(--accent); font-size: 0.78rem; letter-spacing: 0.5px; }
-    .rel-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
-    .rel-cardinality { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; font-style: italic; }
-
-    /* ============================================
-       STATS / OVERVIEW CARDS
-    ============================================ */
+    /* ===== STATS ===== */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      gap: 12px;
+      margin-bottom: 16px;
     }
 
     .stat-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px;
+      padding: 16px;
       text-align: center;
     }
 
-    .stat-num {
-      font-size: 2.2rem;
-      font-weight: 800;
-      color: var(--accent);
-      line-height: 1;
-    }
+    .stat-num   { font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-label { font-size: 0.68rem; color: var(--text-muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
 
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 6px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    /* ============================================
-       ENTITY LIST (overview)
-    ============================================ */
+    /* ===== ENTITY OVERVIEW CHIPS ===== */
     .entity-list {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 8px;
       margin-top: 8px;
     }
 
     .entity-chip {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 10px 14px;
-      font-size: 0.82rem;
-      transition: all 0.15s;
+      padding: 8px 12px;
+      font-size: 0.76rem;
     }
 
     .entity-chip:hover { border-color: var(--accent); transform: translateX(2px); }
 
-    .chip-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
+    .chip-dot    { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .chip-name   { font-weight: 600; flex: 1; }
+    .chip-schema { font-size: 0.65rem; color: var(--text-muted); }
 
-    .chip-name { font-weight: 600; flex: 1; }
-    .chip-count { font-size: 0.7rem; color: var(--text-muted); }
-
-    /* ============================================
-       RELATIONSHIP TABLE
-    ============================================ */
-    .rel-table-wrap {
-      overflow-x: auto;
-      flex: 1;
-    }
+    /* ===== REL TABLE ===== */
+    .rel-table-wrap { overflow-x: auto; flex: 1; }
 
     .rel-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
     }
 
     .rel-table th {
@@ -450,94 +423,101 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      font-size: 0.68rem;
-      padding: 10px 12px;
+      font-size: 0.65rem;
+      padding: 8px 10px;
       border-bottom: 2px solid var(--border);
       text-align: left;
     }
 
     .rel-table td {
-      padding: 10px 12px;
+      padding: 8px 10px;
       border-bottom: 1px solid var(--border);
       vertical-align: top;
       color: var(--text);
-      line-height: 1.45;
+      line-height: 1.4;
     }
 
-    .rel-table tr:hover td { background: rgba(108,142,191,0.05); }
+    .rel-table tr:hover td { background: rgba(108,142,191,0.04); }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.68rem;
-      font-weight: 600;
-    }
-
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
     .badge-1n { background: rgba(232, 100, 100, 0.15); color: #e86464; }
     .badge-11 { background: rgba(100, 200, 232, 0.15); color: #64c8e8; }
     .badge-0n { background: rgba(232, 180, 100, 0.15); color: #e8b464; }
     .badge-01 { background: rgba(160, 232, 100, 0.15); color: #a0e864; }
 
-    /* ============================================
-       TAG / STATUS BADGE
-    ============================================ */
-    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    /* ===== THREE-COL ===== */
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      flex: 1;
+      align-items: start;
+    }
 
-    .tag {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 4px;
-      font-size: 0.72rem;
-      font-weight: 500;
-      background: var(--surface2);
-      color: var(--text-muted);
+    /* ===== SUMMARY ===== */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .summary-section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .summary-card {
+      background: var(--surface);
       border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
     }
 
-    /* ============================================
-       BODY CONTENT
-    ============================================ */
-    .body-text {
-      font-size: 0.88rem;
+    .summary-card-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .summary-card-body {
+      font-size: 0.75rem;
       color: var(--text-muted);
-      line-height: 1.7;
-      margin-top: 4px;
+      line-height: 1.6;
     }
 
-    /* ============================================
-       FOOTER
-    ============================================ */
+    /* ===== FOOTER ===== */
     .slide-footer {
       position: absolute;
-      bottom: 20px;
-      left: 64px;
-      right: 64px;
+      bottom: 16px;
+      left: 56px;
+      right: 56px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       color: var(--text-muted);
     }
 
     .footer-brand { font-weight: 600; color: var(--accent); }
 
-    /* ============================================
-       NAVIGATION
-    ============================================ */
+    /* ===== NAV ===== */
     #nav-dots {
       position: fixed;
-      right: 24px;
+      right: 20px;
       top: 50%;
       transform: translateY(-50%);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 7px;
       z-index: 900;
     }
 
     .nav-dot {
-      width: 8px; height: 8px;
+      width: 7px; height: 7px;
       border-radius: 50%;
       background: var(--border);
       cursor: pointer;
@@ -546,118 +526,42 @@
       padding: 0;
     }
 
-    .nav-dot.active {
-      background: var(--accent);
-      transform: scale(1.4);
-    }
+    .nav-dot.active { background: var(--accent); transform: scale(1.5); }
+    .nav-dot:hover  { background: var(--text-muted); }
 
-    .nav-dot:hover { background: var(--text-muted); }
-
-    /* ============================================
-       SLIDE COUNTER
-    ============================================ */
     #slide-counter {
       position: fixed;
-      bottom: 20px;
-      right: 24px;
-      font-size: 0.78rem;
+      bottom: 18px;
+      right: 20px;
+      font-size: 0.75rem;
       color: var(--text-muted);
       font-weight: 600;
       z-index: 900;
     }
 
-    /* ============================================
-       KEYBOARD HINT
-    ============================================ */
     .kbd-hint {
       position: fixed;
-      bottom: 20px;
+      bottom: 18px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       color: var(--text-muted);
       z-index: 900;
       display: flex;
-      gap: 16px;
+      gap: 14px;
     }
 
     .kbd {
       display: inline-block;
-      padding: 2px 6px;
+      padding: 2px 5px;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 4px;
+      border-radius: 3px;
       font-family: monospace;
-      font-size: 0.65rem;
+      font-size: 0.62rem;
     }
 
-    /* ============================================
-       SPECIAL: GROUP HEADER
-    ============================================ */
-    .group-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 4px;
-    }
-
-    .group-icon {
-      width: 36px; height: 36px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
-
-    .group-icon.core    { background: rgba(91,137,212,0.15); }
-    .group-icon.doc     { background: rgba(200,166,0,0.15); }
-    .group-icon.cat     { background: rgba(78,140,78,0.15); }
-    .group-icon.conv    { background: rgba(139,90,158,0.15); }
-    .group-icon.analytics { background: rgba(136,136,136,0.15); }
-
-    .group-name {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .group-desc {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-
-    /* ============================================
-       SPECIAL: MINI ER GRID
-    ============================================ */
-    .mini-er {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .mini-box {
-      border: 2px solid;
-      border-radius: var(--radius-sm);
-      padding: 6px 12px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .mini-arrow {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    /* ============================================
-       END SLIDE
-    ============================================ */
+    /* ===== END SLIDE ===== */
     .slide-end {
       justify-content: center;
       align-items: center;
@@ -666,74 +570,75 @@
     }
 
     .end-title {
-      font-size: 2.8rem;
+      font-size: 2.6rem;
       font-weight: 800;
       background: linear-gradient(135deg, #e2e8f0, var(--accent));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
-    .end-sub {
-      font-size: 1.1rem;
-      color: var(--text-muted);
-    }
+    .end-sub { font-size: 1rem; color: var(--text-muted); }
 
-    /* ============================================
-       SCROLLBAR
-    ============================================ */
-    ::-webkit-scrollbar { width: 6px; }
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-    /* ============================================
-       RESPONSIVE
-    ============================================ */
+    /* ===== RESPONSIVE ===== */
     @media (max-width: 800px) {
-      .slide { padding: 32px 24px 56px; }
-      .two-col, .three-col { grid-template-columns: 1fr; }
+      .slide { padding: 28px 20px 52px; }
+      .two-col, .three-col, .summary-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .entity-list { grid-template-columns: 1fr 1fr; }
-      .toc-grid { grid-template-columns: 1fr 1fr; }
-      .cover-title { font-size: 2.2rem; }
-      .slide-title { font-size: 1.5rem; }
+      .entity-list, .toc-grid { grid-template-columns: 1fr 1fr; }
+      .cover-title { font-size: 2rem; }
     }
+
+    /* ===== SCHEMA TABLE ===== */
+    .schema-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .schema-table th {
+      background: var(--surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 7px 10px;
+      border-bottom: 2px solid var(--border);
+      text-align: left;
+    }
+    .schema-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .schema-table tr:hover td { background: rgba(108,142,191,0.04); }
   </style>
 </head>
 <body>
 
-  <!-- Progress Bar -->
   <div id="progress-bar"></div>
-
-  <!-- Navigation Dots -->
   <nav id="nav-dots"></nav>
-
-  <!-- Slide Counter -->
   <div id="slide-counter">1 / <span id="total-slides">--</span></div>
-
-  <!-- Keyboard Hints -->
   <div class="kbd-hint">
-    <span><kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> hoặc scroll</span>
-    <span><kbd class="kbd">Home</kbd> <kbd class="kbd">End</kbd></span>
-    <span><kbd class="kbd">.</kbd> next</span>
+    <span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> scroll</span>
+    <span><kbd class="kbd">Home</kbd><kbd class="kbd">End</kbd></span>
   </div>
 
-  <!-- ==========================================
-       SLIDES
-  ========================================== -->
   <div id="slides-wrapper">
 
     <!-- ========== SLIDE 1: COVER ========== -->
     <section class="slide slide-cover" id="slide-1">
       <div class="cover-badge">Poliwise — Kiến trúc Hệ thống</div>
       <h1 class="cover-title">Entity Relationship Diagram</h1>
-      <p class="cover-subtitle">Mô hình dữ liệu tổng thể — 16 thực thể, 16 quan hệ, 5 nhóm chức năng</p>
+      <p class="cover-subtitle">Mô hình dữ liệu tổng thể — 16 thực thể, 16 quan hệ, 5 schema</p>
       <div class="cover-meta">
         <span>📅 Tháng 4 / 2026</span>
         <span>🔢 16 Entities</span>
         <span>🔗 16 Relationships</span>
+        <span>🏗️ 5 Microservices</span>
       </div>
     </section>
 
@@ -745,18 +650,18 @@
         <div class="slide-divider"></div>
       </div>
       <div class="toc-grid">
-        <a href="#slide-3"  class="toc-card"><div class="toc-card-num">01</div><div class="toc-card-title">Tổng quan ERD</div><div class="toc-card-desc">16 thực thể theo 5 nhóm chức năng, sơ đồ quan hệ tổng thể</div></a>
-        <a href="#slide-4"  class="toc-card"><div class="toc-card-num">02</div><div class="toc-card-title">Nhóm Core</div><div class="toc-card-desc">USER &amp; DEPARTMENT — người dùng và cấu trúc tổ chức</div></a>
+        <a href="#slide-3"  class="toc-card"><div class="toc-card-num">01</div><div class="toc-card-title">Tổng quan ERD</div><div class="toc-card-desc">Sơ đồ draw.io đầy đủ + thống kê 16 thực thể</div></a>
+        <a href="#slide-4"  class="toc-card"><div class="toc-card-num">02</div><div class="toc-card-title">Nhóm Core</div><div class="toc-card-desc">USER &amp; DEPARTMENT — người dùng &amp; tổ chức</div></a>
         <a href="#slide-5"  class="toc-card"><div class="toc-card-num">03</div><div class="toc-card-title">Nhóm Document</div><div class="toc-card-desc">DOCUMENT, VERSION, CHUNK — vòng đời tài liệu</div></a>
-        <a href="#slide-6"  class="toc-card"><div class="toc-card-num">04</div><div class="toc-card-title">Nhóm Classification</div><div class="toc-card-desc">CATEGORY, TAG, ACCESS_RULE — phân loại &amp; quyền truy cập</div></a>
-        <a href="#slide-7"  class="toc-card"><div class="toc-card-num">05</div><div class="toc-card-title">Nhóm Conversation</div><div class="toc-card-desc">CONVERSATION, MESSAGE, FEEDBACK — hội thoại AI</div></a>
+        <a href="#slide-6"  class="toc-card"><div class="toc-card-num">04</div><div class="toc-card-title">Nhóm Classification</div><div class="toc-card-desc">CATEGORY, TAG, ACCESS_RULE — phân loại &amp; quyền</div></a>
+        <a href="#slide-7"  class="toc-card"><div class="toc-card-num">05</div><div class="toc-card-title">Nhóm Conversation</div><div class="toc-card-desc">CONVERSATION, MESSAGE, FEEDBACK</div></a>
         <a href="#slide-8"  class="toc-card"><div class="toc-card-num">06</div><div class="toc-card-title">Nhóm Analytics</div><div class="toc-card-desc">AUDIT_LOG, REPORT_EXPORT, UNANSWERED_QUESTION</div></a>
         <a href="#slide-9"  class="toc-card"><div class="toc-card-num">07</div><div class="toc-card-title">Tổng hợp quan hệ</div><div class="toc-card-desc">Ma trận 16 quan hệ ERD đầy đủ</div></a>
-        <a href="#slide-10" class="toc-card"><div class="toc-card-num">08</div><div class="toc-card-title">Tóm tắt</div><div class="toc-card-desc">Điểm chính và tổng kết</div></a>
+        <a href="#slide-10" class="toc-card"><div class="toc-card-num">08</div><div class="toc-card-title">Tóm tắt</div><div class="toc-card-desc">Schema ownership + điểm chính kiến trúc</div></a>
       </div>
     </section>
 
-    <!-- ========== SLIDE 3: OVERVIEW ========== -->
+    <!-- ========== SLIDE 3: OVERVIEW + DRAW.IO ========== -->
     <section class="slide" id="slide-3">
       <div class="slide-header">
         <div class="slide-number">01 — ERD Overview</div>
@@ -764,145 +669,206 @@
         <div class="slide-divider"></div>
       </div>
 
-      <div class="stats-grid" style="margin-bottom:20px;">
+      <div class="stats-grid" style="margin-bottom:14px;">
         <div class="stat-card"><div class="stat-num">16</div><div class="stat-label">Thực thể</div></div>
         <div class="stat-card"><div class="stat-num">16</div><div class="stat-label">Quan hệ</div></div>
-        <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">Nhóm chức năng</div></div>
         <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">Schema DB</div></div>
+        <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">Microservices</div></div>
       </div>
 
-      <div class="entity-list">
-        <!-- Core -->
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-user-stroke)"></span><span class="chip-name">USER</span><span class="chip-count">auth</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-dept-stroke)"></span><span class="chip-name">DEPARTMENT</span><span class="chip-count">user</span></div>
-        <!-- Doc -->
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-doc-stroke)"></span><span class="chip-name">DOCUMENT</span><span class="chip-count">knowledge</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-doc-stroke)"></span><span class="chip-name">DOCUMENT_VERSION</span><span class="chip-count">knowledge</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-doc-stroke)"></span><span class="chip-name">CHUNK</span><span class="chip-count">knowledge</span></div>
-        <!-- Classification -->
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-cat-stroke)"></span><span class="chip-name">CATEGORY</span><span class="chip-count">metadata</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-cat-stroke)"></span><span class="chip-name">TAG</span><span class="chip-count">metadata</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-rel-stroke)"></span><span class="chip-name">ACCESS_RULE</span><span class="chip-count">metadata</span></div>
-        <!-- Conversation -->
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-conv-stroke)"></span><span class="chip-name">CONVERSATION</span><span class="chip-count">feedback</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-conv-stroke)"></span><span class="chip-name">MESSAGE</span><span class="chip-count">feedback</span></div>
-        <!-- Analytics -->
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-fb-stroke)"></span><span class="chip-name">FEEDBACK</span><span class="chip-count">feedback</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-fb-stroke)"></span><span class="chip-name">UNANSWERED_QUESTION</span><span class="chip-count">feedback</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-audit-stroke)"></span><span class="chip-name">AUDIT_LOG</span><span class="chip-count">analytics</span></div>
-        <div class="entity-chip"><span class="chip-dot" style="background:var(--col-audit-stroke)"></span><span class="chip-name">REPORT_EXPORT</span><span class="chip-count">analytics</span></div>
-      </div>
-
-      <div style="margin-top:20px;">
-        <div class="group-header" style="margin-bottom:12px;">
-          <div class="group-icon core">🏛️</div>
-          <div><div class="group-name">5 Nhóm chức năng chính</div></div>
-        </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
-          <div class="tag" style="border-color:var(--col-user-stroke);color:var(--col-user)">🏛️ Core — USER, DEPARTMENT</div>
-          <div class="tag" style="border-color:var(--col-doc-stroke);color:var(--col-doc-stroke)">📄 Document — DOCUMENT, VERSION, CHUNK</div>
-          <div class="tag" style="border-color:var(--col-cat-stroke);color:#4e8c4e">🏷️ Classification — CATEGORY, TAG, ACCESS_RULE</div>
-          <div class="tag" style="border-color:var(--col-conv-stroke);color:var(--col-conv-stroke)">💬 Conversation — CONVERSATION, MESSAGE, FEEDBACK</div>
-          <div class="tag" style="border-color:var(--col-audit-stroke);color:#999">📊 Analytics — AUDIT_LOG, REPORT_EXPORT, UNANSWERED_QUESTION</div>
-        </div>
+      <!-- draw.io ERD embed -->
+      <div class="drawio-embed">
+        <div class="mxgraph" style="max-width:100%;border:1px solid transparent" data-mxgraph='{"highlight":"#0000ff","nav":true,"resize":true,"dark-mode":"auto","toolbar":"zoom layers tags lightbox","edit":"_blank","xml":"<mxfile host=\"app.diagrams.net\" agent=\"Mozilla/5.0\"><diagram name=\"Poliwise-ERD\" id=\"poliwise-erd\"><mxGraphModel dx=\"6040\" dy=\"3892\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"4000\" pageHeight=\"3000\" math=\"0\" shadow=\"0\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"e1_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;\" value=\"USER\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"-165\" y=\"385\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"userId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-130\" y=\"115\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"username\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-45\" y=\"145\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"email\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"30\" y=\"165\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"passwordHash\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"55\" y=\"250\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"role\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-200\" y=\"170\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"status\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-270\" y=\"220\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr7\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"fullName\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-340\" y=\"250\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr8\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"phone\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-380\" y=\"300\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr9\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"position\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-400\" y=\"350\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr10\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"avatarUrl\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-420\" y=\"405\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr11\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"employeeCode\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-410\" y=\"465\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr12\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"joinedDate\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-320\" y=\"560\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr13\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"dateOfBirth\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-390\" y=\"515\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr14\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"bio\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-280\" y=\"600\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr15\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"mustChangePassword\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"-140\" y=\"680\" as=\"geometry\"/></mxCell><mxCell id=\"e1_attr16\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"createdAt\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-10\" y=\"490\" as=\"geometry\"/></mxCell><mxCell id=\"e2_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;\" value=\"DEPARTMENT\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"330\" y=\"85\" as=\"geometry\"/></mxCell><mxCell id=\"e2_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"departmentId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"340\" y=\"-30\" as=\"geometry\"/></mxCell><mxCell id=\"e2_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"name\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"225\" y=\"-20\" as=\"geometry\"/></mxCell><mxCell id=\"e2_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"code\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"180\" y=\"47.5\" as=\"geometry\"/></mxCell><mxCell id=\"e2_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"parentDepartmentId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"130\" x=\"160\" y=\"105\" as=\"geometry\"/></mxCell><mxCell id=\"e2_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"isActive\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"395\" y=\"162.5\" as=\"geometry\"/></mxCell><mxCell id=\"e2_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"description\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"460\" y=\"-10\" as=\"geometry\"/></mxCell><mxCell id=\"e3_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;\" value=\"DOCUMENT\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"380\" y=\"670\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"documentId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"360\" y=\"495\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"originalFilename\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"150\" y=\"560\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"fileKey\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"185\" y=\"605\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"fileType\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"190\" y=\"650\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"fileSizeBytes\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"215\" y=\"690\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"title\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"295\" y=\"750\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr7\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"description\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"380\" y=\"790\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr8\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"status\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"475\" y=\"770\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr9\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"language\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"520\" y=\"360\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr10\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"currentVersion\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"520\" y=\"400\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr11\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"processingStatus\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"520\" y=\"440\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr12\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"accessLevel\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"520\" y=\"480\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr13\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"effectiveDate\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"620\" y=\"615\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr14\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"expiryDate\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"620\" y=\"660\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr15\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"chunkingStrategy\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"570\" y=\"720\" as=\"geometry\"/></mxCell><mxCell id=\"e3_attr16\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"createdAt\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"575\" y=\"790\" as=\"geometry\"/></mxCell><mxCell id=\"e4_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;\" value=\"DOCUMENT_VERSION\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"990\" y=\"410\" as=\"geometry\"/></mxCell><mxCell id=\"e4_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"versionId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"880\" y=\"370\" as=\"geometry\"/></mxCell><mxCell id=\"e4_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"documentId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"990\" y=\"320\" as=\"geometry\"/></mxCell><mxCell id=\"e4_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"versionNumber\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1150\" y=\"385\" as=\"geometry\"/></mxCell><mxCell id=\"e4_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"extractedText\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1120\" y=\"330\" as=\"geometry\"/></mxCell><mxCell id=\"e5_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;\" value=\"CHUNK\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"1290\" y=\"500\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"chunkId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1180\" y=\"460\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"documentId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1310\" y=\"425\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"content\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1430\" y=\"550\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"embeddingVector\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"1160\" y=\"575\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"chunkIndex\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1530\" y=\"400\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"allowedRoles\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"1520\" y=\"450\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr7\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"allowedDepartments\" vertex=\"1\"><mxGeometry height=\"30\" width=\"130\" x=\"1510\" y=\"510\" as=\"geometry\"/></mxCell><mxCell id=\"e5_attr8\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"sectionTitle\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1340\" y=\"575\" as=\"geometry\"/></mxCell><mxCell id=\"e6_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;\" value=\"CATEGORY\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"1290\" y=\"205\" as=\"geometry\"/></mxCell><mxCell id=\"e6_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"categoryId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1210\" y=\"132.5\" as=\"geometry\"/></mxCell><mxCell id=\"e6_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"name\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1120\" y=\"175\" as=\"geometry\"/></mxCell><mxCell id=\"e6_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"slug\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1230\" y=\"290\" as=\"geometry\"/></mxCell><mxCell id=\"e6_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"parentCategoryId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"1330\" y=\"300\" as=\"geometry\"/></mxCell><mxCell id=\"e6_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"displayOrder\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1340\" y=\"137.5\" as=\"geometry\"/></mxCell><mxCell id=\"e7_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;\" value=\"TAG\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"710\" y=\"137.5\" as=\"geometry\"/></mxCell><mxCell id=\"e7_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"tagId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"880\" y=\"85\" as=\"geometry\"/></mxCell><mxCell id=\"e7_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"name\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"880\" y=\"147.5\" as=\"geometry\"/></mxCell><mxCell id=\"e7_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"slug\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"760\" y=\"215\" as=\"geometry\"/></mxCell><mxCell id=\"e7_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"color\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"710\" y=\"70\" as=\"geometry\"/></mxCell><mxCell id=\"e7_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"usageCount\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"810\" y=\"40\" as=\"geometry\"/></mxCell><mxCell id=\"e8_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;\" value=\"ACCESS_RULE\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"1050\" y=\"680\" as=\"geometry\"/></mxCell><mxCell id=\"e8_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"ruleId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1230\" y=\"650\" as=\"geometry\"/></mxCell><mxCell id=\"e8_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"documentId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"980\" y=\"780\" as=\"geometry\"/></mxCell><mxCell id=\"e8_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"targetType\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1260\" y=\"740\" as=\"geometry\"/></mxCell><mxCell id=\"e8_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"permission\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1110\" y=\"790\" as=\"geometry\"/></mxCell><mxCell id=\"e9_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;\" value=\"CONVERSATION\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"-45\" y=\"1230\" as=\"geometry\"/></mxCell><mxCell id=\"e9_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"conversationId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"-230\" y=\"1240\" as=\"geometry\"/></mxCell><mxCell id=\"e9_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"userId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-185\" y=\"1350\" as=\"geometry\"/></mxCell><mxCell id=\"e9_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"title\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-60\" y=\"1335\" as=\"geometry\"/></mxCell><mxCell id=\"e9_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"messageCount\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"85\" y=\"1335\" as=\"geometry\"/></mxCell><mxCell id=\"e9_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"lastMessageAt\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-230\" y=\"1160\" as=\"geometry\"/></mxCell><mxCell id=\"e10_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;\" value=\"MESSAGE\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"400\" y=\"1195\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"messageId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"300\" y=\"1285\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"conversationId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"475\" y=\"1120\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"role\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"575\" y=\"1370\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"content\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"475\" y=\"1400\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"sources\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"585\" y=\"1165\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"confidence\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"640\" y=\"1285\" as=\"geometry\"/></mxCell><mxCell id=\"e10_attr7\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"tokensTotal\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"645\" y=\"1330\" as=\"geometry\"/></mxCell><mxCell id=\"e11_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;\" value=\"FEEDBACK\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"970\" y=\"1270\" as=\"geometry\"/></mxCell><mxCell id=\"e11_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"feedbackId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"930\" y=\"1180\" as=\"geometry\"/></mxCell><mxCell id=\"e11_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"userId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1170\" y=\"1270\" as=\"geometry\"/></mxCell><mxCell id=\"e11_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"messageId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1070\" y=\"1190\" as=\"geometry\"/></mxCell><mxCell id=\"e11_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"type\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1200\" y=\"1210\" as=\"geometry\"/></mxCell><mxCell id=\"e11_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"comment\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1030\" y=\"1350\" as=\"geometry\"/></mxCell><mxCell id=\"e12_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;\" value=\"UNANSWERED_QUESTION\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"190\" y=\"1540\" as=\"geometry\"/></mxCell><mxCell id=\"e12_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"uqId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"12.5\" y=\"1530\" as=\"geometry\"/></mxCell><mxCell id=\"e12_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"userId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"40\" y=\"1590\" as=\"geometry\"/></mxCell><mxCell id=\"e12_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"conversationId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"130\" y=\"1640\" as=\"geometry\"/></mxCell><mxCell id=\"e12_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"question\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"80\" y=\"1450\" as=\"geometry\"/></mxCell><mxCell id=\"e12_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"resolved\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"162.5\" y=\"1420\" as=\"geometry\"/></mxCell><mxCell id=\"e12_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"priority\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"290\" y=\"1640\" as=\"geometry\"/></mxCell><mxCell id=\"e14_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;\" value=\"AUDIT_LOG\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"545\" y=\"870\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"auditId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"370\" y=\"950\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"userId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"575\" y=\"1025\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"action\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"470\" y=\"990\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"resourceType\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"740\" y=\"832.5\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"resourceId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"820\" y=\"880\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"oldValue\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"770\" y=\"940\" as=\"geometry\"/></mxCell><mxCell id=\"e14_attr7\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"newValue\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"670\" y=\"990\" as=\"geometry\"/></mxCell><mxCell id=\"e15_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;\" value=\"REPORT_EXPORT\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"-330\" y=\"1020\" as=\"geometry\"/></mxCell><mxCell id=\"e15_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"reportId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-180\" y=\"1110\" as=\"geometry\"/></mxCell><mxCell id=\"e15_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"reportType\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-360\" y=\"1140\" as=\"geometry\"/></mxCell><mxCell id=\"e15_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"format\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-550\" y=\"1070\" as=\"geometry\"/></mxCell><mxCell id=\"e15_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"status\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-530\" y=\"930\" as=\"geometry\"/></mxCell><mxCell id=\"e15_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"fileKey\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-560\" y=\"1005\" as=\"geometry\"/></mxCell><mxCell id=\"e15_attr6\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"requestedBy\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"-480\" y=\"1120\" as=\"geometry\"/></mxCell><mxCell id=\"e16_box\" parent=\"1\" style=\"rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;\" value=\"DAILY_AGGREGATE\" vertex=\"1\"><mxGeometry height=\"40\" width=\"120\" x=\"1340\" y=\"935\" as=\"geometry\"/></mxCell><mxCell id=\"e16_attr1\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontStyle=4;fontSize=10;strokeWidth=1;\" value=\"aggregateId\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1190\" y=\"880\" as=\"geometry\"/></mxCell><mxCell id=\"e16_attr2\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"date\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1180\" y=\"975\" as=\"geometry\"/></mxCell><mxCell id=\"e16_attr3\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"totalQuestions\" vertex=\"1\"><mxGeometry height=\"30\" width=\"110\" x=\"1430\" y=\"830\" as=\"geometry\"/></mxCell><mxCell id=\"e16_attr4\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"feedbackRatio\" vertex=\"1\"><mxGeometry height=\"30\" width=\"100\" x=\"1560\" y=\"900\" as=\"geometry\"/></mxCell><mxCell id=\"e16_attr5\" parent=\"1\" style=\"ellipse;whiteSpace=wrap;html=1;fontSize=10;strokeWidth=1;\" value=\"avgResponseTimeMs\" vertex=\"1\"><mxGeometry height=\"30\" width=\"120\" x=\"1450\" y=\"1005\" as=\"geometry\"/></mxCell><mxCell id=\"r1\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"BELONGS_TO\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"130\" y=\"315\" as=\"geometry\"/></mxCell><mxCell id=\"r2\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"HAS_CHILD\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"585\" y=\"77.5\" as=\"geometry\"/></mxCell><mxCell id=\"r3\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"OWNS\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"30\" y=\"960\" as=\"geometry\"/></mxCell><mxCell id=\"r4\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"CONTAINS\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"210\" y=\"1190\" as=\"geometry\"/></mxCell><mxCell id=\"r5\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"HAS\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"785\" y=\"1250\" as=\"geometry\"/></mxCell><mxCell id=\"r6\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"GENERATES\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"330\" y=\"1390\" as=\"geometry\"/></mxCell><mxCell id=\"r7\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"UPLOADS\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"162.5\" y=\"490\" as=\"geometry\"/></mxCell><mxCell id=\"r8\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"HAS_VERSION\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"700\" y=\"430\" as=\"geometry\"/></mxCell><mxCell id=\"r9\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"IS_SPLIT_INTO\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"700\" y=\"530\" as=\"geometry\"/></mxCell><mxCell id=\"r10\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"CLASSIFIED_INTO\" vertex=\"1\"><mxGeometry height=\"60\" width=\"110\" x=\"780\" y=\"285\" as=\"geometry\"/></mxCell><mxCell id=\"r11\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"HAS_CHILD\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"1545\" y=\"185\" as=\"geometry\"/></mxCell><mxCell id=\"r12\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"TAGGED_WITH\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"440\" y=\"290\" as=\"geometry\"/></mxCell><mxCell id=\"r13\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"GOVERNS\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"800\" y=\"680\" as=\"geometry\"/></mxCell><mxCell id=\"r14\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"PERFORMED_BY\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"230\" y=\"850\" as=\"geometry\"/></mxCell><mxCell id=\"r15\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"REQUESTS\" vertex=\"1\"><mxGeometry height=\"60\" width=\"100\" x=\"-240\" y=\"817.5\" as=\"geometry\"/></mxCell><mxCell id=\"r17\" parent=\"1\" style=\"html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;strokeWidth=2;fillColor=#ffffcc;strokeColor=#333333;\" value=\"BELONGS_TO_DEPT\" vertex=\"1\"><mxGeometry height=\"80\" width=\"146.66\" x=\"243.34\" y=\"410\" as=\"geometry\"/></mxCell></root></mxGraphModel></diagram></mxfile>"}'></div>
       </div>
     </section>
 
-    <!-- ========== SLIDE 4: CORE ========== -->
+    <!-- ========== SLIDE 4: USER + DEPARTMENT ========== -->
     <section class="slide" id="slide-4">
       <div class="slide-header">
         <div class="slide-number">02 — Nhóm Core</div>
-        <h2 class="slide-title">USER &amp; DEPARTMENT — Người dùng &amp; Tổ chức</h2>
+        <h2 class="slide-title">USER &amp; DEPARTMENT — Người dùng &amp; Cấu trúc tổ chức</h2>
         <div class="slide-divider"></div>
       </div>
 
       <div class="two-col">
-        <!-- Left: USER -->
+        <!-- USER -->
         <div class="col-content">
           <div class="group-header">
             <div class="group-icon core">👤</div>
-            <div><div class="group-name">USER</div><div class="group-desc">poliwise_auth · 16 thuộc tính</div></div>
+            <div><div class="group-name">USER</div><div class="group-desc">poliwise_auth · Schema auth-service (8081)</div></div>
           </div>
+          <div class="entity-table-wrap entity-user">
+            <div class="entity-table-header">USER — 16 thuộc tính</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Tên thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
 
-          <div class="entity-table entity-user">
-            <div class="entity-header">USER</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">userId</span></div>
-              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">username</span></div>
-              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">email</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">passwordHash</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">role</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">status</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">fullName</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">phone · position · avatarUrl</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">employeeCode · joinedDate · dateOfBirth</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">bio · mustChangePassword</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">createdAt</span></div>
-            </div>
-          </div>
-
-          <div style="margin-top:8px;">
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">Vai trò:</div>
-            <div class="tag-list">
-              <span class="tag">USER</span>
-              <span class="tag">MANAGER</span>
-              <span class="tag">ADMIN</span>
-            </div>
-          </div>
-          <div style="margin-top:8px;">
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;">Trạng thái:</div>
-            <div class="tag-list">
-              <span class="tag">ACTIVE</span>
-              <span class="tag">DEACTIVATED</span>
-              <span class="tag">REVOKED</span>
+              <div class="spec-row">
+                <div class="spec-cell spec-pk">PK</div>
+                <div class="spec-cell spec-norm">userId</div>
+                <div class="spec-cell spec-type">UUID</div>
+                <div class="spec-cell spec-desc">Khóa định danh duy nhất của người dùng trong hệ thống</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-uq">UQ</div>
+                <div class="spec-cell spec-norm">username</div>
+                <div class="spec-cell spec-type">VARCHAR(50)</div>
+                <div class="spec-cell spec-desc">Tên đăng nhập duy nhất dùng để xác thực</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-uq">UQ</div>
+                <div class="spec-cell spec-norm">email</div>
+                <div class="spec-cell spec-type">VARCHAR(255)</div>
+                <div class="spec-cell spec-desc">Địa chỉ email duy nhất dùng để liên hệ và xác thực</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">passwordHash</div>
+                <div class="spec-cell spec-type">VARCHAR(255)</div>
+                <div class="spec-cell spec-desc">Mật khẩu đã được mã hóa BCrypt, không lưu plain text</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">role</div>
+                <div class="spec-cell spec-type">ENUM</div>
+                <div class="spec-cell spec-desc">Vai trò: USER (nhân viên), MANAGER (quản lý), ADMIN (quản trị)</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">status</div>
+                <div class="spec-cell spec-type">ENUM</div>
+                <div class="spec-cell spec-desc">Trạng thái: ACTIVE, DEACTIVATED, REVOKED</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">fullName</div>
+                <div class="spec-cell spec-type">VARCHAR(100)</div>
+                <div class="spec-cell spec-desc">Họ và tên đầy đủ của người dùng</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">phone</div>
+                <div class="spec-cell spec-type">VARCHAR(20)</div>
+                <div class="spec-cell spec-desc">Số điện thoại liên hệ</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">position</div>
+                <div class="spec-cell spec-type">VARCHAR(100)</div>
+                <div class="spec-cell spec-desc">Chức vụ công việc hiện tại</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">avatarUrl</div>
+                <div class="spec-cell spec-type">VARCHAR(500)</div>
+                <div class="spec-cell spec-desc">Đường dẫn URL đến ảnh đại diện</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">employeeCode</div>
+                <div class="spec-cell spec-type">VARCHAR(50)</div>
+                <div class="spec-cell spec-desc">Mã nhân viên nội bộ, duy nhất theo từng cá nhân</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">joinedDate</div>
+                <div class="spec-cell spec-type">DATE</div>
+                <div class="spec-cell spec-desc">Ngày gia nhập công ty hoặc bắt đầu sử dụng hệ thống</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">dateOfBirth</div>
+                <div class="spec-cell spec-type">DATE</div>
+                <div class="spec-cell spec-desc">Ngày tháng năm sinh của người dùng</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">bio</div>
+                <div class="spec-cell spec-type">TEXT</div>
+                <div class="spec-cell spec-desc">Mô tả ngắn về bản thân, lĩnh vực chuyên môn</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">mustChangePassword</div>
+                <div class="spec-cell spec-type">BOOLEAN</div>
+                <div class="spec-cell spec-desc">Cờ yêu cầu đổi mật khẩu ngay lần đầu đăng nhập hoặc khi bị reset</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">createdAt</div>
+                <div class="spec-cell spec-type">TIMESTAMP</div>
+                <div class="spec-cell spec-desc">Thời điểm tài khoản được tạo trong hệ thống</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Right: DEPARTMENT + REL -->
+        <!-- DEPARTMENT -->
         <div class="col-content">
           <div class="group-header">
             <div class="group-icon core">🏢</div>
-            <div><div class="group-name">DEPARTMENT</div><div class="group-desc">poliwise_user · 6 thuộc tính</div></div>
+            <div><div class="group-name">DEPARTMENT</div><div class="group-desc">poliwise_user · Schema user-service (8082)</div></div>
           </div>
+          <div class="entity-table-wrap entity-dept" style="margin-bottom:16px;">
+            <div class="entity-table-header">DEPARTMENT — 6 thuộc tính</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Tên thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
 
-          <div class="entity-table entity-dept" style="margin-bottom:16px;">
-            <div class="entity-header">DEPARTMENT</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">departmentId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">name</span></div>
-              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">code</span></div>
-              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">parentDepartmentId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">isActive</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">description</span></div>
+              <div class="spec-row">
+                <div class="spec-cell spec-pk">PK</div>
+                <div class="spec-cell spec-norm">departmentId</div>
+                <div class="spec-cell spec-type">UUID</div>
+                <div class="spec-cell spec-desc">Khóa định danh duy nhất của phòng ban</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">name</div>
+                <div class="spec-cell spec-type">VARCHAR(100)</div>
+                <div class="spec-cell spec-desc">Tên đầy đủ của phòng ban (VD: "Phòng Công nghệ thông tin")</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-uq">UQ</div>
+                <div class="spec-cell spec-norm">code</div>
+                <div class="spec-cell spec-type">VARCHAR(20)</div>
+                <div class="spec-cell spec-desc">Mã viết tắt duy nhất của phòng ban (VD: "IT", "HR")</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-fk">FK</div>
+                <div class="spec-cell spec-norm">parentDepartmentId</div>
+                <div class="spec-cell spec-type">UUID (nullable)</div>
+                <div class="spec-cell spec-desc">Khóa tham chiếu đến phòng ban cha (tự tham chiếu, tạo cấu trúc cây)</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">isActive</div>
+                <div class="spec-cell spec-type">BOOLEAN</div>
+                <div class="spec-cell spec-desc">Cờ phòng ban đang hoạt động hay đã ngưng hoạt động</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-cell spec-norm"></div>
+                <div class="spec-cell spec-norm">description</div>
+                <div class="spec-cell spec-type">TEXT</div>
+                <div class="spec-cell spec-desc">Mô tả chi tiết chức năng và nhiệm vụ của phòng ban</div>
+              </div>
             </div>
           </div>
 
-          <!-- Relationships -->
+          <!-- Quan hệ -->
           <div style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:8px;">Quan hệ</div>
-
           <div class="rel-diagram" style="margin-bottom:8px;">
-            <span class="rel-side rel-entity-a">USER</span>
-            <div class="rel-center">
-              <div class="rel-card">
-                <div class="rel-name">BELONGS_TO</div>
-                <div class="rel-cardinality">(1,N) ↔ (1,1)</div>
-                <div class="rel-desc">User bắt buộc thuộc 1 Dept. Dept chứa nhiều User.</div>
-              </div>
-            </div>
-            <span class="rel-side rel-entity-b">DEPARTMENT</span>
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;">USER</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">BELONGS_TO</div><div class="rel-cardinality">(1,N) — (1,1)</div><div class="rel-desc">User bắt buộc thuộc 1 Dept. Mỗi Dept chứa nhiều User.</div></div></div>
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;">DEPARTMENT</span>
           </div>
-
-          <div class="rel-diagram" style="margin-bottom:8px;">
-            <span class="rel-side rel-entity-b">DEPARTMENT</span>
-            <div class="rel-center">
-              <div class="rel-card">
-                <div class="rel-name">HAS_CHILD</div>
-                <div class="rel-cardinality">(0,N) ↔ (0,1)</div>
-                <div class="rel-desc">Dept có nhiều Dept con. Cấu trúc cây phân cấp tổ chức.</div>
-              </div>
-            </div>
-            <span class="rel-side rel-entity-b">DEPARTMENT</span>
+          <div class="rel-diagram">
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;">DEPARTMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">HAS_CHILD</div><div class="rel-cardinality">(0,N) — (0,1)</div><div class="rel-desc">Dept có nhiều Dept con. Cấu trúc cây phân cấp tổ chức.</div></div></div>
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;">DEPARTMENT</span>
           </div>
         </div>
       </div>
@@ -916,17 +882,15 @@
         <div class="slide-divider"></div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:20px;">
-
-        <!-- Flow -->
-        <div class="rel-diagram" style="justify-content:center;gap:16px;">
-          <span class="rel-side rel-entity-a" style="font-size:0.72rem;">USER</span>
-          <div class="rel-center" style="max-width:100px;"><div class="rel-card" style="max-width:100px;"><div class="rel-name" style="font-size:0.7rem;">UPLOADS</div><div class="rel-cardinality">(0,N)→(0,1)</div></div></div>
-          <span class="rel-side rel-entity-c" style="font-size:0.72rem;">DOCUMENT</span>
-          <div class="rel-center" style="max-width:100px;"><div class="rel-card" style="max-width:100px;"><div class="rel-name" style="font-size:0.7rem;">HAS_VERSION</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
-          <span class="rel-side rel-entity-c" style="font-size:0.72rem;background:var(--col-doc);color:#5a4000;">DOC_VERSION</span>
-          <div class="rel-center" style="max-width:100px;"><div class="rel-card" style="max-width:100px;"><div class="rel-name" style="font-size:0.7rem;">IS_SPLIT_INTO</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
-          <span class="rel-side rel-entity-c" style="font-size:0.72rem;">CHUNK</span>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="rel-diagram" style="justify-content:center;gap:10px;">
+          <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;font-size:0.68rem;">USER</span>
+          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">UPLOADS</div><div class="rel-cardinality">(0,N)→(0,1)</div></div></div>
+          <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">DOCUMENT</span>
+          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">HAS_VERSION</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
+          <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">DOC_VERSION</span>
+          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">IS_SPLIT_INTO</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
+          <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">CHUNK</span>
         </div>
 
         <div class="three-col">
@@ -934,25 +898,32 @@
           <div class="col-content">
             <div class="group-header">
               <div class="group-icon doc">📄</div>
-              <div><div class="group-name">DOCUMENT</div><div class="group-desc">poliwise_knowledge · 16 thuộc tính</div></div>
+              <div><div class="group-name">DOCUMENT</div><div class="group-desc">poliwise_knowledge · knowledge-service (8083)</div></div>
             </div>
-            <div class="entity-table entity-doc">
-              <div class="entity-header">DOCUMENT</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">documentId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">originalFilename · fileKey · fileType</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">fileSizeBytes</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">title · description</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">status · language</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">currentVersion · processingStatus</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">accessLevel</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">effectiveDate · expiryDate</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">chunkingStrategy · createdAt</span></div>
+            <div class="entity-table-wrap entity-doc">
+              <div class="entity-table-header">DOCUMENT — 16 thuộc tính</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">documentId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của tài liệu</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">originalFilename</div><div class="spec-cell spec-type">VARCHAR(255)</div><div class="spec-cell spec-desc">Tên file gốc khi được upload lên hệ thống</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">fileKey</div><div class="spec-cell spec-type">VARCHAR(500)</div><div class="spec-cell spec-desc">Đường dẫn/lưu khóa trên hệ thống lưu trữ (MinIO/S3)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">fileType</div><div class="spec-cell spec-type">VARCHAR(20)</div><div class="spec-cell spec-desc">Loại định dạng file: PDF, DOCX, XLSX, PPTX, TXT...</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">fileSizeBytes</div><div class="spec-cell spec-type">BIGINT</div><div class="spec-cell spec-desc">Dung lượng file tính bằng byte</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">title</div><div class="spec-cell spec-type">VARCHAR(255)</div><div class="spec-cell spec-desc">Tiêu đề/tên mô tả tài liệu do người dùng đặt</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">description</div><div class="spec-cell spec-type">TEXT</div><div class="spec-cell spec-desc">Mô tả ngắn nội dung tài liệu</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">status</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Trạng thái: DRAFT, PUBLISHED, ARCHIVED, EXPIRED</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">language</div><div class="spec-cell spec-type">VARCHAR(10)</div><div class="spec-cell spec-desc">Ngôn ngữ chính: "vi", "en"...</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">currentVersion</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Số phiên bản hiện tại của tài liệu</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">processingStatus</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Trạng thái xử lý: STAGING, READY, FAILED, PROCESSING</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">accessLevel</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Mức truy cập: PUBLIC, DEPARTMENT, RESTRICTED</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">effectiveDate</div><div class="spec-cell spec-type">DATE</div><div class="spec-cell spec-desc">Ngày có hiệu lực (bắt đầu áp dụng)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">expiryDate</div><div class="spec-cell spec-type">DATE</div><div class="spec-cell spec-desc">Ngày hết hạn (ngừng áp dụng)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">chunkingStrategy</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Chiến lược chia nhỏ: RECURSIVE, SEMANTIC, FIXED_SIZE</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">createdAt</div><div class="spec-cell spec-type">TIMESTAMP</div><div class="spec-cell spec-desc">Thời điểm tài liệu được tạo trong hệ thống</div></div>
               </div>
-            </div>
-            <div class="tag-list" style="margin-top:8px;">
-              <span class="tag">DRAFT</span><span class="tag">PUBLISHED</span><span class="tag">ARCHIVED</span>
-              <span class="tag">PUBLIC</span><span class="tag">DEPARTMENT</span><span class="tag">RESTRICTED</span>
             </div>
           </div>
 
@@ -962,16 +933,19 @@
               <div class="group-icon doc">🗂️</div>
               <div><div class="group-name">DOCUMENT_VERSION</div><div class="group-desc">poliwise_knowledge · 4 thuộc tính</div></div>
             </div>
-            <div class="entity-table entity-doc" style="font-size:0.78rem;">
-              <div class="entity-header">DOCUMENT_VERSION</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">versionId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">documentId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">versionNumber</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">extractedText</span></div>
+            <div class="entity-table-wrap entity-doc">
+              <div class="entity-table-header">DOCUMENT_VERSION</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">versionId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của phiên bản</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">documentId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến tài liệu gốc mà phiên bản này thuộc về</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">versionNumber</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Số thứ tự phiên bản (1, 2, 3...)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">extractedText</div><div class="spec-cell spec-type">TEXT</div><div class="spec-cell spec-desc">Nội dung văn bản đã trích xuất từ file tại thời điểm tạo phiên bản (bất biến)</div></div>
               </div>
             </div>
-            <p class="body-text" style="margin-top:10px;font-size:0.8rem;">Mỗi phiên bản là bất biến — lưu nội dung text đã trích xuất tại thời điểm xử lý. Không thể sửa đổi sau khi tạo.</p>
           </div>
 
           <!-- CHUNK -->
@@ -980,19 +954,23 @@
               <div class="group-icon doc">✂️</div>
               <div><div class="group-name">CHUNK</div><div class="group-desc">poliwise_knowledge · 8 thuộc tính</div></div>
             </div>
-            <div class="entity-table entity-doc" style="font-size:0.78rem;">
-              <div class="entity-header">CHUNK</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">chunkId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">documentId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">content</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">embeddingVector</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">chunkIndex</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">allowedRoles · allowedDepartments</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">sectionTitle</span></div>
+            <div class="entity-table-wrap entity-doc">
+              <div class="entity-table-header">CHUNK</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">chunkId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của đoạn văn bản</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">documentId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến tài liệu mà chunk này thuộc về</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">content</div><div class="spec-cell spec-type">TEXT</div><div class="spec-cell spec-desc">Nội dung văn bản thuần túy của đoạn</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">embeddingVector</div><div class="spec-cell spec-type">VECTOR/FLOAT[]</div><div class="spec-cell spec-desc">Vector số biểu diễn ngữ nghĩa, dùng cho tìm kiếm ngữ nghĩa (RAG)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">chunkIndex</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Thứ tự sắp xếp các chunk trong tài liệu gốc</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">allowedRoles</div><div class="spec-cell spec-type">VARCHAR[]</div><div class="spec-cell spec-desc">Danh sách vai trò được phép truy cập (VD: [ADMIN, MANAGER])</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">allowedDepartments</div><div class="spec-cell spec-type">UUID[]</div><div class="spec-cell spec-desc">Danh sách mã phòng ban được phép truy cập chunk này</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">sectionTitle</div><div class="spec-cell spec-type">VARCHAR(255)</div><div class="spec-cell spec-desc">Tiêu đề phần mà chunk này thuộc về (trích từ heading)</div></div>
               </div>
             </div>
-            <p class="body-text" style="margin-top:10px;font-size:0.8rem;">Vector embedding phục vụ RAG — AI tìm kiếm ngữ nghĩa để trả lời câu hỏi người dùng.</p>
           </div>
         </div>
       </div>
@@ -1006,91 +984,89 @@
         <div class="slide-divider"></div>
       </div>
 
-      <div class="two-col">
-        <!-- Left -->
+      <div class="three-col">
+        <!-- CATEGORY -->
         <div class="col-content">
-          <!-- CATEGORY -->
           <div class="group-header">
             <div class="group-icon cat">📁</div>
-            <div><div class="group-name">CATEGORY</div><div class="group-desc">poliwise_metadata · 5 thuộc tính</div></div>
+            <div><div class="group-name">CATEGORY</div><div class="group-desc">poliwise_metadata · metadata-service (8084)</div></div>
           </div>
-          <div class="entity-table entity-cat" style="margin-bottom:20px;">
-            <div class="entity-header">CATEGORY</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">categoryId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">name</span></div>
-              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">slug</span></div>
-              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">parentCategoryId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">displayOrder</span></div>
+          <div class="entity-table-wrap entity-cat">
+            <div class="entity-table-header">CATEGORY — 5 thuộc tính</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
+              <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">categoryId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của danh mục</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">name</div><div class="spec-cell spec-type">VARCHAR(100)</div><div class="spec-cell spec-desc">Tên danh mục (VD: "Chính sách nhân sự")</div></div>
+              <div class="spec-row"><div class="spec-cell spec-uq">UQ</div><div class="spec-cell spec-norm">slug</div><div class="spec-cell spec-type">VARCHAR(100)</div><div class="spec-cell spec-desc">Chuỗi URL-friendly, duy nhất, dùng truy cập danh mục (VD: "chinh-sach-nhan-su")</div></div>
+              <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">parentCategoryId</div><div class="spec-cell spec-type">UUID (nullable)</div><div class="spec-cell spec-desc">Khóa tham chiếu đến danh mục cha (tự tham chiếu, tạo cây)</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">displayOrder</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Thứ tự hiển thị danh mục trong danh sách</div></div>
             </div>
           </div>
-
-          <!-- TAG -->
-          <div class="group-header">
-            <div class="group-icon cat"> 🏷️</div>
-            <div><div class="group-name">TAG</div><div class="group-desc">poliwise_metadata · 5 thuộc tính</div></div>
-          </div>
-          <div class="entity-table entity-cat" style="margin-bottom:16px;">
-            <div class="entity-header">TAG</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">tagId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">name</span></div>
-              <div class="entity-row"><span class="attr-key">UQ</span><span class="attr-name">slug</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">color · usageCount</span></div>
-            </div>
-          </div>
-
-          <div class="rel-diagram" style="margin-bottom:8px;">
-            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">DOCUMENT</span>
-            <div class="rel-center"><div class="rel-card"><div class="rel-name">CLASSIFIED_INTO</div><div class="rel-cardinality">(0,N) ↔ (0,N)</div></div></div>
-            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">CATEGORY</span>
-          </div>
-          <div class="rel-diagram">
-            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">CATEGORY</span>
-            <div class="rel-center"><div class="rel-card"><div class="rel-name">HAS_CHILD</div><div class="rel-cardinality">(0,N) ↔ (0,1)</div></div></div>
-            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">CATEGORY</span>
+          <div class="rel-diagram" style="margin-top:12px;">
+            <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">DOCUMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">CLASSIFIED_INTO</div><div class="rel-cardinality">(0,N)↔(0,N)</div><div class="rel-desc">Doc phân vào nhiều Category. Đa giá trị.</div></div></div>
+            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.68rem;">CATEGORY</span>
           </div>
         </div>
 
-        <!-- Right: ACCESS_RULE + more rels -->
+        <!-- TAG -->
+        <div class="col-content">
+          <div class="group-header">
+            <div class="group-icon cat">🏷️</div>
+            <div><div class="group-name">TAG</div><div class="group-desc">poliwise_metadata · metadata-service (8084)</div></div>
+          </div>
+          <div class="entity-table-wrap entity-cat">
+            <div class="entity-table-header">TAG — 5 thuộc tính</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
+              <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">tagId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của nhãn</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">name</div><div class="spec-cell spec-type">VARCHAR(50)</div><div class="spec-cell spec-desc">Tên nhãn (VD: "urgent", "internal")</div></div>
+              <div class="spec-row"><div class="spec-cell spec-uq">UQ</div><div class="spec-cell spec-norm">slug</div><div class="spec-cell spec-type">VARCHAR(50)</div><div class="spec-cell spec-desc">Chuỗi URL-friendly, duy nhất cho nhãn</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">color</div><div class="spec-cell spec-type">VARCHAR(7)</div><div class="spec-cell spec-desc">Mã màu hex của nhãn hiển thị (VD: "#FF5733")</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">usageCount</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Số lượng tài liệu đang sử dụng nhãn này, dùng sắp xếp</div></div>
+            </div>
+          </div>
+          <div class="rel-diagram" style="margin-top:12px;">
+            <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">DOCUMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">TAGGED_WITH</div><div class="rel-cardinality">(0,N)↔(0,N)</div><div class="rel-desc">Doc gắn nhiều Tag. Tag là danh sách phẳng không phân cấp.</div></div></div>
+            <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.68rem;">TAG</span>
+          </div>
+        </div>
+
+        <!-- ACCESS_RULE -->
         <div class="col-content">
           <div class="group-header">
             <div class="group-icon" style="background:rgba(255,230,204,0.15);">🔐</div>
             <div><div class="group-name">ACCESS_RULE</div><div class="group-desc">poliwise_metadata · 4 thuộc tính</div></div>
           </div>
-          <div class="entity-table entity-rel" style="margin-bottom:16px;">
-            <div class="entity-header">ACCESS_RULE</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">ruleId</span></div>
-              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">documentId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">targetType</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">permission</span></div>
+          <div class="entity-table-wrap entity-rel">
+            <div class="entity-table-header">ACCESS_RULE</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
+              <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">ruleId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của quy tắc truy cập</div></div>
+              <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">documentId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến tài liệu mà quy tắc này áp dụng</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">targetType</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Loại đối tượng: ROLE (vai trò), DEPARTMENT (phòng ban), USER (cá nhân)</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">permission</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Quyền được cấp: VIEW (cho phép xem), DENY (từ chối truy cập)</div></div>
             </div>
           </div>
-
-          <div class="rel-diagram" style="margin-bottom:8px;">
-            <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.7rem;">DOCUMENT</span>
-            <div class="rel-center"><div class="rel-card"><div class="rel-name">GOVERNS</div><div class="rel-cardinality">(1,1) → (0,N)</div></div></div>
-            <span class="rel-side" style="background:var(--col-rel);color:#5a3000;font-size:0.7rem;">ACCESS_RULE</span>
+          <div class="rel-diagram" style="margin-top:12px;">
+            <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">DOCUMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">GOVERNS</div><div class="rel-cardinality">(1,1)→(0,N)</div><div class="rel-desc">Doc có quyền mặc định + nhiều Access_Rule bổ sung.</div></div></div>
+            <span class="rel-side" style="background:var(--col-rel);color:#5a3000;font-size:0.68rem;">ACCESS_RULE</span>
           </div>
-
-          <div style="margin-top:20px;">
-            <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:10px;">Các quan hệ còn lại của DOCUMENT</div>
-            <div class="rel-diagram" style="margin-bottom:8px;">
-              <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">DOCUMENT</span>
-              <div class="rel-center"><div class="rel-card"><div class="rel-name">TAGGED_WITH</div><div class="rel-cardinality">(0,N) ↔ (0,N)</div></div></div>
-              <span class="rel-side" style="background:var(--col-cat);color:#1e4a1e;font-size:0.7rem;">TAG</span>
-            </div>
-            <div class="rel-diagram" style="margin-bottom:8px;">
-              <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.7rem;">DOCUMENT</span>
-              <div class="rel-center"><div class="rel-card"><div class="rel-name">BELONGS_TO_DEPT</div><div class="rel-cardinality">(0,N) ↔ (0,1)</div></div></div>
-              <span class="rel-side" style="background:var(--col-dept);color:#1a3a6b;font-size:0.7rem;">DEPARTMENT</span>
-            </div>
-          </div>
-
-          <div style="margin-top:12px;">
-            <div style="font-size:0.78rem;color:var(--text-muted);">targetType: <span class="tag">ROLE</span> <span class="tag">DEPARTMENT</span> <span class="tag">USER</span></div>
-            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">permission: <span class="tag">VIEW</span> <span class="tag">DENY</span></div>
+          <div class="rel-diagram" style="margin-top:8px;">
+            <span class="rel-side" style="background:var(--col-doc);color:#5a4000;font-size:0.68rem;">DOCUMENT</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">BELONGS_TO_DEPT</div><div class="rel-cardinality">(0,N)→(0,1)</div><div class="rel-desc">Doc thuộc Dept sở hữu. Khác với USER.BELONGS_TO.</div></div></div>
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;font-size:0.68rem;">DEPARTMENT</span>
           </div>
         </div>
       </div>
@@ -1105,16 +1081,14 @@
       </div>
 
       <div style="display:flex;flex-direction:column;gap:16px;">
-
-        <!-- Flow -->
-        <div class="rel-diagram" style="justify-content:center;gap:12px;">
-          <span class="rel-side rel-entity-a" style="font-size:0.72rem;">USER</span>
-          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">OWNS</div><div class="rel-cardinality">(0,N)→(1,1)</div></div></div>
-          <span class="rel-side" style="background:var(--col-conv);color:#4a1a6b;font-size:0.72rem;">CONVERSATION</span>
-          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">CONTAINS</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
-          <span class="rel-side" style="background:var(--col-conv);color:#4a1a6b;font-size:0.72rem;">MESSAGE</span>
-          <div class="rel-center" style="max-width:90px;"><div class="rel-card" style="max-width:90px;"><div class="rel-name" style="font-size:0.65rem;">HAS</div><div class="rel-cardinality">(0,1)→(0,N)</div></div></div>
-          <span class="rel-side" style="background:var(--col-fb);color:#6b1a1a;font-size:0.72rem;">FEEDBACK</span>
+        <div class="rel-diagram" style="justify-content:center;gap:8px;">
+          <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;font-size:0.65rem;">USER</span>
+          <div class="rel-center" style="max-width:80px;"><div class="rel-card" style="max-width:80px;"><div class="rel-name" style="font-size:0.62rem;">OWNS</div><div class="rel-cardinality">(0,N)→(1,1)</div></div></div>
+          <span class="rel-side" style="background:var(--col-conv);color:#4a1a6b;font-size:0.65rem;">CONVERSATION</span>
+          <div class="rel-center" style="max-width:80px;"><div class="rel-card" style="max-width:80px;"><div class="rel-name" style="font-size:0.62rem;">CONTAINS</div><div class="rel-cardinality">(1,1)→(1,N)</div></div></div>
+          <span class="rel-side" style="background:var(--col-conv);color:#4a1a6b;font-size:0.65rem;">MESSAGE</span>
+          <div class="rel-center" style="max-width:80px;"><div class="rel-card" style="max-width:80px;"><div class="rel-name" style="font-size:0.62rem;">HAS</div><div class="rel-cardinality">(0,1)→(0,N)</div></div></div>
+          <span class="rel-side" style="background:var(--col-fb);color:#6b1a1a;font-size:0.65rem;">FEEDBACK</span>
         </div>
 
         <div class="three-col">
@@ -1122,16 +1096,20 @@
           <div class="col-content">
             <div class="group-header">
               <div class="group-icon conv">💬</div>
-              <div><div class="group-name">CONVERSATION</div><div class="group-desc">poliwise_analytics · 5 thuộc tính</div></div>
+              <div><div class="group-name">CONVERSATION</div><div class="group-desc">poliwise_analytics · feedback-service (8085)</div></div>
             </div>
-            <div class="entity-table entity-conv">
-              <div class="entity-header">CONVERSATION</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">conversationId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">title</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">messageCount</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">lastMessageAt</span></div>
+            <div class="entity-table-wrap entity-conv">
+              <div class="entity-table-header">CONVERSATION — 5 thuộc tính</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">conversationId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của cuộc hội thoại</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">userId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến người dùng sở hữu cuộc hội thoại này</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">title</div><div class="spec-cell spec-type">VARCHAR(255)</div><div class="spec-cell spec-desc">Tiêu đề tự động hoặc do người dùng đặt cho cuộc hội thoại</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">messageCount</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Tổng số tin nhắn trong cuộc hội thoại</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">lastMessageAt</div><div class="spec-cell spec-type">TIMESTAMP</div><div class="spec-cell spec-desc">Thời điểm tin nhắn cuối cùng được gửi trong hội thoại</div></div>
               </div>
             </div>
           </div>
@@ -1142,20 +1120,21 @@
               <div class="group-icon conv">🗨️</div>
               <div><div class="group-name">MESSAGE</div><div class="group-desc">poliwise_analytics · 7 thuộc tính</div></div>
             </div>
-            <div class="entity-table entity-conv">
-              <div class="entity-header">MESSAGE</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">messageId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">conversationId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">role</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">content</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">sources (JSONB)</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">confidence</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">tokensTotal</span></div>
+            <div class="entity-table-wrap entity-conv">
+              <div class="entity-table-header">MESSAGE</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">messageId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của tin nhắn</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">conversationId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến cuộc hội thoại mà tin nhắn này thuộc về</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">role</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Vai trò người gửi: USER (câu hỏi), ASSISTANT (câu trả lời AI)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">content</div><div class="spec-cell spec-type">TEXT</div><div class="spec-cell spec-desc">Nội dung văn bản của tin nhắn (câu hỏi hoặc câu trả lời)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">sources</div><div class="spec-cell spec-type">JSONB</div><div class="spec-cell spec-desc">Danh sách tài liệu tham khảo mà AI sử dụng để trả lời</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">confidence</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Mức độ tự tin: HIGH, MEDIUM, LOW, UNKNOWN</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">tokensTotal</div><div class="spec-cell spec-type">INT</div><div class="spec-cell spec-desc">Tổng số tokens đã sử dụng cho tin nhắn này (tính chi phí)</div></div>
               </div>
-            </div>
-            <div class="tag-list" style="margin-top:8px;">
-              <span class="tag">HIGH</span><span class="tag">MEDIUM</span><span class="tag">LOW</span><span class="tag">UNKNOWN</span>
             </div>
           </div>
 
@@ -1165,14 +1144,18 @@
               <div class="group-icon fb">👍</div>
               <div><div class="group-name">FEEDBACK</div><div class="group-desc">poliwise_analytics · 5 thuộc tính</div></div>
             </div>
-            <div class="entity-table entity-fb" style="margin-bottom:16px;">
-              <div class="entity-header">FEEDBACK</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">feedbackId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">messageId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">type</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">comment (optional)</span></div>
+            <div class="entity-table-wrap entity-fb" style="margin-bottom:14px;">
+              <div class="entity-table-header">FEEDBACK</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">feedbackId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của phản hồi</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">userId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến người dùng đã đưa ra phản hồi</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">messageId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến tin nhắn mà phản hồi này gắn về</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">type</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Loại phản hồi: LIKE (hài lòng), DISLIKE (không hài lòng)</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">comment</div><div class="spec-cell spec-type">TEXT (nullable)</div><div class="spec-cell spec-desc">Bình luận tùy chọn kèm theo phản hồi (VD: giải thích tại sao không hài lòng)</div></div>
               </div>
             </div>
 
@@ -1180,14 +1163,19 @@
               <div class="group-icon" style="background:rgba(184,84,80,0.15);">❓</div>
               <div><div class="group-name">UNANSWERED_QUESTION</div><div class="group-desc">poliwise_analytics · 6 thuộc tính</div></div>
             </div>
-            <div class="entity-table entity-fb">
-              <div class="entity-header">UNANSWERED_QUESTION</div>
-              <div class="entity-body">
-                <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">uqId</span></div>
-                <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId · conversationId</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">question</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">resolved</span></div>
-                <div class="entity-row"><span class="attr-key"></span><span class="attr-name">priority</span></div>
+            <div class="entity-table-wrap entity-fb">
+              <div class="entity-table-header">UNANSWERED_QUESTION</div>
+              <div class="entity-table-spec">
+                <div class="spec-head">Khóa</div>
+                <div class="spec-head">Thuộc tính</div>
+                <div class="spec-head">Kiểu</div>
+                <div class="spec-head">Mô tả</div>
+                <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">uqId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của câu hỏi chưa được trả lời</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">userId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến người dùng đã hỏi câu này</div></div>
+                <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">conversationId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến cuộc hội thoại mà câu hỏi thuộc về</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">question</div><div class="spec-cell spec-type">TEXT</div><div class="spec-cell spec-desc">Nội dung câu hỏi gốc do người dùng nhập</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">resolved</div><div class="spec-cell spec-type">BOOLEAN</div><div class="spec-cell spec-desc">Cờ đánh dấu đã được giải quyết hay chưa</div></div>
+                <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">priority</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Mức ưu tiên: LOW, NORMAL, HIGH, CRITICAL</div></div>
               </div>
             </div>
           </div>
@@ -1208,31 +1196,35 @@
         <div class="col-content">
           <div class="group-header">
             <div class="group-icon analytics">📋</div>
-            <div><div class="group-name">AUDIT_LOG</div><div class="group-desc">poliwise_analytics · 7 thuộc tính</div></div>
+            <div><div class="group-name">AUDIT_LOG</div><div class="group-desc">poliwise_analytics · feedback-service (8085)</div></div>
           </div>
-          <div class="entity-table entity-audit" style="margin-bottom:16px;">
-            <div class="entity-header">AUDIT_LOG</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">auditId</span></div>
-              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">userId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">action</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">resourceType</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">resourceId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">oldValue (JSONB)</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">newValue (JSONB)</span></div>
+          <div class="entity-table-wrap entity-audit" style="margin-bottom:14px;">
+            <div class="entity-table-header">AUDIT_LOG — 7 thuộc tính</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
+              <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">auditId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của bản ghi kiểm toán</div></div>
+              <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">userId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến người dùng đã thực hiện hành động</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">action</div><div class="spec-cell spec-type">VARCHAR(50)</div><div class="spec-cell spec-desc">Tên hành động đã thực hiện (VD: "LOGIN", "DOCUMENT_UPLOAD")</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">resourceType</div><div class="spec-cell spec-type">VARCHAR(50)</div><div class="spec-cell spec-desc">Loại tài nguyên bị tác động (VD: "USER", "DOCUMENT", "CATEGORY")</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">resourceId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa của tài nguyên cụ thể bị tác động</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">oldValue</div><div class="spec-cell spec-type">JSONB (nullable)</div><div class="spec-cell spec-desc">Giá trị cũ trước khi thay đổi (null nếu là tạo mới)</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">newValue</div><div class="spec-cell spec-type">JSONB (nullable)</div><div class="spec-cell spec-desc">Giá trị mới sau khi thay đổi (null nếu là xóa)</div></div>
             </div>
           </div>
-
-          <div class="rel-diagram" style="margin-bottom:12px;">
-            <span class="rel-side rel-entity-a" style="font-size:0.7rem;">USER</span>
-            <div class="rel-center"><div class="rel-card"><div class="rel-name">PERFORMED_BY</div><div class="rel-cardinality">(1,N) → (1,1)</div></div></div>
-            <span class="rel-side" style="background:var(--col-audit);color:#333;font-size:0.7rem;">AUDIT_LOG</span>
+          <div class="rel-diagram">
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;font-size:0.68rem;">USER</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">PERFORMED_BY</div><div class="rel-cardinality">(1,N)→(1,1)</div><div class="rel-desc">Mọi thao tác (login, upload, xóa...) đều được ghi nhận.</div></div></div>
+            <span class="rel-side" style="background:var(--col-audit);color:#333;font-size:0.68rem;">AUDIT_LOG</span>
           </div>
-
-          <div style="font-size:0.8rem;color:var(--text-muted);">Ví dụ actions:</div>
-          <div class="tag-list">
-            <span class="tag">LOGIN</span><span class="tag">DOCUMENT_UPLOAD</span><span class="tag">USER_DEACTIVATE</span>
-            <span class="tag">CATEGORY_CREATE</span><span class="tag">FEEDBACK_SUBMIT</span>
+          <div style="margin-top:10px;">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:5px;">Ví dụ action:</div>
+            <div class="tag-list">
+              <span class="tag">LOGIN</span><span class="tag">DOCUMENT_UPLOAD</span><span class="tag">USER_DEACTIVATE</span>
+              <span class="tag">CATEGORY_CREATE</span><span class="tag">FEEDBACK_SUBMIT</span>
+            </div>
           </div>
         </div>
 
@@ -1242,48 +1234,32 @@
             <div class="group-icon analytics">📊</div>
             <div><div class="group-name">REPORT_EXPORT</div><div class="group-desc">poliwise_analytics · 6 thuộc tính</div></div>
           </div>
-          <div class="entity-table entity-audit" style="margin-bottom:16px;">
-            <div class="entity-header">REPORT_EXPORT</div>
-            <div class="entity-body">
-              <div class="entity-row"><span class="attr-key">PK</span><span class="attr-name">reportId</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">reportType</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">format</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">status</span></div>
-              <div class="entity-row"><span class="attr-key"></span><span class="attr-name">fileKey (MinIO/S3)</span></div>
-              <div class="entity-row"><span class="attr-key">FK</span><span class="attr-name">requestedBy</span></div>
+          <div class="entity-table-wrap entity-audit" style="margin-bottom:14px;">
+            <div class="entity-table-header">REPORT_EXPORT</div>
+            <div class="entity-table-spec">
+              <div class="spec-head">Khóa</div>
+              <div class="spec-head">Thuộc tính</div>
+              <div class="spec-head">Kiểu</div>
+              <div class="spec-head">Mô tả</div>
+              <div class="spec-row"><div class="spec-cell spec-pk">PK</div><div class="spec-cell spec-norm">reportId</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa định danh duy nhất của báo cáo</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">reportType</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Loại báo cáo: USAGE_STATS, FEEDBACK_ANALYTICS, UNANSWERED_Q</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">format</div><div class="spec-cell spec-type">VARCHAR(10)</div><div class="spec-cell spec-desc">Định dạng file xuất ra: CSV, PDF, XLSX, JSON</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">status</div><div class="spec-cell spec-type">ENUM</div><div class="spec-cell spec-desc">Trạng thái xử lý: PENDING, PROCESSING, COMPLETED, FAILED</div></div>
+              <div class="spec-row"><div class="spec-cell spec-norm"></div><div class="spec-cell spec-norm">fileKey</div><div class="spec-cell spec-type">VARCHAR(500)</div><div class="spec-cell spec-desc">Đường dẫn file đã xuất trên hệ thống lưu trữ (MinIO/S3)</div></div>
+              <div class="spec-row"><div class="spec-cell spec-fk">FK</div><div class="spec-cell spec-norm">requestedBy</div><div class="spec-cell spec-type">UUID</div><div class="spec-cell spec-desc">Khóa tham chiếu đến người dùng đã yêu cầu xuất báo cáo này</div></div>
             </div>
           </div>
-
-          <div class="rel-diagram" style="margin-bottom:16px;">
-            <span class="rel-side rel-entity-a" style="font-size:0.7rem;">USER</span>
-            <div class="rel-center"><div class="rel-card"><div class="rel-name">REQUESTS</div><div class="rel-cardinality">(0,N) → (1,1)</div></div></div>
-            <span class="rel-side" style="background:var(--col-audit);color:#333;font-size:0.7rem;">REPORT_EXPORT</span>
+          <div class="rel-diagram">
+            <span class="rel-side" style="background:var(--col-user);color:#1a3a6b;font-size:0.68rem;">USER</span>
+            <div class="rel-center"><div class="rel-card"><div class="rel-name">REQUESTS</div><div class="rel-cardinality">(0,N)→(1,1)</div><div class="rel-desc">User yêu cầu xuất báo cáo. Xử lý async, file lưu MinIO/S3.</div></div></div>
+            <span class="rel-side" style="background:var(--col-audit);color:#333;font-size:0.68rem;">REPORT_EXPORT</span>
           </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div>
-              <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">reportType:</div>
-              <span class="tag">USAGE_STATS</span>
-              <span class="tag">FEEDBACK_ANALYTICS</span>
-              <span class="tag">UNANSWERED_Q</span>
-            </div>
-            <div>
-              <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">status / format:</div>
-              <span class="tag">PENDING</span>
-              <span class="tag">PROCESSING</span>
-              <span class="tag">COMPLETED</span>
-              <span class="tag">CSV</span>
-              <span class="tag">PDF</span>
-              <span class="tag">XLSX</span>
-            </div>
-          </div>
-
-          <p class="body-text" style="margin-top:12px;font-size:0.8rem;">Xử lý bất đồng bộ (async) — user gửi yêu cầu và nhận thông báo khi file sẵn sàng tải.</p>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:10px;line-height:1.5;">Xử lý bất đồng bộ (async) — user gửi yêu cầu và nhận thông báo khi file sẵn sàng tải về.</p>
         </div>
       </div>
     </section>
 
-    <!-- ========== SLIDE 9: RELATIONSHIPS MATRIX ========== -->
+    <!-- ========== SLIDE 9: RELATIONSHIPS ========== -->
     <section class="slide" id="slide-9">
       <div class="slide-header">
         <div class="slide-number">07 — Tổng hợp quan hệ</div>
@@ -1295,143 +1271,31 @@
         <table class="rel-table">
           <thead>
             <tr>
-              <th style="width:32%">Quan hệ</th>
-              <th style="width:14%">Thực thể A</th>
-              <th style="width:8%">Card A</th>
-              <th style="width:14%">Thực thể B</th>
-              <th style="width:8%">Card B</th>
-              <th style="width:24%">Mô tả</th>
+              <th style="width:22%">Quan hệ</th>
+              <th style="width:12%">Thực thể A</th>
+              <th style="width:7%">Card A</th>
+              <th style="width:12%">Thực thể B</th>
+              <th style="width:7%">Card B</th>
+              <th style="width:40%">Mô tả</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td><strong style="color:var(--col-user-stroke)">BELONGS_TO</strong></td>
-              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
-              <td><span class="badge badge-1n">(1,N)</span></td>
-              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td>User bắt buộc thuộc 1 Dept. Mỗi Dept chứa nhiều User.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-dept-stroke)">HAS_CHILD</strong> <small style="color:var(--text-muted)">(Dept)</small></td>
-              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
-              <td><span class="badge badge-01">(0,1)</span></td>
-              <td>Cây phân cấp tổ chức. Dept con có thể có Dept cha.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-user-stroke)">OWNS</strong></td>
-              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">CONVERSATION</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td>User sở hữu nhiều Conversation. Mỗi Conversation chỉ 1 User.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-conv-stroke)">CONTAINS</strong></td>
-              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">CONVERSATION</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td>
-              <td><span class="badge badge-1n">(1,N)</span></td>
-              <td>Conversation bắt buộc chứa ít nhất 1 Message.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-conv-stroke)">HAS</strong></td>
-              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td>
-              <td><span class="badge badge-01">(0,1)</span></td>
-              <td><span class="badge" style="background:var(--col-fb);color:#6b1a1a">FEEDBACK</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td>Message có thể có 0-N Feedback (like/dislike).</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-conv-stroke)">GENERATES</strong></td>
-              <td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-fb);color:#6b1a1a">UNANSWERED_QUESTION</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td>Message sinh ra câu hỏi chưa trả lời khi AI không tìm được nguồn.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-user-stroke)">UPLOADS</strong></td>
-              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-01">(0,1)</span></td>
-              <td>User upload nhiều Document. Mỗi Document có 1 người upload (ADMIN).</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-doc-stroke)">HAS_VERSION</strong></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOC_VERSION</span></td>
-              <td><span class="badge badge-1n">(1,N)</span></td>
-              <td>Document bắt buộc có ít nhất 1 phiên bản. Phiên bản bất biến.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-doc-stroke)">IS_SPLIT_INTO</strong></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">CHUNK</span></td>
-              <td><span class="badge badge-1n">(1,N)</span></td>
-              <td>Document chia thành nhiều Chunk phục vụ tìm kiếm ngữ nghĩa (RAG).</td>
-            </tr>
-            <tr>
-              <td><strong style="color:#4e8c4e">CLASSIFIED_INTO</strong></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td>Document phân loại đa giá trị vào nhiều Category.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:#4e8c4e">HAS_CHILD</strong> <small style="color:var(--text-muted)">(Cat)</small></td>
-              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td>
-              <td><span class="badge badge-01">(0,1)</span></td>
-              <td>Category có thể chứa Category con. Cấu trúc cây phân loại.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:#4e8c4e">TAGGED_WITH</strong></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">TAG</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td>Document gắn nhiều Tag. Tag là danh sách phẳng không phân cấp.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-rel-stroke)">GOVERNS</strong></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td><span class="badge" style="background:var(--col-rel);color:#5a3000">ACCESS_RULE</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td>Document có quyền truy cập mặc định + nhiều Access_Rule bổ sung.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-dept-stroke)">BELONGS_TO_DEPT</strong></td>
-              <td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">DEPARTMENT</span></td>
-              <td><span class="badge badge-01">(0,1)</span></td>
-              <td>Document thuộc Dept sở hữu. Phân biệt với USER.BELONGS_TO.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-audit-stroke)">PERFORMED_BY</strong></td>
-              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
-              <td><span class="badge badge-1n">(1,N)</span></td>
-              <td><span class="badge" style="background:var(--col-audit);color:#333">AUDIT_LOG</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td>Mọi thao tác quan trọng (login, upload, xóa...) đều được ghi nhận.</td>
-            </tr>
-            <tr>
-              <td><strong style="color:var(--col-audit-stroke)">REQUESTS</strong></td>
-              <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td>
-              <td><span class="badge badge-0n">(0,N)</span></td>
-              <td><span class="badge" style="background:var(--col-audit);color:#333">REPORT_EXPORT</span></td>
-              <td><span class="badge badge-11">(1,1)</span></td>
-              <td>User yêu cầu xuất báo cáo. Xử lý async, file lưu trên MinIO/S3.</td>
-            </tr>
+            <tr><td><strong style="color:var(--col-user-stroke)">BELONGS_TO</strong></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td><td><span class="badge badge-1n">(1,N)</span></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">DEPARTMENT</span></td><td><span class="badge badge-11">(1,1)</span></td><td>User bắt buộc thuộc 1 Dept. Mỗi Dept chứa nhiều User.</td></tr>
+            <tr><td><strong style="color:var(--col-user-stroke)">HAS_CHILD</strong> <small style="color:var(--text-muted)">(Dept)</small></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">DEPARTMENT</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">DEPARTMENT</span></td><td><span class="badge badge-01">(0,1)</span></td><td>Cây phân cấp tổ chức. Dept con có thể có Dept cha hoặc không (root).</td></tr>
+            <tr><td><strong style="color:var(--col-user-stroke)">OWNS</strong></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">CONVERSATION</span></td><td><span class="badge badge-11">(1,1)</span></td><td>User sở hữu nhiều Conversation. Mỗi Conversation chỉ thuộc 1 User.</td></tr>
+            <tr><td><strong style="color:var(--col-conv-stroke)">CONTAINS</strong></td><td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">CONVERSATION</span></td><td><span class="badge badge-11">(1,1)</span></td><td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td><td><span class="badge badge-1n">(1,N)</span></td><td>Conversation bắt buộc chứa ít nhất 1 Message.</td></tr>
+            <tr><td><strong style="color:var(--col-conv-stroke)">HAS</strong></td><td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td><td><span class="badge badge-01">(0,1)</span></td><td><span class="badge" style="background:var(--col-fb);color:#6b1a1a">FEEDBACK</span></td><td><span class="badge badge-0n">(0,N)</span></td><td>Message có thể có 0-N Feedback (like/dislike).</td></tr>
+            <tr><td><strong style="color:var(--col-conv-stroke)">GENERATES</strong></td><td><span class="badge" style="background:var(--col-conv);color:#4a1a6b">MESSAGE</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-fb);color:#6b1a1a">UNANSWERED_QUESTION</span></td><td><span class="badge badge-11">(1,1)</span></td><td>Message sinh ra câu hỏi chưa trả lời khi AI không tìm được nguồn.</td></tr>
+            <tr><td><strong style="color:var(--col-user-stroke)">UPLOADS</strong></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-01">(0,1)</span></td><td>User upload nhiều Document. Mỗi Document có 1 người upload (ADMIN).</td></tr>
+            <tr><td><strong style="color:var(--col-doc-stroke)">HAS_VERSION</strong></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-11">(1,1)</span></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOC_VERSION</span></td><td><span class="badge badge-1n">(1,N)</span></td><td>Document bắt buộc có ít nhất 1 phiên bản. Phiên bản bất biến.</td></tr>
+            <tr><td><strong style="color:var(--col-doc-stroke)">IS_SPLIT_INTO</strong></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-11">(1,1)</span></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">CHUNK</span></td><td><span class="badge badge-1n">(1,N)</span></td><td>Document chia thành nhiều Chunk phục vụ tìm kiếm ngữ nghĩa (RAG).</td></tr>
+            <tr><td><strong style="color:#4e8c4e">CLASSIFIED_INTO</strong></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td><td><span class="badge badge-0n">(0,N)</span></td><td>Document phân loại đa giá trị vào nhiều Category.</td></tr>
+            <tr><td><strong style="color:#4e8c4e">HAS_CHILD</strong> <small style="color:var(--text-muted)">(Cat)</small></td><td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">CATEGORY</span></td><td><span class="badge badge-01">(0,1)</span></td><td>Category có thể chứa Category con. Cấu trúc cây phân loại.</td></tr>
+            <tr><td><strong style="color:#4e8c4e">TAGGED_WITH</strong></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">TAG</span></td><td><span class="badge badge-0n">(0,N)</span></td><td>Document gắn nhiều Tag. Tag là danh sách phẳng không phân cấp.</td></tr>
+            <tr><td><strong style="color:var(--col-rel-stroke)">GOVERNS</strong></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-11">(1,1)</span></td><td><span class="badge" style="background:var(--col-rel);color:#5a3000">ACCESS_RULE</span></td><td><span class="badge badge-0n">(0,N)</span></td><td>Document có quyền truy cập mặc định + nhiều Access_Rule bổ sung.</td></tr>
+            <tr><td><strong style="color:var(--col-user-stroke)">BELONGS_TO_DEPT</strong></td><td><span class="badge" style="background:var(--col-doc);color:#5a4000">DOCUMENT</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">DEPARTMENT</span></td><td><span class="badge badge-01">(0,1)</span></td><td>Document thuộc Dept sở hữu. Phân biệt với USER.BELONGS_TO.</td></tr>
+            <tr><td><strong style="color:var(--col-audit-stroke)">PERFORMED_BY</strong></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td><td><span class="badge badge-1n">(1,N)</span></td><td><span class="badge" style="background:var(--col-audit);color:#333">AUDIT_LOG</span></td><td><span class="badge badge-11">(1,1)</span></td><td>Mọi thao tác quan trọng (login, upload, xóa...) đều được ghi nhận.</td></tr>
+            <tr><td><strong style="color:var(--col-audit-stroke)">REQUESTS</strong></td><td><span class="badge" style="background:var(--col-user);color:#1a3a6b">USER</span></td><td><span class="badge badge-0n">(0,N)</span></td><td><span class="badge" style="background:var(--col-audit);color:#333">REPORT_EXPORT</span></td><td><span class="badge badge-11">(1,1)</span></td><td>User yêu cầu xuất báo cáo. Xử lý async, file lưu trên MinIO/S3.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1445,38 +1309,33 @@
         <div class="slide-divider"></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1;">
-        <!-- Left: Key points -->
-        <div style="display:flex;flex-direction:column;gap:16px;">
-          <div style="font-size:0.9rem;font-weight:700;color:var(--accent);margin-bottom:4px;">Điểm chính</div>
-
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
-            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">🏛️ 5 Nhóm chức năng rõ ràng</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">Core · Document · Classification · Conversation · Analytics — Mỗi nhóm thuộc 1 microservice riêng biệt, tách biệt schema DB.</div>
+      <div class="summary-grid">
+        <!-- Left -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="summary-section-title">Điểm chính kiến trúc</div>
+          <div class="summary-card">
+            <div class="summary-card-title">🏛️ 5 Nhóm chức năng — 5 Microservices</div>
+            <div class="summary-card-body">Core · Document · Classification · Conversation · Analytics — Mỗi nhóm thuộc 1 microservice riêng biệt, tách biệt schema DB.</div>
           </div>
-
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
-            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">📦 RAG Pipeline hoàn chỉnh</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">DOCUMENT → DOCUMENT_VERSION (bất biến) → CHUNK (vector) → Tìm kiếm ngữ nghĩa → AI trả lời → MESSAGE</div>
+          <div class="summary-card">
+            <div class="summary-card-title">📦 RAG Pipeline hoàn chỉnh</div>
+            <div class="summary-card-body">DOCUMENT → DOCUMENT_VERSION (bất biến) → CHUNK (vector embedding) → Tìm kiếm ngữ nghĩa → AI trả lời → MESSAGE</div>
           </div>
-
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
-            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">🔐 Phân quyền nhiều lớp</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">accessLevel (public/dept/restricted) + ACCESS_RULE (role/dept/user) + CHUNK.allowedRoles + CHUNK.allowedDepartments</div>
+          <div class="summary-card">
+            <div class="summary-card-title">🔐 Phân quyền nhiều lớp</div>
+            <div class="summary-card-body">accessLevel (public/dept/restricted) + ACCESS_RULE (role/dept/user) + CHUNK.allowedRoles + CHUNK.allowedDepartments</div>
           </div>
-
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
-            <div style="font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:4px;">🐰 RabbitMQ — Event-Driven</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;">User.status.changed · Document.uploaded · Unanswered.question — Cross-service communication.</div>
+          <div class="summary-card">
+            <div class="summary-card-title">🐰 RabbitMQ — Event-Driven</div>
+            <div class="summary-card-body">User.status.changed · Document.uploaded · Unanswered.question — Cross-service communication giữa 5 microservices.</div>
           </div>
         </div>
 
-        <!-- Right: DB Schema map -->
-        <div style="display:flex;flex-direction:column;gap:16px;">
-          <div style="font-size:0.9rem;font-weight:700;color:var(--accent);margin-bottom:4px;">Schema &amp; Service Ownership</div>
-
+        <!-- Right: Schema ownership -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="summary-section-title">Schema &amp; Service Ownership</div>
           <div class="rel-table-wrap" style="flex:1;">
-            <table class="rel-table">
+            <table class="schema-table">
               <thead>
                 <tr>
                   <th>Schema</th>
@@ -1488,43 +1347,40 @@
               <tbody>
                 <tr>
                   <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">poliwise_auth</span></td>
-                  <td>auth-service</td>
+                  <td style="font-size:0.75rem;">auth-service</td>
                   <td><span class="badge">8081</span></td>
-                  <td>USER</td>
+                  <td style="font-size:0.72rem;">USER</td>
                 </tr>
                 <tr>
-                  <td><span class="badge" style="background:var(--col-dept);color:#1a3a6b">poliwise_user</span></td>
-                  <td>user-service</td>
+                  <td><span class="badge" style="background:var(--col-user);color:#1a3a6b">poliwise_user</span></td>
+                  <td style="font-size:0.75rem;">user-service</td>
                   <td><span class="badge">8082</span></td>
-                  <td>DEPARTMENT</td>
+                  <td style="font-size:0.72rem;">DEPARTMENT</td>
                 </tr>
                 <tr>
                   <td><span class="badge" style="background:var(--col-doc);color:#5a4000">poliwise_knowledge</span></td>
-                  <td>knowledge-service</td>
+                  <td style="font-size:0.75rem;">knowledge-service</td>
                   <td><span class="badge">8083</span></td>
-                  <td>DOC, VERSION, CHUNK</td>
+                  <td style="font-size:0.72rem;">DOCUMENT, VERSION, CHUNK</td>
                 </tr>
                 <tr>
                   <td><span class="badge" style="background:var(--col-cat);color:#1e4a1e">poliwise_metadata</span></td>
-                  <td>metadata-service</td>
+                  <td style="font-size:0.75rem;">metadata-service</td>
                   <td><span class="badge">8084</span></td>
-                  <td>CATEGORY, TAG, ACCESS_RULE</td>
+                  <td style="font-size:0.72rem;">CATEGORY, TAG, ACCESS_RULE</td>
                 </tr>
                 <tr>
                   <td><span class="badge" style="background:var(--col-audit);color:#333">poliwise_analytics</span></td>
-                  <td>feedback-service</td>
+                  <td style="font-size:0.75rem;">feedback-service</td>
                   <td><span class="badge">8085</span></td>
-                  <td>CONV, MSG, FEEDBACK, UQ, AUDIT, REPORT</td>
+                  <td style="font-size:0.72rem;">CONV, MSG, FEEDBACK, UQ, AUDIT, REPORT</td>
                 </tr>
               </tbody>
             </table>
           </div>
-
-          <div style="background:radial-gradient(ellipse at 50% 50%,rgba(108,142,191,0.1) 0%,transparent 70%);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;">
-            <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">
-              API Gateway (port <strong style="color:var(--accent)">3001</strong>) — JWT · RBAC · Rate Limit · Proxy<br/>
-              Frontend (port <strong style="color:var(--accent)">3000</strong>) — Next.js 16 App Router
-            </div>
+          <div class="summary-card">
+            <div class="summary-card-title">🌐 API Gateway &amp; Frontend</div>
+            <div class="summary-card-body">API Gateway (port <strong>3001</strong>) — JWT · RBAC · Rate Limit · Circuit Breaker · Proxy<br/>Frontend (port <strong>3000</strong>) — Next.js 16 App Router</div>
           </div>
         </div>
       </div>
@@ -1535,23 +1391,11 @@
       <div class="cover-badge">Poliwise — ERD Presentation</div>
       <h2 class="end-title">Cảm ơn bạn đã theo dõi</h2>
       <p class="end-sub">Entity Relationship Diagram — Poliwise System Architecture</p>
-      <div style="margin-top:32px;display:flex;gap:24px;justify-content:center;">
-        <div style="text-align:center;">
-          <div style="font-size:1.5rem;">🏛️</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">16 Entities</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:1.5rem;">🔗</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">16 Relations</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:1.5rem;">📦</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">5 Services</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:1.5rem;">🐰</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Event-Driven</div>
-        </div>
+      <div style="margin-top:28px;display:flex;gap:20px;justify-content:center;">
+        <div style="text-align:center;"><div style="font-size:1.4rem;">🏛️</div><div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">16 Entities</div></div>
+        <div style="text-align:center;"><div style="font-size:1.4rem;">🔗</div><div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">16 Relations</div></div>
+        <div style="text-align:center;"><div style="font-size:1.4rem;">📦</div><div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">5 Services</div></div>
+        <div style="text-align:center;"><div style="font-size:1.4rem;">🐰</div><div style="font-size:0.68rem;color:var(--text-muted);margin-top:4px;">Event-Driven</div></div>
       </div>
     </section>
 
@@ -1560,17 +1404,17 @@
   <!-- ==========================================
        JAVASCRIPT
   ========================================== -->
+  <script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
   <script>
     (() => {
       const slides    = document.querySelectorAll('.slide');
-      const dots      = document.getElementById('nav-dots');
-      const progress  = document.getElementById('progress-bar');
-      const counter   = document.getElementById('slide-counter');
+      const dots     = document.getElementById('nav-dots');
+      const progress = document.getElementById('progress-bar');
+      const counter  = document.getElementById('slide-counter');
       const totalSpan = document.getElementById('total-slides');
-      const total     = slides.length;
+      const total    = slides.length;
       totalSpan.textContent = total;
 
-      // Build nav dots
       slides.forEach((_, i) => {
         const dot = document.createElement('button');
         dot.className = 'nav-dot';
@@ -1581,21 +1425,19 @@
 
       const dotList = document.querySelectorAll('.nav-dot');
 
-      // Intersection Observer
       const obs = new IntersectionObserver((entries) => {
         entries.forEach(e => {
           if (e.isIntersecting) {
             const idx = Array.from(slides).indexOf(e.target);
             dotList.forEach((d, i) => d.classList.toggle('active', i === idx));
-            counter.innerHTML = `${idx + 1} / <span id="total-slides">${total}</span>`;
+            counter.innerHTML = `${idx + 1} / <span>${total}</span>`;
             progress.style.width = `${((idx + 1) / total) * 100}%`;
           }
         });
-      }, { threshold: 0.45 });
+      }, { threshold: 0.4 });
 
       slides.forEach(s => obs.observe(s));
 
-      // Keyboard navigation
       document.addEventListener('keydown', e => {
         const active = Array.from(dotList).findIndex(d => d.classList.contains('active'));
         if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === '.') {
@@ -1609,7 +1451,6 @@
         }
       });
 
-      // Smooth scroll anchor links
       document.querySelectorAll('a[href^="#"]').forEach(a => {
         a.addEventListener('click', e => {
           e.preventDefault();
