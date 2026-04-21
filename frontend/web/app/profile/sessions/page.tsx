@@ -39,7 +39,7 @@ function getDeviceIcon(userAgent?: string): React.ReactNode {
   return <Monitor size={18} />;
 }
 
-function parseUserAgent(userAgent?: string): { browser: string; os: string; device: string } {
+function parseUserAgent(userAgent?: string): { browser: string; os: string; device: React.ReactNode } {
   const ua = userAgent || 'Unknown';
   let browser = 'Trình duyệt không xác định';
   let os = 'Hệ điều hành không xác định';
@@ -247,7 +247,7 @@ export default function SessionsPage() {
             <Table
               columns={columns}
               data={sessions}
-              keyExtractor={(s) => s.sessionId}
+              keyExtractor={(s) => s.sessionId || s.id}
               className={styles.table}
             />
           )}

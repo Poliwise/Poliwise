@@ -19,6 +19,7 @@ import {
   ConfirmDialog,
   PageHeader,
 } from '@/components/ui';
+import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import styles from './tags.module.css';
 
@@ -149,68 +150,70 @@ export default function TagsPage() {
   ];
 
   return (
-    <div className={styles.container}>
-      <PageHeader
-        title="Nhãn"
-        description="Quản lý nhãn phân loại tài liệu."
-        actions={
-          <Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>
-            Thêm nhãn
-          </Button>
-        }
-      />
-
-      {actionError && <div className={styles.error}>{actionError}</div>}
-
-      {loading ? (
-        <div className={styles.loading}>
-          <Loader2 size={24} className={styles.spinner} />
-        </div>
-      ) : tags.length === 0 ? (
-        <EmptyState
-          icon={<TagIcon size={32} />}
-          title="Chưa có nhãn nào"
-          description="Tạo nhãn đầu tiên để gắn vào tài liệu."
-          action={<Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo nhãn</Button>}
-        />
-      ) : (
-        <Table columns={columns} data={tags} keyExtractor={(t) => t.id} />
-      )}
-
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Chỉnh sửa nhãn' : 'Tạo nhãn mới'}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
-            <Button variant="primary" loading={saving} onClick={handleSave} disabled={!tagName.trim()}>
-              {editing ? 'Lưu' : 'Tạo'}
+    <MainLayout>
+      <div className={styles.container}>
+        <PageHeader
+          title="Nhãn"
+          description="Quản lý nhãn phân loại tài liệu."
+          actions={
+            <Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>
+              Thêm nhãn
             </Button>
-          </>
-        }
-      >
-        <Input
-          label="Tên nhãn"
-          value={tagName}
-          onChange={(e) => setTagName(e.target.value)}
-          placeholder="VD: HR, Finance, IT..."
-          required
+          }
         />
-      </Modal>
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Xóa nhãn?"
-        message={`Xóa nhãn "${deleteTarget?.name}"? Nhãn sẽ được gỡ khỏi tất cả tài liệu.`}
-        confirmLabel="Xóa"
-        cancelLabel="Hủy"
-        variant="danger"
-      />
-    </div>
+        {actionError && <div className={styles.error}>{actionError}</div>}
+
+        {loading ? (
+          <div className={styles.loading}>
+            <Loader2 size={24} className={styles.spinner} />
+          </div>
+        ) : tags.length === 0 ? (
+          <EmptyState
+            icon={<TagIcon size={32} />}
+            title="Chưa có nhãn nào"
+            description="Tạo nhãn đầu tiên để gắn vào tài liệu."
+            action={<Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo nhãn</Button>}
+          />
+        ) : (
+          <Table columns={columns} data={tags} keyExtractor={(t) => t.id} />
+        )}
+
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? 'Chỉnh sửa nhãn' : 'Tạo nhãn mới'}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
+              <Button variant="primary" loading={saving} onClick={handleSave} disabled={!tagName.trim()}>
+                {editing ? 'Lưu' : 'Tạo'}
+              </Button>
+            </>
+          }
+        >
+          <Input
+            label="Tên nhãn"
+            value={tagName}
+            onChange={(e) => setTagName(e.target.value)}
+            placeholder="VD: HR, Finance, IT..."
+            required
+          />
+        </Modal>
+
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+          loading={deleting}
+          title="Xóa nhãn?"
+          message={`Xóa nhãn "${deleteTarget?.name}"? Nhãn sẽ được gỡ khỏi tất cả tài liệu.`}
+          confirmLabel="Xóa"
+          cancelLabel="Hủy"
+          variant="danger"
+        />
+      </div>
+    </MainLayout>
   );
 }

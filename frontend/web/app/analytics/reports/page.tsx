@@ -88,8 +88,11 @@ export default function ReportsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.reports.getMyReports();
-      setReports(data.data as unknown as Report[]);
+      const response = await api.reports.list();
+      setReports((response.data as any[]).map(r => ({
+        ...r,
+        name: r.title, // Map title from API to name used in UI
+      })) as Report[]);
     } catch {
       setError('Không thể tải danh sách báo cáo.');
     } finally {
@@ -105,10 +108,10 @@ export default function ReportsPage() {
     setCreating(true);
     setError(null);
     try {
-      await api.reports.createReport({
-        name: reportName.trim() || REPORT_TYPES[selectedType],
+      await api.reports.create({
         type: selectedType,
         format: selectedFormat,
+        // Backend API doesn't seem to take 'name' in create, but we'll send it if needed
       });
       setModalOpen(false);
       setReportName('');
@@ -122,7 +125,7 @@ export default function ReportsPage() {
 
   const handleDownload = async (report: Report) => {
     try {
-      const blob = await api.reports.downloadReport(report.id);
+      const blob = await api.reports.download(report.id);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

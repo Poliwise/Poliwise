@@ -104,8 +104,7 @@ export default function AnalyticsPage() {
     return stats[key] as number;
   };
 
-  const likeCount = overview?.totalFeedback?.like ?? 0;
-  const dislikeCount = overview?.totalFeedback?.dislike ?? 0;
+  const { likes: likeCount = 0, dislikes: dislikeCount = 0 } = overview?.satisfaction || {};
   const totalFeedback = likeCount + dislikeCount;
   const satisfactionRate = totalFeedback > 0 ? Math.round((likeCount / totalFeedback) * 100) : 0;
 
@@ -307,7 +306,7 @@ export default function AnalyticsPage() {
                         borderRadius: 'var(--radius)',
                         fontSize: '0.8125rem',
                       }}
-                      formatter={(value: number) => [`${value} phản hồi`, '']}
+                      formatter={(value: any) => [`${value} phản hồi`, '']}
                     />
                     <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
                   </PieChart>

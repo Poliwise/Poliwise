@@ -96,9 +96,13 @@ export interface ValidationError {
 // Session Types
 export interface Session {
   id: string;
-  deviceInfo: string;
+  sessionId?: string; // Some parts of the UI use sessionId
+  userAgent?: string; // Used for device info parsing
+  deviceInfo?: string;
   ipAddress: string;
   createdAt: string;
-  lastActiveAt: string;
+  lastActiveAt?: string;
+  lastAccessedAt?: string; // Used in sessions page
   isCurrentSession?: boolean;
+  refreshToken?: string; // Used to identify current session
 }

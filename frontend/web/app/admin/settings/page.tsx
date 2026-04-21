@@ -18,6 +18,7 @@ import {
   Select,
   Tabs,
 } from '@/components/ui';
+import { MainLayout } from '@/components/layout';
 import styles from './settings.module.css';
 
 const LANGUAGE_OPTIONS = [
@@ -172,33 +173,35 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div>
-          <h1>Cài đặt</h1>
-          <p>Quản lý cấu hình và tùy chọn hệ thống</p>
+    <MainLayout>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <div>
+            <h1>Cài đặt</h1>
+            <p>Quản lý cấu hình và tùy chọn hệ thống</p>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Save size={16} />}
+            loading={saving}
+            onClick={handleSave}
+          >
+            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </Button>
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<Save size={16} />}
-          loading={saving}
-          onClick={handleSave}
-        >
-          {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-        </Button>
+
+        {saved && (
+          <div className={styles.savedBanner}>
+            <RefreshCw size={16} />
+            <span>Đã lưu cài đặt thành công!</span>
+          </div>
+        )}
+
+        <Card>
+          <Tabs tabs={tabs} variant="underline" defaultValue="general" />
+        </Card>
       </div>
-
-      {saved && (
-        <div className={styles.savedBanner}>
-          <RefreshCw size={16} />
-          <span>Đã lưu cài đặt thành công!</span>
-        </div>
-      )}
-
-      <Card>
-        <Tabs tabs={tabs} variant="underline" defaultValue="general" />
-      </Card>
-    </div>
+    </MainLayout>
   );
 }

@@ -23,7 +23,7 @@ export interface ConfirmDialogProps {
   hideConfirm?: boolean;
 }
 
-const variantConfig: Record<ConfirmVariant, { icon: React.ReactNode; buttonVariant: 'destructive' | 'secondary' }> = {
+const variantConfig: Record<ConfirmVariant, { icon: React.ReactNode; buttonVariant: 'destructive' | 'secondary' | 'primary' }> = {
   danger: {
     icon: <AlertCircle size={24} />,
     buttonVariant: 'destructive',

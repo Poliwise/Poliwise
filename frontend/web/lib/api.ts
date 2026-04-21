@@ -442,7 +442,7 @@ class ApiClient {
     ): Promise<void> => {
       await this.client.post('/api/v1/feedback', {
         conversationId,
-        messageId, // ✅ FIX: was missing in original implementation
+        messageId,
         type,
         comment,
       });
@@ -556,8 +556,12 @@ class ApiClient {
       };
     },
 
-    resolveUnanswered: async (id: string, answer: string): Promise<void> => {
-      await this.client.put(`/api/v1/ai/unanswered/${id}/resolve`, { answer });
+    resolveUnanswered: async (id: string, data: { answer: string }): Promise<void> => {
+      await this.client.put(`/api/v1/ai/unanswered/${id}/resolve`, data);
+    },
+
+    rejectUnanswered: async (id: string): Promise<void> => {
+      await this.client.put(`/api/v1/ai/unanswered/${id}/reject`);
     },
   };
 
@@ -632,8 +636,10 @@ class ApiClient {
       action?: string;
       userId?: string;
       resourceType?: string;
+      resourceId?: string;
       startDate?: string;
       endDate?: string;
+      search?: string; // Generic keyword search
     }): Promise<{
       data: {
         id: string;

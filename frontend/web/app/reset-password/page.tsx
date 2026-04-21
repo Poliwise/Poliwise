@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, MessageSquare, CheckCircle } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import styles from './reset-password.module.css';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
@@ -198,5 +198,13 @@ export default function ResetPasswordPage() {
         <div className={styles.pattern} />
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

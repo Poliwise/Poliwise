@@ -1,10 +1,10 @@
 'use client';
 
-import React, { forwardRef, useId, type SwitchHTMLAttributes } from 'react';
+import React, { forwardRef, useId, type InputHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 import styles from './switch.module.css';
 
-export interface SwitchProps extends Omit<SwitchHTMLAttributes<HTMLInputElement>, 'type'> {
+export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: string;
   description?: string;
 }

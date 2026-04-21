@@ -20,17 +20,21 @@ import {
   PageHeader,
   EmptyState,
 } from '@/components/ui';
+import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import styles from './access-rules.module.css';
 
 interface AccessRule {
   id: string;
-  documentId: string;
+  documentMetadataId: string;
   documentTitle?: string;
   targetType: 'ROLE' | 'DEPARTMENT' | 'USER';
-  targetId: string;
-  targetName: string;
-  permission: 'READ' | 'VIEW';
+  targetId?: string; // For compatibility with local display if needed
+  targetRole?: string;
+  targetDepartmentId?: string;
+  targetUserId?: string;
+  targetName?: string;
+  permission: 'READ' | 'VIEW' | string;
   grantedBy?: string;
   createdAt: string;
 }
@@ -42,6 +46,7 @@ export default function AccessRulesPage() {
   const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [documentMetadataId, setDocumentMetadataId] = useState('');
   const [targetType, setTargetType] = useState<'ROLE' | 'DEPARTMENT' | 'USER'>('ROLE');
   const [targetId, setTargetId] = useState('');
   const [permission, setPermission] = useState<'READ' | 'VIEW'>('READ');
@@ -84,17 +89,24 @@ export default function AccessRulesPage() {
   };
 
   const handleSave = async () => {
-    if (!targetId.trim()) return;
+    if (!targetId.trim() || !documentMetadataId.trim()) return;
     setSaving(true);
     setError(null);
     try {
-      await api.metadata.createAccessRule({
+      const data: any = {
+        documentMetadataId: documentMetadataId.trim(),
         targetType,
-        targetId: targetId.trim(),
         permission,
-      });
+      };
+
+      if (targetType === 'ROLE') data.targetRole = targetId.trim();
+      else if (targetType === 'DEPARTMENT') data.targetDepartmentId = targetId.trim();
+      else if (targetType === 'USER') data.targetUserId = targetId.trim();
+
+      await api.metadata.createAccessRule(data);
       setModalOpen(false);
       setTargetId('');
+      setDocumentMetadataId('');
       loadRules();
     } catch {
       setError('Không thể tạo quy tắc truy cập.');
@@ -121,7 +133,7 @@ export default function AccessRulesPage() {
       render: (r) => (
         <div className={styles.docCell}>
           <Shield size={14} />
-          <span>{r.documentTitle || r.documentId}</span>
+          <span>{r.documentTitle || r.documentMetadataId}</span>
         </div>
       ),
     },
@@ -135,9 +147,10 @@ export default function AccessRulesPage() {
     {
       key: 'targetName',
       header: 'Đối tượng',
-      render: (r) => (
-        <span className={styles.targetName}>{r.targetName || r.targetId}</span>
-      ),
+      render: (r) => {
+        const name = r.targetName || r.targetRole || r.targetDepartmentId || r.targetUserId || 'N/A';
+        return <span className={styles.targetName}>{name}</span>;
+      },
     },
     {
       key: 'permission',
@@ -171,114 +184,131 @@ export default function AccessRulesPage() {
     const s = search.toLowerCase();
     return (
       r.documentTitle?.toLowerCase().includes(s) ||
-      r.targetName.toLowerCase().includes(s) ||
-      r.targetId.toLowerCase().includes(s)
+      r.targetName?.toLowerCase().includes(s) ||
+      r.targetId?.toLowerCase().includes(s) ||
+      r.targetRole?.toLowerCase().includes(s) ||
+      r.targetDepartmentId?.toLowerCase().includes(s) ||
+      r.targetUserId?.toLowerCase().includes(s)
     );
   });
 
   return (
-    <div className={styles.container}>
-      <PageHeader
-        title="Quy tắc truy cập"
-        description="Quản lý quyền truy cập tài liệu cho từng vai trò, phòng ban hoặc người dùng."
-        actions={
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-            Thêm quy tắc
-          </Button>
-        }
-      />
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      {loading ? (
-        <div className={styles.loading}>
-          <Loader2 size={24} className={styles.spinner} />
-        </div>
-      ) : rules.length === 0 ? (
-        <EmptyState
-          icon={<Shield size={32} />}
-          title="Chưa có quy tắc truy cập"
-          description="Quy tắc truy cập được quản lý thông qua trang chi tiết tài liệu."
-          action={
+    <MainLayout>
+      <div className={styles.container}>
+        <PageHeader
+          title="Quy tắc truy cập"
+          description="Quản lý quyền truy cập tài liệu cho từng vai trò, phòng ban hoặc người dùng."
+          actions={
             <Button variant="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-              Thêm quy tắc đầu tiên
+              Thêm quy tắc
             </Button>
           }
         />
-      ) : (
-        <>
-          <div className={styles.filters}>
+
+        {error && <div className={styles.error}>{error}</div>}
+
+        {loading ? (
+          <div className={styles.loading}>
+            <Loader2 size={24} className={styles.spinner} />
+          </div>
+        ) : rules.length === 0 ? (
+          <EmptyState
+            icon={<Shield size={32} />}
+            title="Chưa có quy tắc truy cập"
+            description="Quy tắc truy cập được quản lý thông qua trang chi tiết tài liệu."
+            action={
+              <Button variant="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
+                Thêm quy tắc đầu tiên
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className={styles.filters}>
+              <Input
+                placeholder="Tìm kiếm tài liệu, đối tượng..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                leftIcon={<Search size={16} />}
+                inputSize="sm"
+                className={styles.searchInput}
+              />
+            </div>
+            <Table columns={columns} data={filtered} keyExtractor={(r) => r.id} />
+          </>
+        )}
+
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title="Thêm quy tắc truy cập"
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
+              <Button
+                variant="primary"
+                loading={saving}
+                onClick={handleSave}
+                disabled={!targetId.trim() || !documentMetadataId.trim()}
+              >
+                Thêm
+              </Button>
+            </>
+          }
+        >
+          <div className={styles.form}>
             <Input
-              placeholder="Tìm kiếm tài liệu, đối tượng..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              leftIcon={<Search size={16} />}
-              inputSize="sm"
-              className={styles.searchInput}
+              label="ID tài liệu (Metadata ID)"
+              value={documentMetadataId}
+              onChange={(e) => setDocumentMetadataId(e.target.value)}
+              placeholder="Nhập ID tài liệu..."
+              required
+            />
+            <Select
+              label="Loại đối tượng"
+              value={targetType}
+              onChange={(e) => {
+                setTargetType(e.target.value as 'ROLE' | 'DEPARTMENT' | 'USER');
+                setTargetId('');
+              }}
+              options={targetTypeOptions}
+            />
+            <Input
+              label={
+                targetType === 'ROLE' ? 'Vai trò (VD: ADMIN, MANAGER, USER)' :
+                targetType === 'DEPARTMENT' ? 'ID phòng ban' :
+                'ID người dùng'
+              }
+              value={targetId}
+              onChange={(e) => setTargetId(e.target.value)}
+              placeholder={
+                targetType === 'ROLE' ? 'VD: ADMIN' :
+                'Nhập ID...'
+              }
+              required
+            />
+            <Select
+              label="Quyền"
+              value={permission}
+              onChange={(e) => setPermission(e.target.value as 'READ' | 'VIEW')}
+              options={permissionOptions}
             />
           </div>
-          <Table columns={columns} data={filtered} keyExtractor={(r) => r.id} />
-        </>
-      )}
+        </Modal>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Thêm quy tắc truy cập"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
-            <Button variant="primary" loading={saving} onClick={handleSave} disabled={!targetId.trim()}>
-              Thêm
-            </Button>
-          </>
-        }
-      >
-        <div className={styles.form}>
-          <Select
-            label="Loại đối tượng"
-            value={targetType}
-            onChange={(e) => {
-              setTargetType(e.target.value as 'ROLE' | 'DEPARTMENT' | 'USER');
-              setTargetId('');
-            }}
-            options={targetTypeOptions}
-          />
-          <Input
-            label={
-              targetType === 'ROLE' ? 'Vai trò (VD: ADMIN, MANAGER, USER)' :
-              targetType === 'DEPARTMENT' ? 'ID phòng ban' :
-              'ID người dùng'
-            }
-            value={targetId}
-            onChange={(e) => setTargetId(e.target.value)}
-            placeholder={
-              targetType === 'ROLE' ? 'VD: ADMIN' :
-              'Nhập ID...'
-            }
-            required
-          />
-          <Select
-            label="Quyền"
-            value={permission}
-            onChange={(e) => setPermission(e.target.value as 'READ' | 'VIEW')}
-            options={permissionOptions}
-          />
-        </div>
-      </Modal>
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Xóa quy tắc truy cập?"
-        message={`Xóa quyền "${deleteTarget?.permission}" cho "${deleteTarget?.targetName || deleteTarget?.targetId}"?`}
-        confirmLabel="Xóa"
-        cancelLabel="Hủy"
-        variant="danger"
-      />
-    </div>
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+          loading={deleting}
+          title="Xóa quy tắc truy cập?"
+          message={`Xóa quyền "${deleteTarget?.permission}" cho "${deleteTarget?.targetName || deleteTarget?.targetId}"?`}
+          confirmLabel="Xóa"
+          cancelLabel="Hủy"
+          variant="danger"
+        />
+      </div>
+    </MainLayout>
   );
 }

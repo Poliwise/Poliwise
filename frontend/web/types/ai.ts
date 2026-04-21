@@ -43,6 +43,15 @@ export enum FeedbackType {
   DISLIKE = 'DISLIKE',
 }
 
+export interface Message {
+  id: string;
+  conversationId: string;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  sources?: Source[];
+  createdAt: string;
+}
+
 export interface ConversationHistory {
   conversations: Conversation[];
   pagination: Pagination;

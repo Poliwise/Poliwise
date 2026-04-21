@@ -20,6 +20,7 @@ import {
   ConfirmDialog,
   PageHeader,
 } from '@/components/ui';
+import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import styles from './categories.module.css';
 
@@ -167,88 +168,90 @@ export default function CategoriesPage() {
   ];
 
   return (
-    <div className={styles.container}>
-      <PageHeader
-        title="Danh mục"
-        description="Quản lý danh mục tài liệu."
-        actions={
-          <Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>
-            Thêm danh mục
-          </Button>
-        }
-      />
-
-      {actionError && (
-        <div className={styles.error}>{actionError}</div>
-      )}
-
-      {loading ? (
-        <div className={styles.loading}>
-          <Loader2 size={24} className={styles.spinner} />
-        </div>
-      ) : categories.length === 0 ? (
-        <EmptyState
-          icon={<FolderOpen size={32} />}
-          title="Chưa có danh mục nào"
-          description="Tạo danh mục đầu tiên để phân loại tài liệu."
-          action={<Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo danh mục</Button>}
-        />
-      ) : (
-        <Table columns={columns} data={categories} keyExtractor={(c) => c.id} />
-      )}
-
-      {/* Create / Edit Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
-            <Button variant="primary" loading={saving} onClick={handleSave} disabled={!formData.name.trim()}>
-              {editing ? 'Lưu' : 'Tạo'}
+    <MainLayout>
+      <div className={styles.container}>
+        <PageHeader
+          title="Danh mục"
+          description="Quản lý danh mục tài liệu."
+          actions={
+            <Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>
+              Thêm danh mục
             </Button>
-          </>
-        }
-      >
-        <div className={styles.form}>
-          <Input
-            label="Tên danh mục"
-            value={formData.name}
-            onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-            placeholder="VD: Chính sách nhân sự"
-            required
-          />
-          <Input
-            label="Slug"
-            value={formData.slug}
-            onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
-            placeholder="Tu dong tao neu de trong"
-            helperText="VD: hr-policies (dể trống để tự động tạo)"
-          />
-          <Textarea
-            label="Mô tả"
-            value={formData.description}
-            onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-            placeholder="Mô tả ngắn về danh mục này..."
-            rows={3}
-          />
-        </div>
-      </Modal>
+          }
+        />
 
-      {/* Delete Confirm */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Xóa danh mục?"
-        message={`Xóa "${deleteTarget?.name}"? Tài liệu trong danh mục này sẽ không bị xóa.`}
-        confirmLabel="Xóa"
-        cancelLabel="Hủy"
-        variant="danger"
-      />
-    </div>
+        {actionError && (
+          <div className={styles.error}>{actionError}</div>
+        )}
+
+        {loading ? (
+          <div className={styles.loading}>
+            <Loader2 size={24} className={styles.spinner} />
+          </div>
+        ) : categories.length === 0 ? (
+          <EmptyState
+            icon={<FolderOpen size={32} />}
+            title="Chưa có danh mục nào"
+            description="Tạo danh mục đầu tiên để phân loại tài liệu."
+            action={<Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo danh mục</Button>}
+          />
+        ) : (
+          <Table columns={columns} data={categories} keyExtractor={(c) => c.id} />
+        )}
+
+        {/* Create / Edit Modal */}
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
+              <Button variant="primary" loading={saving} onClick={handleSave} disabled={!formData.name.trim()}>
+                {editing ? 'Lưu' : 'Tạo'}
+              </Button>
+            </>
+          }
+        >
+          <div className={styles.form}>
+            <Input
+              label="Tên danh mục"
+              value={formData.name}
+              onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+              placeholder="VD: Chính sách nhân sự"
+              required
+            />
+            <Input
+              label="Slug"
+              value={formData.slug}
+              onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
+              placeholder="Tu dong tao neu de trong"
+              helperText="VD: hr-policies (dể trống để tự động tạo)"
+            />
+            <Textarea
+              label="Mô tả"
+              value={formData.description}
+              onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+              placeholder="Mô tả ngắn về danh mục này..."
+              rows={3}
+            />
+          </div>
+        </Modal>
+
+        {/* Delete Confirm */}
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+          loading={deleting}
+          title="Xóa danh mục?"
+          message={`Xóa "${deleteTarget?.name}"? Tài liệu trong danh mục này sẽ không bị xóa.`}
+          confirmLabel="Xóa"
+          cancelLabel="Hủy"
+          variant="danger"
+        />
+      </div>
+    </MainLayout>
   );
 }

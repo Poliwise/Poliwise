@@ -104,7 +104,7 @@ export default function ChatPage() {
 
   const handleFeedback = async (messageId: string, type: FeedbackType) => {
     try {
-      await api.ai.giveFeedback(messageId, type);
+      await api.feedback.submit(messageId, messageId, type);
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, feedback: type } : m))
       );
