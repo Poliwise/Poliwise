@@ -144,6 +144,21 @@ public class RefreshTokenService {
                 .toList();
     }
 
+    @Transactional
+    public void revokeSession(UUID userId, UUID sessionId) {
+        refreshTokenRepository.findById(sessionId).ifPresent(token -> {
+            if (!token.getUserId().equals(userId)) {
+                throw new JwtException("Session does not belong to user");
+            }
+            refreshTokenRepository.revokeToken(
+                    sessionId,
+                    OffsetDateTime.now(ZoneOffset.UTC),
+                    "SESSION_REVOKED",
+                    null
+            );
+        });
+    }
+
     private boolean isExpired(RefreshToken token, OffsetDateTime now) {
         return token.getExpiresAt() == null || !token.getExpiresAt().isAfter(now);
     }

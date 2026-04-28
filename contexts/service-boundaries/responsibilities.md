@@ -113,11 +113,31 @@ All service-to-service HTTP communication **must**:
 
 **auth-service** (`:8081`):
 ```
+# Public endpoints (no auth required)
 POST   /api/v1/auth/login
 POST   /api/v1/auth/register
 POST   /api/v1/auth/refresh
+POST   /api/v1/auth/forgot-password
+
+# Authenticated endpoints (JWT required)
 POST   /api/v1/auth/logout
+POST   /api/v1/auth/logout-all
 GET    /api/v1/auth/sessions
+DELETE /api/v1/auth/sessions/{sessionId}
+POST   /api/v1/auth/change-password
+GET    /api/v1/auth/me
+
+# Admin-only endpoints (ADMIN role required)
+POST   /api/v1/users           # Create single user
+POST   /api/v1/users/bulk      # Create multiple users
+GET    /api/v1/users           # Search users
+GET    /api/v1/users/{id}      # Get user details
+PUT    /api/v1/users/{id}     # Update user
+POST   /api/v1/users/{id}/deactivate
+POST   /api/v1/users/{id}/reactivate
+POST   /api/v1/users/{id}/revoke
+DELETE /api/v1/users/{id}
+GET    /api/v1/users/{id}/login-history
 ```
 
 **user-service** (`:8082`):

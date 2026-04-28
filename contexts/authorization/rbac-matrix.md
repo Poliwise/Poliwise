@@ -29,13 +29,21 @@ Provides AI agents with the definitive Role-Based Access Control (RBAC) matrix f
 | 03 | Like / Dislike Answers | ✅ | ✅ | ✅ |
 | 04 | View Personal Profile | ✅ | ✅ | ✅ |
 | 05 | Update Personal Profile | ✅ | ✅ | ✅ |
-| 06 | View Statistics Reports | ❌ | ✅ | ✅ |
-| 07 | View Analytics Dashboard | ❌ | ✅ | ✅ |
-| 08 | View Unanswered Questions | ❌ | ✅ | ✅ |
-| 09 | Upload Knowledge Documents | ❌ | ❌ | ✅ |
-| 10 | Manage Document Metadata | ❌ | ❌ | ✅ |
-| 11 | Create / Lock / Revoke User Accounts | ❌ | ❌ | ✅ |
-| 12 | Manage Document Versions | ❌ | ❌ | ✅ |
+| 06 | Change Password | ✅ | ✅ | ✅ |
+| 07 | View Active Sessions | ✅ | ✅ | ✅ |
+| 08 | Revoke Other Sessions | ✅ | ✅ | ✅ |
+| 09 | Logout All Devices | ✅ | ✅ | ✅ |
+| 10 | View Statistics Reports | ❌ | ✅ | ✅ |
+| 11 | View Analytics Dashboard | ❌ | ✅ | ✅ |
+| 12 | View Unanswered Questions | ❌ | ✅ | ✅ |
+| 13 | Upload Knowledge Documents | ❌ | ❌ | ✅ |
+| 14 | Manage Document Metadata | ❌ | ❌ | ✅ |
+| 15 | Create / Lock / Revoke User Accounts | ❌ | ❌ | ✅ |
+| 16 | Manage Document Versions | ❌ | ❌ | ✅ |
+| 17 | Create Single User (with email) | ❌ | ❌ | ✅ |
+| 18 | Create Bulk Users (with email) | ❌ | ❌ | ✅ |
+| 19 | View User Login History | ❌ | ❌ | ✅ |
+| 20 | Deactivate / Reactivate Users | ❌ | ❌ | ✅ |
 
 ## Role Definitions
 

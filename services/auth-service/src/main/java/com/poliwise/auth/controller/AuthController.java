@@ -1,17 +1,15 @@
 package com.poliwise.auth.controller;
 
-import com.poliwise.auth.dto.auth.ClientMetadata;
-import com.poliwise.auth.dto.auth.LoginRequest;
-import com.poliwise.auth.dto.auth.LogoutRequest;
-import com.poliwise.auth.dto.auth.RefreshTokenRequest;
-import com.poliwise.auth.dto.auth.RegisterRequest;
-import com.poliwise.auth.dto.auth.TokenResponse;
+import com.poliwise.auth.dto.auth.*;
+import com.poliwise.auth.entity.RefreshToken;
+import com.poliwise.auth.repository.RefreshTokenRepository;
+import com.poliwise.auth.repository.UserRepository;
 import com.poliwise.auth.security.JwtAuthenticationToken;
-import com.poliwise.auth.service.AuthService;
-import com.poliwise.auth.service.RefreshTokenService;
-import com.poliwise.auth.service.RefreshTokenService.RefreshTokenInfo;
+import com.poliwise.auth.service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,32 +25,33 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final ForgotPasswordService forgotPasswordService;
+    private final ChangePasswordService changePasswordService;
 
-    public AuthController(AuthService authService, RefreshTokenService refreshTokenService) {
+    public AuthController(
+            AuthService authService,
+            RefreshTokenService refreshTokenService,
+            UserRepository userRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            ForgotPasswordService forgotPasswordService,
+            ChangePasswordService changePasswordService
+    ) {
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
+        this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.forgotPasswordService = forgotPasswordService;
+        this.changePasswordService = changePasswordService;
     }
 
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
         JwtAuthenticationToken authToken = extractAuthToken(httpRequest);
-        ClientMetadata metadata = extractMetadata(httpRequest);
         var user = authService.register(request, authToken != null ? authToken.getPayload().sub() : null);
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
-    }
-
-    private JwtAuthenticationToken extractAuthToken(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            String rawToken = header.substring(7).trim();
-            try {
-                return authService.extractToken(rawToken);
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return null;
     }
 
     @PostMapping("/login")
@@ -90,6 +89,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout-all")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> logoutAll(
             @AuthenticationPrincipal JwtAuthenticationToken authToken,
             HttpServletRequest httpRequest) {
@@ -109,14 +109,123 @@ public class AuthController {
     }
 
     @GetMapping("/sessions")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getActiveSessions(@AuthenticationPrincipal JwtAuthenticationToken authToken) {
         if (authToken == null || authToken.getPayload() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
-        List<RefreshTokenInfo> sessions = refreshTokenService.getActiveSessions(authToken.getPayload().sub());
+        UUID userId = authToken.getPayload().sub();
+        UUID currentSessionId = extractCurrentSessionId(authToken);
+
+        List<RefreshToken> activeTokens = refreshTokenRepository.findActiveTokensByUserId(
+                userId, OffsetDateTime.now(ZoneOffset.UTC));
+
+        List<SessionInfo> sessions = activeTokens.stream()
+                .map(token -> new SessionInfo(
+                        token.getId(),
+                        token.getDeviceInfo(),
+                        token.getIpAddress(),
+                        token.getCreatedAt(),
+                        token.getExpiresAt(),
+                        token.getId().equals(currentSessionId)
+                ))
+                .toList();
+
         return ResponseEntity.ok(Map.of("sessions", sessions));
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> revokeSession(
+            @PathVariable UUID sessionId,
+            @AuthenticationPrincipal JwtAuthenticationToken authToken
+    ) {
+        if (authToken == null || authToken.getPayload() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authentication required"));
+        }
+
+        UUID userId = authToken.getPayload().sub();
+        refreshTokenService.revokeSession(userId, sessionId);
+
+        return ResponseEntity.ok(Map.of("message", "Session revoked successfully"));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        ForgotPasswordResponse response = forgotPasswordService.processForgotPassword(request.email());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal JwtAuthenticationToken authToken
+    ) {
+        if (authToken == null || authToken.getPayload() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authentication required"));
+        }
+
+        var result = changePasswordService.changePassword(
+                authToken.getPayload().sub(),
+                request.oldPassword(),
+                request.newPassword(),
+                request.confirmPassword()
+        );
+
+        if (result.success()) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getProfile(@AuthenticationPrincipal JwtAuthenticationToken authToken) {
+        if (authToken == null || authToken.getPayload() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authentication required"));
+        }
+
+        UUID userId = authToken.getPayload().sub();
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        var profile = new UserProfileView(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                null,
+                user.getRole().name(),
+                user.getStatus().name(),
+                user.getDepartmentId(),
+                null,
+                user.getCreatedAt(),
+                user.getPasswordChangedAt(),
+                user.getMustChangePassword() != null && user.getMustChangePassword()
+        );
+
+        return ResponseEntity.ok(profile);
+    }
+
+    private JwtAuthenticationToken extractAuthToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String rawToken = header.substring(7).trim();
+            try {
+                return authService.extractToken(rawToken);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private ClientMetadata extractMetadata(HttpServletRequest request) {
@@ -156,5 +265,10 @@ public class AuthController {
             return header.substring(7).trim();
         }
         return null;
+    }
+
+    private UUID extractCurrentSessionId(JwtAuthenticationToken authToken) {
+        String jti = authToken.getPayload().jti();
+        return jti != null ? UUID.fromString(jti) : null;
     }
 }

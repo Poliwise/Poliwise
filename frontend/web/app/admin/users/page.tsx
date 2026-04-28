@@ -72,7 +72,13 @@ export default function AdminUsersPage() {
 
   const handleStatusChange = async (userId: string, status: AccountStatus) => {
     try {
-      await api.users.updateStatus(userId, status);
+      if (status === AccountStatus.DEACTIVATED) {
+        await api.users.deactivate(userId);
+      } else if (status === AccountStatus.ACTIVE) {
+        await api.users.reactivate(userId);
+      } else if (status === AccountStatus.REVOKED) {
+        await api.users.revoke(userId);
+      }
       loadUsers();
     } catch (err) {
       console.error('Failed to update status:', err);

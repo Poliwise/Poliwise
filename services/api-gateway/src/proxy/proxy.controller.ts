@@ -2,6 +2,9 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
+  Patch,
   Req,
   UseGuards,
   HttpCode,
@@ -30,20 +33,44 @@ function downstreamPath(request: Request, prefix: string): string {
 export class ProxyController {
   constructor(private readonly proxyService: ProxyService) {}
 
-  // ===== User Endpoints =====
+  // ===== User Management Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('users/*path')
-  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleUsers(@Req() request: Request) {
+  @All('users')
+  @Roles(UserRole.ADMIN)
+  handleUsersRoot(@Req() request: Request) {
     return this.proxyService.forward(
-      ServiceName.USER,
+      ServiceName.AUTH,
       request,
       downstreamPath(request, '/api/v1/users'),
     );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('documents')
+  @All('users/*path')
+  @Roles(UserRole.ADMIN)
+  handleUsers(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.AUTH,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('users/me/*path')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMe(@Req() request: Request) {
+    // Route to auth-service /me endpoint (current user's profile)
+    const path = '/api/v1/auth/me' + request.path.replace('/api/v1/users/me', '');
+    return this.proxyService.forward(
+      ServiceName.AUTH,
+      request,
+      path || '/api/v1/auth/me',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('documents')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleDocumentsRoot(@Req() request: Request) {
     return this.proxyService.forward(

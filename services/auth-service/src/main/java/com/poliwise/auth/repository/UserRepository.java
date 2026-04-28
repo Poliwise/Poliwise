@@ -69,4 +69,21 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
                         """)
         int resetLoginLockState(@Param("userId") UUID userId,
                         @Param("updatedAt") OffsetDateTime updatedAt);
+
+        @Query("""
+                        select u from User u
+                        where (:search is null or :search = ''
+                           or lower(u.username) like lower(concat('%', :search, '%'))
+                           or lower(u.email) like lower(concat('%', :search, '%')))
+                          and (:role is null or :role = '' or cast(u.role as String) = :role)
+                          and (:status is null or :status = '' or cast(u.status as String) = :status)
+                          and (:departmentId is null or u.departmentId = :departmentId)
+                        order by u.createdAt desc
+                        """)
+        org.springframework.data.domain.Page<User> searchUsers(
+                        @Param("search") String search,
+                        @Param("role") String role,
+                        @Param("status") String status,
+                        @Param("departmentId") UUID departmentId,
+                        org.springframework.data.domain.Pageable pageable);
 }

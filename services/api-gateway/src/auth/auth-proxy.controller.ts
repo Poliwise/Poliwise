@@ -1,16 +1,24 @@
 import {
   Controller,
   Post,
+  Get,
+  Put,
+  Delete,
+  Patch,
   Req,
   HttpCode,
   HttpStatus,
   Logger,
   UseGuards,
+  Param,
+  Body,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ProxyService, ServiceName } from '../proxy/proxy.service';
 import { Public } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/interfaces/jwt-payload.interface';
 
 @Controller('api/v1/auth')
 export class AuthProxyController {
@@ -43,6 +51,14 @@ export class AuthProxyController {
     return this.proxyService.forward(ServiceName.AUTH, request, path);
   }
 
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  handleForgotPassword(@Req() request: Request) {
+    const path = '/api/v1/auth/forgot-password';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
@@ -56,6 +72,37 @@ export class AuthProxyController {
   @HttpCode(HttpStatus.OK)
   handleLogoutAll(@Req() request: Request) {
     const path = '/api/v1/auth/logout-all';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('sessions')
+  handleGetSessions(@Req() request: Request) {
+    const path = '/api/v1/auth/sessions';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('sessions/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  handleRevokeSession(@Req() request: Request) {
+    const sessionId = request.params.sessionId;
+    const path = `/api/v1/auth/sessions/${sessionId}`;
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  handleChangePassword(@Req() request: Request) {
+    const path = '/api/v1/auth/change-password';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  handleGetProfile(@Req() request: Request) {
+    const path = '/api/v1/auth/me';
     return this.proxyService.forward(ServiceName.AUTH, request, path);
   }
 }

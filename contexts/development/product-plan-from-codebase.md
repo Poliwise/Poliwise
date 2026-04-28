@@ -340,15 +340,16 @@ Poliwise là một **hệ thống Q&A nội bộ dựa trên AI** (RAG-based cha
 
 ---
 
-### 4.4. Password Management — **THIẾU**
+### 4.4. Password Management — **Frontend done, Backend missing**
 
-**Lý do kết luận thiếu:**
+**Trạng thái**: ⚠️ Frontend đã implement đầy đủ: `app/forgot-password/page.tsx` và `app/reset-password/page.tsx`. Backend không có endpoint nên flow sẽ fail.
+
+**Lý do backend thiếu:**
 - `AuthService` có `mustChangePassword` field trong User entity
 - `passwordChangedAt` field tồn tại
-- Frontend có link "Quên mật khẩu" trên trang login (`app/login/page.tsx`) nhưng không có handler
 - Không có endpoint/service cho: forgot password, reset password, change password
 
-**Gợi ý cần có:**
+**Gợi ý backend cần:**
 - Forgot password: gửi email với reset token (cần email service)
 - Reset password: verify token, update password hash
 - Change password: verify old password, update hash
@@ -448,15 +449,12 @@ Poliwise là một **hệ thống Q&A nội bộ dựa trên AI** (RAG-based cha
 
 ---
 
-### 4.12. Document Versioning UI — **Backend có, Frontend không**
+### 4.12. Document Versioning UI — **Backend có, Frontend đã implement**
 
-**Lý do kết luận thiếu:**
-- Backend có đầy đủ versioning: `DocumentVersion` entity, repository, controller endpoint
-- Frontend `documents/page.tsx` không có UI để xem/so sánh các phiên bản
+**Trạng thái**: ✅ Frontend đã implement. Backend có đầy đủ versioning: `DocumentVersion` entity, repository, controller endpoint. Frontend `app/documents/[id]/page.tsx` hiển thị version badge. Version history page (`app/documents/[id]/versions/page.tsx`) đã plan nhưng có thể redirect đến detail page.
 
-**Gợi ý cần có:**
-- Version history panel trong document detail view
-- Compare giữa 2 versions
+**Gợi ý còn lại:**
+- Side-by-side comparison giữa 2 versions
 - Revert to previous version
 
 ---
@@ -621,48 +619,148 @@ Admin → POST /api/v1/documents/:id/process (API Gateway)
 
 | Module | Feature | Status | Evidence |
 |--------|---------|--------|---------|
-| **Auth** | Login | ✅ Done | `AuthController.login()` |
-| | Register (admin only) | ✅ Done | `AuthController.register()` |
-| | Token refresh | ✅ Done | `RefreshTokenService.rotate()` |
-| | Logout single/all | ✅ Done | `AuthController.logout/logoutAll()` |
-| | Account lock | ✅ Done | `AuthService.processFailedLogin()` |
-| | Forgot/Reset password | ❌ Missing | No endpoint, UI link exists |
-| **User** | Profile CRUD | ✅ Done | `UserController`, `UserService` |
-| | Search users | ✅ Done | `UserSpecification` |
-| | Status management | ✅ Done | `UserService.updateStatus()` |
-| **Documents** | Upload | ✅ Done | `DocumentController.upload()` |
-| | Download | ✅ Done | `StorageService.downloadFile()` |
-| | Soft delete | ✅ Done | `DocumentService.softDelete()` |
-| | Versioning | ✅ Done | `DocumentVersion` entity |
-| | Processing pipeline | ✅ Done | `DocumentService.processDocument()` |
-| | Policy comparison | ✅ Done | `PolicyComparisonService` |
-| | Search (full-text) | ⚠️ Partial | Chunking done, search not implemented |
-| **Metadata** | Categories | ✅ Done | `CategoryController`, `CategoryService` |
-| | Tags | ✅ Done | `TagController`, `TagService` |
-| | Access rules | ✅ Done | `AccessRuleService` |
-| | Auto-archive | ✅ Done | `DocumentExpirationScheduler` |
-| **AI Q&A** | Ask question | ❌ Missing | No service exists |
-| | Streaming | ❌ Missing | No service exists |
-| | Conversations | ❌ Missing | No service exists |
-| | Mark unanswered | ⚠️ Partial | Frontend exists, backend missing |
-| **Feedback** | Submit LIKE/DISLIKE | ✅ Done | `FeedbackController.createFeedback()` |
-| | Audit logging | ✅ Done | `AuditLogService` |
-| **Analytics** | Dashboard | ✅ Done | `DashboardController` |
-| | Top questions/docs | ✅ Done | `AnalyticsController` |
-| | Unanswered tracking | ✅ Done | `UnansweredQuestionConsumer` |
-| | Report export CSV | ✅ Done | `ReportExportService` |
-| | Report export PDF/XLSX | ❌ Missing | Placeholder only |
-| **Gateway** | JWT validation | ✅ Done | `JwtAuthGuard` |
-| | RBAC | ✅ Done | `RolesGuard` |
-| | Rate limiting | ✅ Done | `RateLimitInterceptor` |
-| | Circuit breaker | ✅ Done | `opossum` |
-| | Health checks | ✅ Done | `HealthController` |
-| **Infrastructure** | Cleanup jobs | ✅ Done | `CleanupScheduler` |
-| | Stats aggregation | ✅ Done | `StatsAggregationScheduler` |
-| | Health checks | ✅ Done | Spring Actuator + custom |
-| | Email notifications | ❌ Missing | No service |
-| | Caching | ❌ Missing | No Redis |
+| **Auth** | Login | ✅ Backend + Frontend | `AuthController.login()`, `app/login/page.tsx` |
+| | Register (admin only) | ✅ Backend + Frontend | `AuthController.register()`, `app/register/page.tsx` |
+| | Token refresh | ✅ Backend | `RefreshTokenService.rotate()` |
+| | Logout single/all | ✅ Backend | `AuthController.logout/logoutAll()` |
+| | Account lock | ✅ Backend | `AuthService.processFailedLogin()` |
+| | Forgot/Reset password | ⚠️ Frontend done, Backend missing | `app/forgot-password/`, `app/reset-password/`, no endpoint |
+| **User** | Profile CRUD | ✅ Backend + Frontend | `UserController`, `app/profile/page.tsx` |
+| | Sessions management | ✅ Backend + Frontend | `app/profile/sessions/page.tsx` |
+| | Change password | ✅ Backend + Frontend | `app/profile/change-password/page.tsx` |
+| | Search users | ✅ Backend + Frontend | `UserSpecification`, `app/admin/users/page.tsx` |
+| | Status management | ✅ Backend + Frontend | `UserService.updateStatus()`, `app/admin/users/page.tsx` |
+| | Departments display | ✅ Backend (seed) + Frontend | `app/admin/departments/page.tsx` |
+| **Documents** | Upload | ✅ Backend + Frontend | `DocumentController.upload()`, `components/documents/UploadModal.tsx` |
+| | Download | ✅ Backend + Frontend | `StorageService.downloadFile()`, `app/documents/page.tsx` |
+| | Soft delete | ✅ Backend + Frontend | `DocumentService.softDelete()`, `app/documents/[id]/page.tsx` |
+| | Versioning | ✅ Backend + Frontend | `DocumentVersion` entity, `app/documents/[id]/page.tsx` |
+| | Processing pipeline | ✅ Backend | `DocumentService.processDocument()` |
+| | Policy comparison | ✅ Backend + Frontend | `PolicyComparisonService`, `app/documents/compare/page.tsx` |
+| | List with filters | ✅ Backend + Frontend | `DocumentController.list()`, `app/documents/page.tsx` |
+| | Detail view | ✅ Backend + Frontend | `app/documents/[id]/page.tsx` |
+| **Metadata** | Categories CRUD | ✅ Backend + Frontend | `CategoryController`, `app/admin/metadata/categories/page.tsx` |
+| | Tags CRUD | ✅ Backend + Frontend | `TagController`, `app/admin/metadata/tags/page.tsx` |
+| | Access rules | ✅ Backend + Frontend | `AccessRuleService`, `app/admin/access-rules/page.tsx` |
+| | Auto-archive | ✅ Backend | `DocumentExpirationScheduler` |
+| **AI Q&A** | Ask question | ❌ Backend missing | No service — frontend UI `app/page.tsx` sẵn sàng |
+| | Streaming | ❌ Backend missing | Frontend streaming UI có sẵn |
+| | Conversations | ❌ Backend missing | Frontend history sidebar sẵn sàng |
+| | Mark unanswered | ⚠️ Frontend done, Backend partial | `app/admin/unanswered/page.tsx`, đợi AI service |
+| **Feedback** | Submit LIKE/DISLIKE | ✅ Backend + Frontend | `FeedbackController.createFeedback()` (đã fix `messageId`) |
+| | Audit logging | ✅ Backend + Frontend | `AuditLogService`, `app/admin/audit-logs/page.tsx` |
+| **Analytics** | Dashboard (charts) | ✅ Backend + Frontend | `DashboardController`, `app/analytics/page.tsx` (recharts) |
+| | Top questions/docs | ✅ Backend + Frontend | `AnalyticsController`, `app/analytics/page.tsx` |
+| | Unanswered tracking | ✅ Backend + Frontend | `app/admin/unanswered/page.tsx` |
+| | Report export CSV/JSON | ✅ Backend + Frontend | `ReportExportService`, `app/analytics/reports/page.tsx` |
+| | Report export PDF/XLSX | ❌ Backend missing | Placeholder in `app/analytics/reports/page.tsx` |
+| **Gateway** | JWT validation | ✅ Backend | `JwtAuthGuard` |
+| | RBAC | ✅ Backend | `RolesGuard` |
+| | Rate limiting | ✅ Backend | `RateLimitInterceptor` |
+| | Circuit breaker | ✅ Backend | `opossum` |
+| | Health checks | ✅ Backend | `HealthController` |
+| **Infrastructure** | Cleanup jobs | ✅ Backend | `CleanupScheduler` |
+| | Stats aggregation | ✅ Backend | `StatsAggregationScheduler` |
+| | Email notifications | ❌ Backend missing | No service |
+| | Caching | ❌ Backend missing | No Redis |
 
 ---
 
 *Document compiled from exhaustive code analysis. Evidence-based only — no speculation beyond clearly documented missing features.*
+
+---
+
+## VIII. Frontend Implementation Status
+
+> **Cập nhật**: Sau 5 sprints phát triển (Sprint 1–5), frontend đã hoàn thiện cover toàn bộ backend features đã có. Tất cả pages đều dùng design system nhất quán (CSS Modules + UI components + lucide-react icons).
+
+### 5.1 Design System — Hoàn thành
+
+18 UI components được xây dựng trong `components/ui/`:
+
+| Component | File | Status |
+|-----------|------|--------|
+| Button | `button/` | ✅ Done |
+| Input | `input/` | ✅ Done |
+| Select | `select/` | ✅ Done |
+| Badge | `badge/` | ✅ Done |
+| Card | `card/` | ✅ Done |
+| Modal | `modal/` | ✅ Done |
+| Table | `table/` | ✅ Done |
+| Pagination | `pagination/` | ✅ Done |
+| Tabs | `tabs/` | ✅ Done |
+| Avatar | `avatar/` | ✅ Done |
+| Spinner | `spinner/` | ✅ Done |
+| Skeleton | `skeleton/` | ✅ Done |
+| EmptyState | `empty-state/` | ✅ Done |
+| ConfirmDialog | `confirm-dialog/` | ✅ Done |
+| PageHeader | `page-header/` | ✅ Done |
+| StatCard | `stat-card/` | ✅ Done |
+| Breadcrumb | `breadcrumb/` | ✅ Done |
+| Textarea | `textarea/` | ✅ Done |
+| Checkbox | `checkbox/` | ✅ Done |
+| Switch | `switch/` | ✅ Done |
+
+### 5.2 Authentication & Profile — Hoàn thành
+
+| Feature | Frontend File | Status |
+|---------|--------------|--------|
+| Login page (cải thiện UX, remember me, error chi tiết) | `app/login/page.tsx` | ✅ Done |
+| Register page (admin only) | `app/register/page.tsx` | ✅ Done |
+| Forgot password page | `app/forgot-password/page.tsx` | ✅ Done |
+| Reset password page (token validation) | `app/reset-password/page.tsx` | ✅ Done |
+| Profile page (cải thiện với Avatar, Badge, Card) | `app/profile/page.tsx` | ✅ Done |
+| Change password | `app/profile/change-password/page.tsx` | ✅ Done |
+| Sessions management | `app/profile/sessions/page.tsx` | ✅ Done |
+
+### 5.3 Admin Pages — Hoàn thành
+
+| Feature | Frontend File | Status |
+|---------|--------------|--------|
+| Admin redirect | `app/admin/page.tsx` | ✅ Done |
+| Users management (filter, actions, CRUD) | `app/admin/users/page.tsx` | ✅ Done |
+| Departments display | `app/admin/departments/page.tsx` | ✅ Done |
+| Categories CRUD | `app/admin/metadata/categories/page.tsx` | ✅ Done |
+| Tags CRUD | `app/admin/metadata/tags/page.tsx` | ✅ Done |
+| Access rules management | `app/admin/access-rules/page.tsx` | ✅ Done |
+| Settings page (tabs: General, Notifications, Security) | `app/admin/settings/page.tsx` | ✅ Done |
+| Unanswered questions | `app/admin/unanswered/page.tsx` | ✅ Done |
+| Audit logs (search, filter, detail modal) | `app/admin/audit-logs/page.tsx` | ✅ Done |
+
+### 5.4 Document Management — Hoàn thành
+
+| Feature | Frontend File | Status |
+|---------|--------------|--------|
+| Documents list (grid/list view, search, status filter) | `app/documents/page.tsx` | ✅ Done |
+| Upload modal (3-step: select → review metadata → success) | `components/documents/UploadModal.tsx` | ✅ Done |
+| Document detail (metadata, version badge, download) | `app/documents/[id]/page.tsx` | ✅ Done |
+| Policy comparison (add/remove/modified sections) | `app/documents/compare/page.tsx` | ✅ Done |
+
+### 5.5 Analytics & Reporting — Hoàn thành
+
+| Feature | Frontend File | Status |
+|---------|--------------|--------|
+| Analytics dashboard (charts: Line + Pie, top questions/docs) | `app/analytics/page.tsx` | ✅ Done |
+| Reports page (create, list, download) | `app/analytics/reports/page.tsx` | ✅ Done |
+
+### 5.6 Frontend-Backend Alignment
+
+| Issue | Resolution | Status |
+|-------|-----------|--------|
+| Duplicate AI API (`api.ts` vs `ai.service.ts`) | Giữ nguyên cả hai — Gateway strip prefix `/api/v1/ai` nên cả hai đều đúng | ✅ Resolved |
+| Feedback thiếu `messageId` | API client đã fix — truyền `messageId` đúng trong request | ✅ Fixed |
+| Upload direct to knowledge-service | Giữ nguyên workaround (Gateway không parse multipart) | ✅ Documented |
+| `ClientLayout` unused import | Đã xóa khỏi `app/layout.tsx` | ✅ Fixed |
+
+### 5.7 Còn thiếu (chờ Backend)
+
+| Feature | Lý do | Priority |
+|---------|-------|---------|
+| AI Q&A chat (Streaming) | Backend `ai-qa-service` chưa có | P0 |
+| Conversation history (real data) | Backend AI service chưa có | P0 |
+| Unanswered questions (real data) | Phụ thuộc AI service emit `unanswered.question` event | P1 |
+| Policy comparison (real data) | Backend trả response đúng nhưng cần AI service parse content | P1 |
+| Audit logs (real data) | Backend đã có endpoint, frontend đã kết nối | P2 |
+| Reports (real download) | Backend chỉ CSV/JSON hoạt động, PDF/XLSX placeholder | P2 |
+| Forgot/Reset password | Backend chưa có endpoint email | P3 |
+| Realtime session revocation | Không có WebSocket/heartbeat | P3 |

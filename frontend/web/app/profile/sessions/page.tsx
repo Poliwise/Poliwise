@@ -78,7 +78,6 @@ function formatRelativeTime(dateString?: string): string {
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentRefreshToken, setCurrentRefreshToken] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<Session | null>(null);
   const [revoking, setRevoking] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -89,9 +88,6 @@ export default function SessionsPage() {
     try {
       const data = await api.auth.getSessions();
       setSessions(data);
-      // The current session is the one matching the current refresh token
-      const currentToken = localStorage.getItem('refreshToken');
-      setCurrentRefreshToken(currentToken);
     } catch {
       setActionError('Không thể tải danh sách phiên đăng nhập.');
     } finally {
@@ -108,7 +104,7 @@ export default function SessionsPage() {
     setRevoking(true);
     setActionError(null);
     try {
-      await api.auth.revokeSession(revokeTarget.refreshToken || revokeTarget.sessionId || '');
+      await api.auth.revokeSession(revokeTarget.sessionId);
       setSessions((prev) => prev.filter((s) => s.sessionId !== revokeTarget.sessionId));
       setRevokeTarget(null);
     } catch {
@@ -135,7 +131,7 @@ export default function SessionsPage() {
       width: '3rem',
       align: 'center',
       render: (session) => {
-        const { device } = parseUserAgent(session.userAgent);
+        const { device } = parseUserAgent(session.deviceInfo);
         return <span className={styles.deviceIcon}>{device}</span>;
       },
     },
@@ -143,10 +139,10 @@ export default function SessionsPage() {
       key: 'info',
       header: 'Thông tin',
       render: (session) => {
-        const { browser, os } = parseUserAgent(session.userAgent);
+        const { browser, os } = parseUserAgent(session.deviceInfo);
         return (
           <div className={styles.sessionInfo}>
-            <span className={styles.browser}>{browser} trên {os}</span>
+            <span className={styles.browser}>{browser} tren {os}</span>
             {session.ipAddress && (
               <span className={styles.ip}>IP: {session.ipAddress}</span>
             )}
@@ -167,7 +163,7 @@ export default function SessionsPage() {
       key: 'lastAccessedAt',
       header: 'Hoạt động cuối',
       render: (session) => (
-        <span className={styles.time}>{formatRelativeTime(session.lastAccessedAt)}</span>
+        <span className={styles.time}>{formatRelativeTime(session.expiresAt)}</span>
       ),
     },
     {
@@ -176,7 +172,7 @@ export default function SessionsPage() {
       width: '8rem',
       align: 'right',
       render: (session) => {
-        const isCurrent = session.refreshToken === currentRefreshToken;
+        const isCurrent = session.isCurrent || session.isCurrentSession;
         return (
           <div className={styles.sessionActions}>
             {isCurrent && (
@@ -247,7 +243,7 @@ export default function SessionsPage() {
             <Table
               columns={columns}
               data={sessions}
-              keyExtractor={(s) => s.sessionId || s.id}
+              keyExtractor={(s) => s.sessionId}
               className={styles.table}
             />
           )}
@@ -264,8 +260,8 @@ export default function SessionsPage() {
           revokeTarget ? (
             <>
               Bạn có chắc muốn đăng xuất khỏi thiết bị này?{' '}
-              {parseUserAgent(revokeTarget.userAgent).browser} trên{' '}
-              {parseUserAgent(revokeTarget.userAgent).os}.
+              {parseUserAgent(revokeTarget.deviceInfo).browser} tren{' '}
+              {parseUserAgent(revokeTarget.deviceInfo).os}.
             </>
           ) : null
         }

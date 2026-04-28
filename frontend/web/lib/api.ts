@@ -215,12 +215,64 @@ class ApiClient {
     },
 
     getSessions: async (): Promise<Session[]> => {
-      const res = await this.client.get<ApiResponse<Session[]>>('/api/v1/auth/sessions');
-      return coercePaginated<Session>(res.data, 'data').data;
+      const res = await this.client.get<{ sessions: Session[] }>('/api/v1/auth/sessions');
+      const root = res.data as Record<string, unknown>;
+      const sessions = root.sessions;
+      if (Array.isArray(sessions)) {
+        return sessions as Session[];
+      }
+      return [];
     },
 
-    revokeSession: async (refreshToken: string): Promise<void> => {
-      await this.client.post('/api/v1/auth/logout', { refreshToken });
+    revokeSession: async (sessionId: string): Promise<void> => {
+      await this.client.delete(`/api/v1/auth/sessions/${sessionId}`);
+    },
+
+    forgotPassword: async (email: string): Promise<{ message: string; emailSent: boolean }> => {
+      const res = await this.client.post<{ message: string; emailSent: boolean }>(
+        '/api/v1/auth/forgot-password',
+        { email }
+      );
+      return res.data;
+    },
+
+    changePassword: async (data: {
+      oldPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    }): Promise<{ success: boolean; message: string }> => {
+      const res = await this.client.post<{ success: boolean; message: string }>(
+        '/api/v1/auth/change-password',
+        data
+      );
+      return res.data;
+    },
+
+    getProfile: async (): Promise<{
+      id: string;
+      username: string;
+      email: string;
+      role: string;
+      status: string;
+      departmentId: string | null;
+      departmentName: string | null;
+      createdAt: string;
+      passwordChangedAt: string | null;
+      mustChangePassword: boolean;
+    }> => {
+      const res = await this.client.get<{
+        id: string;
+        username: string;
+        email: string;
+        role: string;
+        status: string;
+        departmentId: string | null;
+        departmentName: string | null;
+        createdAt: string;
+        passwordChangedAt: string | null;
+        mustChangePassword: boolean;
+      }>('/api/v1/auth/me');
+      return res.data;
     },
   };
 
@@ -265,12 +317,156 @@ class ApiClient {
       };
     },
 
-    updateStatus: async (userId: string, status: string): Promise<void> => {
-      await this.client.patch(`/api/v1/users/${userId}/status`, { status });
+    create: async (data: {
+      username: string;
+      email: string;
+      fullName: string;
+      role: string;
+      departmentId?: string;
+    }): Promise<{ userId: string; username: string; email: string; role: string; status: string }> => {
+      const res = await this.client.post<ApiResponse<{
+        userId: string;
+        username: string;
+        email: string;
+        role: string;
+        status: string;
+      }>>('/api/v1/users', data);
+      return res.data as unknown as { userId: string; username: string; email: string; role: string; status: string };
+    },
+
+    bulkCreate: async (users: Array<{
+      username: string;
+      email: string;
+      fullName: string;
+      role: string;
+      departmentId?: string;
+    }>): Promise<{
+      totalRequested: number;
+      successCount: number;
+      failureCount: number;
+      successfulUsers: Array<{
+        userId: string;
+        username: string;
+        email: string;
+        tempPassword: string;
+        emailSent: boolean;
+      }>;
+      failedUsers: Array<{
+        username: string;
+        email: string;
+        error: string;
+      }>;
+    }> => {
+      const res = await this.client.post<{
+        totalRequested: number;
+        successCount: number;
+        failureCount: number;
+        successfulUsers: Array<{
+          userId: string;
+          username: string;
+          email: string;
+          tempPassword: string;
+          emailSent: boolean;
+        }>;
+        failedUsers: Array<{
+          username: string;
+          email: string;
+          error: string;
+        }>;
+      }>('/api/v1/users/bulk', { users });
+      return res.data;
+    },
+
+    update: async (userId: string, data: {
+      fullName?: string;
+      role?: string;
+      status?: string;
+      departmentId?: string;
+    }): Promise<{
+      id: string;
+      username: string;
+      email: string;
+      role: string;
+      status: string;
+    }> => {
+      const res = await this.client.put<ApiResponse<{
+        id: string;
+        username: string;
+        email: string;
+        role: string;
+        status: string;
+      }>>(`/api/v1/users/${userId}`, data);
+      return coercePaginated<{
+        id: string;
+        username: string;
+        email: string;
+        role: string;
+        status: string;
+      }>(res.data, 'data').data[0] ?? (res.data as unknown as {
+        id: string;
+        username: string;
+        email: string;
+        role: string;
+        status: string;
+      });
+    },
+
+    deactivate: async (userId: string): Promise<void> => {
+      await this.client.post(`/api/v1/users/${userId}/deactivate`);
+    },
+
+    reactivate: async (userId: string): Promise<void> => {
+      await this.client.post(`/api/v1/users/${userId}/reactivate`);
+    },
+
+    revoke: async (userId: string): Promise<void> => {
+      await this.client.post(`/api/v1/users/${userId}/revoke`);
     },
 
     delete: async (userId: string): Promise<void> => {
       await this.client.delete(`/api/v1/users/${userId}`);
+    },
+
+    getLoginHistory: async (userId: string, params?: {
+      page?: number;
+      limit?: number;
+    }): Promise<{
+      data: Array<{
+        id: string;
+        username: string;
+        ipAddress: string;
+        deviceType: string;
+        location: string;
+        status: string;
+        failureReason: string | null;
+        createdAt: string;
+      }>;
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }> => {
+      const res = await this.client.get<ApiResponse<Array<{
+        id: string;
+        username: string;
+        ipAddress: string;
+        deviceType: string;
+        location: string;
+        status: string;
+        failureReason: string | null;
+        createdAt: string;
+      }>>>(`/api/v1/users/${userId}/login-history`, { params });
+      const coerced = coercePaginated<{
+        id: string;
+        username: string;
+        ipAddress: string;
+        deviceType: string;
+        location: string;
+        status: string;
+        failureReason: string | null;
+        createdAt: string;
+      }>(res.data as unknown as Record<string, unknown>, 'data');
+      return {
+        data: coerced.data,
+        pagination: coerced.pagination,
+      };
     },
   };
 
