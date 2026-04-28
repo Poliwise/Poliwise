@@ -1,8 +1,30 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/auth-store';
-import { useToast } from '@/components/ui/toast';
+// useToast is dynamically imported inside interceptor to avoid circular dependency issues
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+// Separate axios instance for auth endpoints that must NOT trigger interceptors
+// (e.g. logout during a failed refresh chain — prevents infinite recursion)
+const directClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Module-level semaphore to prevent concurrent refresh attempts (stops refresh loops)
+let isRefreshing = false;
+const refreshSubscribers: Array<(token: string) => void> = [];
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onTokenRefreshed(newToken: string) {
+  refreshSubscribers.forEach((cb) => cb(newToken));
+  refreshSubscribers.length = 0;
+  isRefreshing = false;
+}
 
 function getErrorMessage(error: AxiosError): string {
   const data = error.response?.data as Record<string, unknown> | null;
@@ -55,12 +77,12 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor - Add auth token
+    // Request interceptor - Add auth token (use lowercase 'authorization' for consistency)
     this.client.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         const token = useAuthStore.getState().accessToken;
         if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`;
+          config.headers['authorization'] = `Bearer ${token}`;
         }
         return config;
       },
@@ -90,15 +112,32 @@ class ApiClient {
 
           const refreshToken = useAuthStore.getState().refreshToken;
           if (refreshToken) {
+            if (isRefreshing) {
+              // Another request is already refreshing — queue this one
+              return new Promise((resolve, reject) => {
+                subscribeTokenRefresh((newToken: string) => {
+                  const headers = {
+                    ...(originalRequest.headers as Record<string, string>),
+                    'authorization': `Bearer ${newToken}`,
+                  };
+                  // Use directClient to avoid interceptor recursion and stale token
+                  resolve(directClient({ ...originalRequest, headers }));
+                });
+                setTimeout(() => reject(error), 10000);
+              });
+            }
+
+            isRefreshing = true;
             try {
               const userId =
                 useAuthStore.getState().user?.userId ||
                 (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
-              const response = await axios.post(
+              // Use directClient to avoid interceptor recursion
+              const response = await directClient.post<unknown>(
                 `${API_BASE_URL}/api/v1/auth/refresh`,
                 { refreshToken },
                 {
-                  headers: userId ? { 'X-User-Id': userId } : undefined,
+                  headers: { 'x-user-id': userId || '' },
                 },
               );
 
@@ -107,13 +146,31 @@ class ApiClient {
               );
               useAuthStore.getState().setTokens(accessToken, newRefreshToken);
 
-              if (originalRequest.headers) {
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', accessToken);
+                localStorage.setItem('refreshToken', newRefreshToken);
               }
-              return this.client(originalRequest);
+
+              onTokenRefreshed(accessToken);
+
+              // Use directClient for retry to avoid stale Zustand/localStorage token
+              const headers = {
+                ...(originalRequest.headers as Record<string, string>),
+                'authorization': `Bearer ${accessToken}`,
+              };
+              return directClient({ ...originalRequest, headers });
             } catch (refreshError) {
-              // Refresh failed — session is truly expired
-              useAuthStore.getState().logout();
+              isRefreshing = false;
+              refreshSubscribers.length = 0;
+              // Refresh failed — tokens are truly invalid.
+              const store = useAuthStore.getState();
+              store.setTokens('', '');
+              store.logout();
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('auth-storage');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+              }
               if (typeof window !== 'undefined') {
                 const toast = (await import('@/components/ui/toast')).useToast;
                 toast().addToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warning');
@@ -122,8 +179,13 @@ class ApiClient {
               return Promise.reject(refreshError);
             }
           } else {
-            // No refresh token — session is invalid
-            useAuthStore.getState().logout();
+            // No refresh token — session is invalid.
+            const store = useAuthStore.getState();
+            store.setTokens('', '');
+            store.logout();
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('auth-storage');
+            }
             if (typeof window !== 'undefined') {
               const toast = (await import('@/components/ui/toast')).useToast;
               toast().addToast('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.', 'warning');
@@ -134,7 +196,6 @@ class ApiClient {
         }
 
         // For all other errors (400, 403, 404, 500, 502, 503, etc.)
-        // Show toast with the error message but DON'T logout
         if (typeof window !== 'undefined') {
           try {
             const toast = (await import('@/components/ui/toast')).useToast;
@@ -152,6 +213,13 @@ class ApiClient {
   async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
     const response = await this.client.get<T>(url, { params });
     return response.data;
+  }
+
+  async logout(): Promise<void> {
+    // Use directClient so this call does NOT trigger interceptors.
+    // This prevents infinite recursion when logout() is called by
+    // the 401-interceptor during a failed token refresh.
+    await directClient.post('/api/v1/auth/logout');
   }
 
   async post<T>(url: string, data?: unknown): Promise<T> {

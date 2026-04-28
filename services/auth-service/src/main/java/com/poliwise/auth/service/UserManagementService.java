@@ -1,5 +1,6 @@
 package com.poliwise.auth.service;
 
+import com.poliwise.auth.config.EmailProperties;
 import com.poliwise.auth.dto.auth.*;
 import com.poliwise.auth.entity.LoginHistory;
 import com.poliwise.auth.entity.RefreshToken;
@@ -10,40 +11,45 @@ import com.poliwise.auth.enums.UserRole;
 import com.poliwise.auth.repository.LoginHistoryRepository;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class UserManagementService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserManagementService.class);
 
     private final UserRepository userRepository;
     private final LoginHistoryRepository loginHistoryRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordService passwordService;
     private final EmailService emailService;
+    private final EmailProperties emailProperties;
 
     public UserManagementService(
             UserRepository userRepository,
             LoginHistoryRepository loginHistoryRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordService passwordService,
-            EmailService emailService
+            EmailService emailService,
+            EmailProperties emailProperties
     ) {
         this.userRepository = userRepository;
         this.loginHistoryRepository = loginHistoryRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordService = passwordService;
         this.emailService = emailService;
+        this.emailProperties = emailProperties;
     }
 
     @Transactional
@@ -79,7 +85,31 @@ public class UserManagementService {
 
         User savedUser = userRepository.save(user);
 
-        emailService.sendAccountCredentials(savedUser.getEmail(), savedUser.getUsername(), tempPassword);
+        // Send email synchronously to return result to client
+        if (emailProperties.enabled()) {
+            try {
+                Boolean emailSent = emailService.sendAccountCredentials(
+                        savedUser.getEmail(),
+                        savedUser.getUsername(),
+                        tempPassword
+                ).get();
+
+                if (!Boolean.TRUE.equals(emailSent)) {
+                    log.warn("[USER CREATE] User {} created, but email FAILED for {}", savedUser.getUsername(), maskEmail(savedUser.getEmail()));
+                    throw new IllegalStateException("Tạo người dùng thành công nhưng gửi email thất bại. Vui lòng thông báo cho người dùng về mật khẩu tạm thời.");
+                }
+                log.info("[USER CREATE] User {} created, email sent successfully to {}", savedUser.getUsername(), maskEmail(savedUser.getEmail()));
+            } catch (java.util.concurrent.ExecutionException e) {
+                log.error("[USER CREATE] User {} created, but email threw exception: {}", savedUser.getUsername(), e.getMessage());
+                throw new IllegalStateException("Tạo người dùng thành công nhưng gửi email thất bại. Vui lòng thông báo cho người dùng về mật khẩu tạm thời.");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("[USER CREATE] User {} created, but email was interrupted", savedUser.getUsername());
+                throw new IllegalStateException("Tạo người dùng thành công nhưng gửi email bị gián đoạn. Vui lòng thông báo cho người dùng về mật khẩu tạm thời.");
+            }
+        } else {
+            log.warn("[USER CREATE] User {} created, email DISABLED - Admin should notify user manually", savedUser.getUsername());
+        }
 
         return toAuthUserView(savedUser, createdBy);
     }
@@ -128,12 +158,19 @@ public class UserManagementService {
 
                 User savedUser = userRepository.save(user);
 
+                // Send email asynchronously and track result
                 emailService.sendBulkAccountCredentials(
                         savedUser.getEmail(),
                         savedUser.getUsername(),
                         tempPassword,
                         getAdminName(createdBy)
-                );
+                ).thenAccept(success -> {
+                    if (success) {
+                        log.info("[BULK CREATE] Email sent successfully to {}", maskEmail(savedUser.getEmail()));
+                    } else {
+                        log.warn("[BULK CREATE] Email FAILED for user {} ({})", savedUser.getUsername(), maskEmail(savedUser.getEmail()));
+                    }
+                });
 
                 successfulUsers.add(new BulkUserCreateResponse.CreatedUserInfo(
                         savedUser.getId(),
@@ -339,6 +376,13 @@ public class UserManagementService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.length() < 4) return "***";
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1) return "***" + email.substring(atIndex);
+        return email.substring(0, 2) + "***" + email.substring(atIndex);
     }
 
     private AuthUserView toAuthUserView(User user, UUID registeredBy) {

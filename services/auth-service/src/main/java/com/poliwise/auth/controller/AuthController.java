@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -74,50 +75,48 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(
             @Valid @RequestBody LogoutRequest request,
-            @AuthenticationPrincipal JwtAuthenticationToken authToken,
             HttpServletRequest httpRequest) {
 
-        if (authToken == null || authToken.getPayload() == null) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
         String rawAccessToken = extractRawAccessToken(httpRequest);
-        authService.logout(request.refreshToken(), authToken.getPayload().sub(), rawAccessToken);
+        authService.logout(request.refreshToken(), ((JwtAuthenticationToken) authentication).getPayload().sub(), rawAccessToken);
 
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
     @PostMapping("/logout-all")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> logoutAll(
-            @AuthenticationPrincipal JwtAuthenticationToken authToken,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<?> logoutAll(HttpServletRequest httpRequest) {
 
-        if (authToken == null || authToken.getPayload() == null) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
         String rawAccessToken = extractRawAccessToken(httpRequest);
-        int count = authService.logoutAllDevices(authToken.getPayload().sub(), rawAccessToken);
-
-        return ResponseEntity.ok(Map.of(
-                "message", "All sessions revoked",
-                "sessionsRevoked", count
-        ));
+        int count = authService.logoutAllDevices(((JwtAuthenticationToken) authentication).getPayload().sub(), rawAccessToken);
+        return ResponseEntity.ok(Map.of("message", "Logged out from all devices", "sessionsRevoked", count));
     }
 
     @GetMapping("/sessions")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getActiveSessions(@AuthenticationPrincipal JwtAuthenticationToken authToken) {
-        if (authToken == null || authToken.getPayload() == null) {
+    public ResponseEntity<?> getActiveSessions(HttpServletRequest httpRequest) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
+        JwtAuthenticationToken authToken = (JwtAuthenticationToken) authentication;
         UUID userId = authToken.getPayload().sub();
-        UUID currentSessionId = extractCurrentSessionId(authToken);
+        String jti = authToken.getPayload().jti();
+        UUID currentSessionId = jti != null ? UUID.fromString(jti) : null;
 
         List<RefreshToken> activeTokens = refreshTokenRepository.findActiveTokensByUserId(
                 userId, OffsetDateTime.now(ZoneOffset.UTC));
@@ -138,16 +137,14 @@ public class AuthController {
 
     @DeleteMapping("/sessions/{sessionId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> revokeSession(
-            @PathVariable UUID sessionId,
-            @AuthenticationPrincipal JwtAuthenticationToken authToken
-    ) {
-        if (authToken == null || authToken.getPayload() == null) {
+    public ResponseEntity<?> revokeSession(@PathVariable UUID sessionId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
-        UUID userId = authToken.getPayload().sub();
+        UUID userId = ((JwtAuthenticationToken) authentication).getPayload().sub();
         refreshTokenService.revokeSession(userId, sessionId);
 
         return ResponseEntity.ok(Map.of("message", "Session revoked successfully"));
@@ -163,17 +160,15 @@ public class AuthController {
 
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> changePassword(
-            @Valid @RequestBody ChangePasswordRequest request,
-            @AuthenticationPrincipal JwtAuthenticationToken authToken
-    ) {
-        if (authToken == null || authToken.getPayload() == null) {
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
         var result = changePasswordService.changePassword(
-                authToken.getPayload().sub(),
+                ((JwtAuthenticationToken) authentication).getPayload().sub(),
                 request.oldPassword(),
                 request.newPassword(),
                 request.confirmPassword()
@@ -188,12 +183,16 @@ public class AuthController {
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getProfile(@AuthenticationPrincipal JwtAuthenticationToken authToken) {
-        if (authToken == null || authToken.getPayload() == null) {
+    public ResponseEntity<?> getProfile() {
+        // Note: @AuthenticationPrincipal doesn't work reliably with custom Authentication
+        // implementations in this Spring Security setup. Read from SecurityContextHolder instead.
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
 
+        JwtAuthenticationToken authToken = (JwtAuthenticationToken) authentication;
         UUID userId = authToken.getPayload().sub();
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

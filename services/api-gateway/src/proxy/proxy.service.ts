@@ -158,6 +158,14 @@ export class ProxyService {
     params?: Record<string, string>;
     timeout: number;
   }): Promise<unknown> {
+    const authHeader = context.headers['authorization'] || context.headers['Authorization'];
+    const hasAuth = !!authHeader;
+    this.logger.debug(
+      `[forwardRequest] Sending request to ${context.url} ` +
+      `| Authorization: ${hasAuth ? `Bearer <token:${authHeader?.substring(0, 20)}...>` : 'MISSING!'} ` +
+      `| Headers: ${JSON.stringify(context.headers).substring(0, 200)}`,
+    );
+
     const config: AxiosRequestConfig = {
       method: context.method as any,
       url: context.url,
@@ -169,9 +177,11 @@ export class ProxyService {
     };
 
     try {
-      this.logger.debug(`Forwarding request to ${context.url} with method ${context.method}`);
       const response = await this.axiosInstance.request(config);
-      this.logger.debug(`Response from ${context.url}: status=${response.status}, data=${JSON.stringify(response.data)}`);
+      this.logger.debug(
+        `Response from ${context.url}: status=${response.status}, ` +
+        `auth-received=${response.headers['authorization'] || 'none'}`,
+      );
       return { _proxied: true, data: response.data, statusCode: response.status };
     } catch (error) {
       const axiosError = error as AxiosError;

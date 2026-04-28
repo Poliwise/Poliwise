@@ -121,6 +121,27 @@ function coercePaginated<T>(
 class ApiClient {
   private client: AxiosInstance;
 
+  // Separate instance for logout and refresh — bypasses interceptors to prevent
+  // infinite recursion when logout() is called by the 401-refresh chain
+  private directClient = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 10000,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  // Semaphore to prevent concurrent refresh attempts (stops refresh loops)
+  private isRefreshing = false;
+  private refreshSubscribers: Array<(token: string) => void> = [];
+
+  private subscribeTokenRefresh(cb: (token: string) => void) {
+    this.refreshSubscribers.push(cb);
+  }
+
+  private onTokenRefreshed(newToken: string) {
+    this.refreshSubscribers.forEach((cb) => cb(newToken));
+    this.refreshSubscribers = [];
+  }
+
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
@@ -133,10 +154,12 @@ class ApiClient {
   private setupInterceptors() {
     // — Request: inject Bearer token + trace ID
     this.client.interceptors.request.use((config) => {
+      // Use lowercase 'authorization' because Express normalizes all header keys to lowercase.
+      // This ensures the header name is consistent when forwarded to downstream services.
       const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      if (token) config.headers.Authorization = `Bearer ${token}`;
+      if (token) config.headers['authorization'] = `Bearer ${token}`;
       const traceId = typeof window !== 'undefined' ? localStorage.getItem('traceId') : null;
-      if (traceId) config.headers['X-Trace-ID'] = traceId;
+      if (traceId) config.headers['x-trace-id'] = traceId;
       return config;
     });
 
@@ -145,19 +168,87 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError<ApiError>) => {
         const original = error.config;
-        if (error.response?.status === 401 && original) {
-          const refreshToken = localStorage.getItem('refreshToken');
+        if (!original) return Promise.reject(error);
+
+        // 429 — don't retry, just reject
+        if (error.response?.status === 429) {
+          return Promise.reject(error);
+        }
+
+        if (error.response?.status === 401) {
+          const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
           if (refreshToken) {
-            try {
-              const tokens = await this.auth.refresh(refreshToken);
-              localStorage.setItem('accessToken', tokens.accessToken);
-              localStorage.setItem('refreshToken', tokens.refreshToken);
-              original.headers.Authorization = `Bearer ${tokens.accessToken}`;
-              return this.client(original);
-            } catch {
-              await this.auth.logout();
-              if (typeof window !== 'undefined') window.location.href = '/login';
+            if (this.isRefreshing) {
+              // Another request is already refreshing — queue this one
+              return new Promise((resolve, reject) => {
+                this.subscribeTokenRefresh((newToken: string) => {
+                  original.headers['authorization'] = `Bearer ${newToken}`;
+                  // Use directClient to avoid reading stale token from localStorage
+                  resolve(this.directClient({
+                    ...original,
+                    headers: {
+                      ...(original.headers as Record<string, string>),
+                      'authorization': `Bearer ${newToken}`,
+                    },
+                  }));
+                });
+                // Timeout: if refresh never resolves, reject
+                setTimeout(() => reject(error), 10000);
+              });
             }
+
+            this.isRefreshing = true;
+            try {
+              // Use directClient to avoid interceptor recursion
+              const refreshRes = await this.directClient.post<unknown>(
+                '/api/v1/auth/refresh',
+                { refreshToken },
+                { headers: { 'x-user-id': typeof window !== 'undefined' ? localStorage.getItem('userId') || '' : '' } }
+              );
+              const tokens = coerceRefreshResponse(refreshRes.data);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('accessToken', tokens.accessToken);
+                localStorage.setItem('refreshToken', tokens.refreshToken);
+              }
+              original.headers['authorization'] = `Bearer ${tokens.accessToken}`;
+
+              // Notify all queued requests of the new token
+              this.onTokenRefreshed(tokens.accessToken);
+              this.isRefreshing = false;
+
+              // Use directClient for retry to avoid stale localStorage token
+              return this.directClient({
+                ...original,
+                headers: {
+                  ...(original.headers as Record<string, string>),
+                  'authorization': `Bearer ${tokens.accessToken}`,
+                },
+              });
+            } catch {
+              this.isRefreshing = false;
+              this.refreshSubscribers = [];
+              // Refresh failed — clear all tokens FIRST, then redirect
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('auth-storage');
+              }
+              if (typeof window !== 'undefined') window.location.href = '/login';
+              return Promise.reject(error);
+            }
+          } else {
+            // No refresh token
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              localStorage.removeItem('userId');
+              localStorage.removeItem('userRole');
+              localStorage.removeItem('auth-storage');
+            }
+            if (typeof window !== 'undefined') window.location.href = '/login';
+            return Promise.reject(error);
           }
         }
         return Promise.reject(error);
@@ -194,16 +285,19 @@ class ApiClient {
     },
 
     logout: async (refreshToken?: string): Promise<void> => {
-      const token = refreshToken || localStorage.getItem('refreshToken');
+      const token = refreshToken || (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null);
       if (token) {
         try {
-          await this.client.post('/api/v1/auth/logout', { refreshToken: token });
+          // Use directClient so this call does NOT re-trigger the 401 refresh chain
+          await this.directClient.post('/api/v1/auth/logout', { refreshToken: token });
         } catch { /* ignore */ }
       }
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userRole');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+      }
     },
 
     logoutAll: async (): Promise<void> => {

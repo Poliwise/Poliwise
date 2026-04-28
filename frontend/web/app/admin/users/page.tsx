@@ -10,6 +10,12 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  UserPlus,
+  Upload,
+  X,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
@@ -44,6 +50,11 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Modal states
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -92,6 +103,22 @@ export default function AdminUsersPage() {
           <div>
             <h1>Quản lý người dùng</h1>
             <p>Quản lý tài khoản và phân quyền người dùng</p>
+          </div>
+          <div className={styles.headerActions}>
+            <button
+              className={styles.createBulkButton}
+              onClick={() => { setActiveTab('bulk'); setShowBulkModal(true); }}
+            >
+              <Upload size={16} />
+              Tạo hàng loạt
+            </button>
+            <button
+              className={styles.createButton}
+              onClick={() => setShowCreateModal(true)}
+            >
+              <Plus size={16} />
+              Tạo người dùng
+            </button>
           </div>
         </div>
 
@@ -206,7 +233,386 @@ export default function AdminUsersPage() {
             </button>
           </div>
         )}
+
+        {/* Create Single User Modal */}
+        {showCreateModal && (
+          <CreateUserModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => { setShowCreateModal(false); loadUsers(); }}
+          />
+        )}
+
+        {/* Bulk Create Modal */}
+        {showBulkModal && (
+          <BulkCreateModal
+            onClose={() => setShowBulkModal(false)}
+            onSuccess={() => { setShowBulkModal(false); loadUsers(); }}
+          />
+        )}
       </div>
     </MainLayout>
+  );
+}
+
+// ==========================================
+// Single User Create Modal
+// ==========================================
+interface CreateUserModalProps {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function CreateUserModal({ onClose, onSuccess }: CreateUserModalProps) {
+  const [form, setForm] = useState({
+    username: '',
+    email: '',
+    fullName: '',
+    role: UserRole.USER,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.users.create({
+        username: form.username,
+        email: form.email,
+        fullName: form.fullName,
+        role: form.role,
+      });
+      onSuccess();
+    } catch (err: unknown) {
+      // Log for debugging
+      console.error('Create user error:', err);
+
+      // Extract error message from various possible structures
+      const axiosErr = err as { response?: { data?: { message?: string; error?: string }; status?: number }; message?: string };
+      const serverMsg = axiosErr?.response?.data?.message || axiosErr?.response?.data?.error;
+      const httpStatus = axiosErr?.response?.status;
+
+      // If server returns email failure warning, show warning banner (not error)
+      if (serverMsg && (
+        serverMsg.includes('email thất bại') ||
+        serverMsg.includes('Tạo người dùng thành công')
+      )) {
+        setError(serverMsg);
+      } else if (httpStatus === 400 || httpStatus === 409) {
+        // Validation or conflict error - show server message
+        setError(serverMsg || 'Dữ liệu không hợp lệ');
+      } else if (httpStatus === 500) {
+        // Server error - check for email warning first
+        setError(serverMsg || 'Lỗi máy chủ. Vui lòng thử lại sau.');
+      } else {
+        setError(serverMsg || 'Tạo người dùng thất bại');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitle}>
+            <UserPlus size={20} />
+            <h2>Tạo người dùng mới</h2>
+          </div>
+          <button className={styles.modalClose} onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className={styles.modalBody}>
+          {error && (
+            <div className={error.includes('email thất bại') ? styles.warningBanner : styles.errorBanner}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Tên đăng nhập *</label>
+              <input
+                type="text"
+                value={form.username}
+                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                placeholder="nguyen.van.a"
+                required
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Họ và tên *</label>
+              <input
+                type="text"
+                value={form.fullName}
+                onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+                placeholder="Nguyễn Văn A"
+                required
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Email *</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="nguyen.van.a@company.com"
+                required
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Vai trò *</label>
+              <select
+                value={form.role}
+                onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
+              >
+                <option value={UserRole.USER}>Người dùng</option>
+                <option value={UserRole.MANAGER}>Quản lý</option>
+                <option value={UserRole.ADMIN}>Quản trị viên</option>
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.modalFooter}>
+            <button type="button" className={styles.cancelButton} onClick={onClose}>
+              Hủy
+            </button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
+              {loading ? <Loader2 size={16} className={styles.spinner} /> : <CheckCircle size={16} />}
+              Tạo người dùng
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// Bulk Create Modal
+// ==========================================
+interface BulkCreateModalProps {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function BulkCreateModal({ onClose, onSuccess }: BulkCreateModalProps) {
+  const [users, setUsers] = useState<Array<{
+    username: string;
+    email: string;
+    fullName: string;
+    role: string;
+    status: 'ok' | 'error';
+    error?: string;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [successCount, setSuccessCount] = useState(0);
+  const [error, setError] = useState('');
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+      const parsed = lines.slice(1).map((line, idx) => {
+        const vals = line.split(',').map(v => v.trim());
+        const row: typeof users[0] = {
+          username: vals[headers.indexOf('username')] || '',
+          email: vals[headers.indexOf('email')] || '',
+          fullName: vals[headers.indexOf('fullname')] || vals[headers.indexOf('name')] || '',
+          role: vals[headers.indexOf('role')] || 'USER',
+          status: 'ok',
+        };
+
+        if (!row.username || !row.email) {
+          row.status = 'error';
+          row.error = 'Thiếu username hoặc email';
+        }
+        if (!row.email.includes('@')) {
+          row.status = 'error';
+          row.error = (row.error ? row.error + '; ' : '') + 'Email không hợp lệ';
+        }
+        return row;
+      });
+
+      setUsers(parsed);
+    };
+    reader.readAsText(file);
+  };
+
+  const addRow = () => {
+    setUsers(u => [...u, { username: '', email: '', fullName: '', role: 'USER', status: 'ok' }]);
+  };
+
+  const removeRow = (idx: number) => {
+    setUsers(u => u.filter((_, i) => i !== idx));
+  };
+
+  const updateRow = (idx: number, field: string, value: string) => {
+    setUsers(u => u.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (users.length === 0) { setError('Danh sách người dùng trống'); return; }
+    const validUsers = users.filter(u => u.status === 'ok');
+    if (validUsers.length === 0) { setError('Không có người dùng hợp lệ để tạo'); return; }
+
+    setError('');
+    setLoading(true);
+    try {
+      const result = await api.users.bulkCreate(validUsers.map(u => ({
+        username: u.username,
+        email: u.email,
+        fullName: u.fullName,
+        role: u.role,
+      })));
+      setSuccessCount(result.successfulUsers?.length || 0);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Tạo hàng loạt thất bại';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={`${styles.modal} ${styles.bulkModal}`} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitle}>
+            <Upload size={20} />
+            <h2>Tạo người dùng hàng loạt</h2>
+          </div>
+          <button className={styles.modalClose} onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className={styles.modalBody}>
+          {error && (
+            <div className={styles.errorBanner}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {successCount > 0 && (
+            <div className={styles.successBanner}>
+              <CheckCircle size={16} />
+              <span>Đã tạo thành công {successCount} người dùng. Email thông tin tài khoản đã được gửi.</span>
+            </div>
+          )}
+
+          <div className={styles.bulkInfo}>
+            <p>Tải lên file CSV hoặc thêm thủ công. Các cột: <code>username, email, fullname, role</code></p>
+            <input type="file" accept=".csv" onChange={handleFileUpload} className={styles.fileInput} />
+          </div>
+
+          <div className={styles.bulkTableWrapper}>
+            <table className={styles.bulkTable}>
+              <thead>
+                <tr>
+                  <th>Tên đăng nhập</th>
+                  <th>Email</th>
+                  <th>Họ và tên</th>
+                  <th>Vai trò</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((row, idx) => (
+                  <tr key={idx} className={row.status === 'error' ? styles.errorRow : ''}>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.username}
+                        onChange={e => updateRow(idx, 'username', e.target.value)}
+                        placeholder="username"
+                        className={styles.inlineInput}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="email"
+                        value={row.email}
+                        onChange={e => updateRow(idx, 'email', e.target.value)}
+                        placeholder="email@company.com"
+                        className={styles.inlineInput}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.fullName}
+                        onChange={e => updateRow(idx, 'fullName', e.target.value)}
+                        placeholder="Họ và tên"
+                        className={styles.inlineInput}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={row.role}
+                        onChange={e => updateRow(idx, 'role', e.target.value)}
+                        className={styles.inlineSelect}
+                      >
+                        <option value="USER">USER</option>
+                        <option value="MANAGER">MANAGER</option>
+                        <option value="ADMIN">ADMIN</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button type="button" className={styles.removeRowBtn} onClick={() => removeRow(idx)}>
+                        <X size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {users.length === 0 && (
+            <div className={styles.emptyBulk}>
+              <UserPlus size={32} />
+              <p>Chưa có người dùng nào. Thêm thủ công hoặc tải file CSV.</p>
+            </div>
+          )}
+
+          <div className={styles.bulkActions}>
+            <button type="button" className={styles.addRowButton} onClick={addRow}>
+              <Plus size={14} /> Thêm dòng
+            </button>
+          </div>
+
+          <div className={styles.modalFooter}>
+            <button type="button" className={styles.cancelButton} onClick={onClose}>
+              Đóng
+            </button>
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={loading || users.length === 0}
+            >
+              {loading ? <Loader2 size={16} className={styles.spinner} /> : <CheckCircle size={16} />}
+              Tạo {users.filter(u => u.status === 'ok').length} người dùng
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

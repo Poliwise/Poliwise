@@ -20,7 +20,7 @@ async function bootstrap() {
   app.use(compression());
 
   app.enableCors({
-    origin: configService.get<string>('cors.origin') || 'http://localhost:3001',
+    origin: configService.get<string>('cors.origin') || 'http://localhost:3000',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -30,6 +30,7 @@ async function bootstrap() {
       'X-Requested-With',
       'X-Forwarded-For',
       'X-Real-IP',
+      'X-User-Id',
     ],
     maxAge: 86400,
   });

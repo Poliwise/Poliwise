@@ -45,29 +45,49 @@ export class LoggingInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: () => {
+        next: (data: unknown) => {
           const duration = Date.now() - startTime;
+          // Get the ACTUAL status that will be sent to the client.
+          // If this is a proxied response, the status comes from the downstream service.
+          let actualStatus = response.statusCode;
+          if (data && typeof data === 'object' && '_proxied' in data) {
+            const proxied = data as { _proxied: boolean; statusCode?: number };
+            if (proxied.statusCode !== undefined) {
+              actualStatus = proxied.statusCode;
+            }
+          }
           this.logger.log({
             type: 'RESPONSE',
             traceId,
             method,
             url,
-            statusCode: response.statusCode,
+            statusCode: actualStatus,
             duration,
             userId,
           });
         },
         error: (error: Error) => {
           const duration = Date.now() - startTime;
+          // For error responses from proxied services, extract actual status from the error
+          let actualStatus = response.statusCode || 500;
+          if (error && typeof error === 'object') {
+            const errWithStatus = error as unknown as Record<string, unknown>;
+            if (errWithStatus.status && typeof errWithStatus.status === 'number') {
+              actualStatus = errWithStatus.status as number;
+            }
+            if (errWithStatus.statusCode && typeof errWithStatus.statusCode === 'number') {
+              actualStatus = errWithStatus.statusCode as number;
+            }
+          }
           this.logger.error({
             type: 'RESPONSE_ERROR',
             traceId,
             method,
             url,
-            statusCode: response.statusCode || 500,
+            statusCode: actualStatus,
             duration,
             userId,
-            error: error.message,
+            error: error.message || 'Unknown error',
             stack:
               process.env.NODE_ENV === 'development' ? error.stack : undefined,
           });

@@ -13,7 +13,7 @@ export const jwtConfig = registerAs('jwt', () => ({
 }));
 
 export const corsConfig = registerAs('cors', () => ({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
 }));
 
@@ -23,6 +23,8 @@ export const servicesConfig = registerAs('services', () => ({
   knowledge: process.env.KNOWLEDGE_SERVICE_URL || 'http://localhost:8083',
   metadata: process.env.METADATA_SERVICE_URL || 'http://localhost:8084',
   feedback: process.env.FEEDBACK_SERVICE_URL || 'http://localhost:8085',
+  aiQa: process.env.AI_QA_SERVICE_URL || 'http://localhost:8086',
+  ingestion: process.env.INGESTION_SERVICE_URL || 'http://localhost:8088',
 }));
 
 export const throttlerConfig = registerAs('throttler', () => ({

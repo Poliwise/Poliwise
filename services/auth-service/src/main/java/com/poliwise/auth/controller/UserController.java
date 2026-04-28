@@ -56,15 +56,17 @@ public class UserController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) UUID departmentId,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int limit
     ) {
-        Pageable pageable = PageRequest.of(page, Math.min(limit, 100));
+        // Convert from 1-based (frontend) to 0-based (Spring Pageable)
+        int pageNumber = Math.max(0, page - 1);
+        Pageable pageable = PageRequest.of(pageNumber, Math.min(limit, 100));
         Page<UserBasicView> users = userManagementService.searchUsers(search, role, status, departmentId, pageable);
         return ResponseEntity.ok(Map.of(
                 "data", users.getContent(),
                 "pagination", Map.of(
-                        "page", users.getNumber(),
+                        "page", users.getNumber() + 1,  // Convert back to 1-based for frontend
                         "limit", users.getSize(),
                         "total", users.getTotalElements(),
                         "totalPages", users.getTotalPages()
@@ -116,15 +118,17 @@ public class UserController {
     @GetMapping("/{userId}/login-history")
     public ResponseEntity<?> getLoginHistory(
             @PathVariable UUID userId,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int limit
     ) {
-        Pageable pageable = PageRequest.of(page, Math.min(limit, 100));
+        // Convert from 1-based (frontend) to 0-based (Spring Pageable)
+        int pageNumber = Math.max(0, page - 1);
+        Pageable pageable = PageRequest.of(pageNumber, Math.min(limit, 100));
         Page<LoginHistoryInfo> history = userManagementService.getLoginHistory(userId, pageable);
         return ResponseEntity.ok(Map.of(
                 "data", history.getContent(),
                 "pagination", Map.of(
-                        "page", history.getNumber(),
+                        "page", history.getNumber() + 1,  // Convert back to 1-based for frontend
                         "limit", history.getSize(),
                         "total", history.getTotalElements(),
                         "totalPages", history.getTotalPages()

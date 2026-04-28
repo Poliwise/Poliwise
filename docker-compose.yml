@@ -98,6 +98,8 @@ services:
       dockerfile: Dockerfile
     container_name: poliwise-auth-service
     restart: unless-stopped
+    env_file:
+      - ./services/auth-service/.env
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 8081
@@ -118,6 +120,9 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
+      EMAIL_USER: ${EMAIL_USER:-xuanvietle20050228@gmail.com}
+      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-mjhclmhmzwxhowpi}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8081:8081"
@@ -153,6 +158,7 @@ services:
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      POLIWISE_JWT_ISSUER: poliwise-auth-service
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
@@ -241,6 +247,7 @@ services:
       SPRING_DATASOURCE_USERNAME: poliwise
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      POLIWISE_JWT_ISSUER: poliwise-auth-service
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
@@ -379,12 +386,14 @@ services:
       PORT: 3000
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_ISSUER: poliwise-auth-service
-      CORS_ORIGIN: http://localhost:3001
-      AUTH_SERVICE_URL: http://auth-service:8081
-      USER_SERVICE_URL: http://user-service:8082
-      KNOWLEDGE_SERVICE_URL: http://knowledge-service:8083
-      METADATA_SERVICE_URL: http://metadata-service:8084
-      FEEDBACK_SERVICE_URL: http://feedback-service:8085
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
+      KNOWLEDGE_SERVICE_URL: ${KNOWLEDGE_SERVICE_URL:-http://knowledge-service:8083}
+      METADATA_SERVICE_URL: ${METADATA_SERVICE_URL:-http://metadata-service:8084}
+      FEEDBACK_SERVICE_URL: ${FEEDBACK_SERVICE_URL:-http://feedback-service:8085}
+      AI_QA_SERVICE_URL: ${AI_QA_SERVICE_URL:-http://ai-qa-service:8086}
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8088}
       THROTTLE_TTL: 60000
       THROTTLE_LIMIT_USER: 100
       THROTTLE_LIMIT_MANAGER: 200
@@ -394,7 +403,7 @@ services:
       CIRCUIT_BREAKER_VOLUME_THRESHOLD: 10
       LOG_LEVEL: info
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       auth-service:
         condition: service_healthy
@@ -428,17 +437,19 @@ services:
     build:
       context: ./frontend/web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     container_name: poliwise-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     ports:
-      - "3001:3001"
+      - "3000:3000"
     depends_on:
       api-gateway:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001" ]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000" ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -10,6 +10,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.CompletableFuture;
+
 @Service
 public class EmailService {
 
@@ -23,65 +25,67 @@ public class EmailService {
         this.emailProperties = emailProperties;
     }
 
-    @Async
-    public void sendAccountCredentials(String toEmail, String username, String password) {
+    public CompletableFuture<Boolean> sendAccountCredentials(String toEmail, String username, String password) {
+        log.info("[EMAIL] sendAccountCredentials called - to: {}, username: {}", maskEmail(toEmail), username);
         if (!emailProperties.enabled()) {
-            log.info("[EMAIL DISABLED] Would send credentials to {} for user {}", toEmail, username);
-            return;
+            log.warn("[EMAIL DISABLED] Would send credentials to {} for user {}", maskEmail(toEmail), username);
+            return CompletableFuture.completedFuture(false);
         }
 
-        String subject = "Tài khoản Poliwise của bạn đã được tạo";
-        String body = buildCredentialsEmail(username, password);
-
-        sendHtmlEmail(toEmail, subject, body);
+        return sendEmailAsync(toEmail, "Tài khoản Poliwise của bạn đã được tạo",
+                buildCredentialsEmail(username, password));
     }
 
-    @Async
-    public void sendPasswordReset(String toEmail, String username, String newPassword) {
+    public CompletableFuture<Boolean> sendPasswordReset(String toEmail, String username, String newPassword) {
         if (!emailProperties.enabled()) {
-            log.info("[EMAIL DISABLED] Would send password reset to {} for user {}", toEmail, username);
-            return;
+            log.warn("[EMAIL DISABLED] Would send password reset to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
         }
 
-        String subject = "Khôi phục mật khẩu Poliwise";
-        String body = buildPasswordResetEmail(username, newPassword);
-
-        sendHtmlEmail(toEmail, subject, body);
+        return sendEmailAsync(toEmail, "Khôi phục mật khẩu Poliwise",
+                buildPasswordResetEmail(username, newPassword));
     }
 
-    @Async
-    public void sendBulkAccountCredentials(
+    public CompletableFuture<Boolean> sendBulkAccountCredentials(
             String toEmail,
             String username,
             String password,
             String adminName
     ) {
         if (!emailProperties.enabled()) {
-            log.info("[EMAIL DISABLED] Would send bulk credentials to {} for user {}", toEmail, username);
-            return;
+            log.warn("[EMAIL DISABLED] Would send bulk credentials to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
         }
 
-        String subject = "Tài khoản Poliwise - Thông tin đăng nhập";
-        String body = buildBulkCredentialsEmail(username, password, adminName);
-
-        sendHtmlEmail(toEmail, subject, body);
+        return sendEmailAsync(toEmail, "Tài khoản Poliwise - Thông tin đăng nhập",
+                buildBulkCredentialsEmail(username, password, adminName));
     }
 
-    private void sendHtmlEmail(String to, String subject, String htmlBody) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+    private CompletableFuture<Boolean> sendEmailAsync(String to, String subject, String htmlBody) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                log.info("[EMAIL] Attempting to send - to: {}, subject: {}", maskEmail(to), subject);
 
-            helper.setFrom(emailProperties.fromAddress());
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            mailSender.send(message);
-            log.info("Email sent successfully to {}", maskEmail(to));
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", maskEmail(to), e.getMessage());
-        }
+                helper.setFrom(emailProperties.fromAddress());
+                helper.setTo(to);
+                helper.setSubject(subject);
+                helper.setText(htmlBody, true);
+
+                mailSender.send(message);
+
+                log.info("[EMAIL] SUCCESS - Email sent to {}", maskEmail(to));
+                return true;
+            } catch (MessagingException e) {
+                log.error("[EMAIL] FAILED - Messaging error for {}: {}", maskEmail(to), e.getMessage(), e);
+                return false;
+            } catch (Exception e) {
+                log.error("[EMAIL] FAILED - Unexpected error for {}: {}", maskEmail(to), e.getMessage(), e);
+                return false;
+            }
+        });
     }
 
     private String maskEmail(String email) {
@@ -92,7 +96,7 @@ public class EmailService {
     }
 
     private String buildCredentialsEmail(String username, String password) {
-        return """
+        String html = """
         <!DOCTYPE html>
         <html>
         <head>
@@ -122,11 +126,11 @@ public class EmailService {
                 <div class="credentials">
                     <div class="credentials-row">
                         <span class="label">Tên đăng nhập:</span>
-                        <span class="value">%s</span>
+                        <span class="value">__USERNAME__</span>
                     </div>
                     <div class="credentials-row">
                         <span class="label">Mật khẩu:</span>
-                        <span class="value">%s</span>
+                        <span class="value">__PASSWORD__</span>
                     </div>
                 </div>
 
@@ -147,11 +151,14 @@ public class EmailService {
             </div>
         </body>
         </html>
-        """.formatted(username, escapeHtml(password));
+        """;
+        return html
+                .replace("__USERNAME__", escapeHtml(username))
+                .replace("__PASSWORD__", escapeHtml(password));
     }
 
     private String buildPasswordResetEmail(String username, String newPassword) {
-        return """
+        String html = """
         <!DOCTYPE html>
         <html>
         <head>
@@ -175,13 +182,13 @@ public class EmailService {
                 <p>Yêu cầu đặt lại mật khẩu của bạn</p>
             </div>
             <div class="content">
-                <p>Xin chào <strong>%s</strong>,</p>
+                <p>Xin chào <strong>__USERNAME__</strong>,</p>
                 <p>Chúng tôi đã nhận được yêu cầu khôi phục mật khẩu cho tài khoản của bạn. Dưới đây là mật khẩu mới:</p>
 
                 <div class="credentials">
                     <div class="credentials-row">
                         <span class="label">Mật khẩu mới:</span>
-                        <span class="value">%s</span>
+                        <span class="value">__NEWPASSWORD__</span>
                     </div>
                 </div>
 
@@ -202,11 +209,14 @@ public class EmailService {
             </div>
         </body>
         </html>
-        """.formatted(escapeHtml(username), escapeHtml(newPassword));
+        """;
+        return html
+                .replace("__USERNAME__", escapeHtml(username))
+                .replace("__NEWPASSWORD__", escapeHtml(newPassword));
     }
 
     private String buildBulkCredentialsEmail(String username, String password, String adminName) {
-        return """
+        String html = """
         <!DOCTYPE html>
         <html>
         <head>
@@ -230,16 +240,16 @@ public class EmailService {
             </div>
             <div class="content">
                 <p>Xin chào,</p>
-                <p>Tài khoản Poliwise của bạn đã được tạo bởi <strong>%s</strong>. Dưới đây là thông tin đăng nhập:</p>
+                <p>Tài khoản Poliwise của bạn đã được tạo bởi <strong>__ADMINNAME__</strong>. Dưới đây là thông tin đăng nhập:</p>
 
                 <div class="credentials">
                     <div class="credentials-row">
                         <span class="label">Tên đăng nhập:</span>
-                        <span class="value">%s</span>
+                        <span class="value">__USERNAME__</span>
                     </div>
                     <div class="credentials-row">
                         <span class="label">Mật khẩu:</span>
-                        <span class="value">%s</span>
+                        <span class="value">__PASSWORD__</span>
                     </div>
                 </div>
 
@@ -256,7 +266,11 @@ public class EmailService {
             </div>
         </body>
         </html>
-        """.formatted(escapeHtml(adminName), escapeHtml(username), escapeHtml(password));
+        """;
+        return html
+                .replace("__ADMINNAME__", escapeHtml(adminName))
+                .replace("__USERNAME__", escapeHtml(username))
+                .replace("__PASSWORD__", escapeHtml(password));
     }
 
     private String escapeHtml(String input) {
