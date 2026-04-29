@@ -37,6 +37,7 @@ import type {
   UpdateDepartmentRequest,
   AssignUserDepartmentRequest,
 } from '@/types';
+import type { DocumentVersion } from '@/types/document';
 
 // ============================================================================
 // Constants
@@ -109,7 +110,43 @@ function coercePaginated<T>(
   const root = response as Record<string, unknown> | null;
   if (!root) return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
 
-  const dataArr = (dataKey in root ? root[dataKey] : root) as T[] | undefined;
+  // Handle Spring/PageResponse format at root: { content, totalElements, totalPages, size, number }
+  if ('content' in root && Array.isArray(root.content)) {
+    const page = (root.number as number) ?? (root.page as number) ?? 0;
+    const size = (root.size as number) ?? (root.limit as number) ?? 20;
+    const totalElements = (root.totalElements as number) ?? 0;
+    const totalPages = (root.totalPages as number) ?? 1;
+    return {
+      data: root.content as T[],
+      pagination: {
+        page: page + 1, // Spring uses 0-indexed
+        limit: size,
+        total: totalElements,
+        totalPages,
+      },
+    };
+  }
+
+  // Handle wrapped ApiResponse format: { success, data: { content, totalElements, totalPages, size, ... }, ... }
+  const wrappedData = (dataKey in root ? root[dataKey] : root) as Record<string, unknown> | undefined;
+  if (wrappedData && 'content' in wrappedData && Array.isArray(wrappedData.content)) {
+    const page = (wrappedData.number as number) ?? (wrappedData.page as number) ?? 0;
+    const size = (wrappedData.size as number) ?? (wrappedData.limit as number) ?? 20;
+    const totalElements = (wrappedData.totalElements as number) ?? 0;
+    const totalPages = (wrappedData.totalPages as number) ?? 1;
+    return {
+      data: wrappedData.content as T[],
+      pagination: {
+        page: page + 1,
+        limit: size,
+        total: totalElements,
+        totalPages,
+      },
+    };
+  }
+
+  // Handle wrapped ApiResponse with { success, data: [...], pagination: {...} }
+  const dataArr = wrappedData as T[] | undefined;
   const pagination = (root.pagination || root.Pagination) as
     | { page: number; limit: number; total: number; totalPages: number }
     | undefined;
@@ -588,9 +625,24 @@ class ApiClient {
       };
     },
 
-    getById: async (id: string): Promise<Document> => {
-      const res = await this.client.get<ApiResponse<Document>>(`/api/v1/documents/${id}`);
-      return coercePaginated<Document>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    getById: async (id: string): Promise<Document & { versions?: DocumentVersion[] }> => {
+      const res = await this.client.get<ApiResponse<Document & { versions?: DocumentVersion[] }>>(
+        `/api/v1/documents/${id}`
+      );
+      // Handle wrapped { success: true, data: {...} } format
+      const root = res.data as unknown as Record<string, unknown> | null;
+      if (root && 'data' in root && root.data && typeof root.data === 'object') {
+        return root.data as Document & { versions?: DocumentVersion[] };
+      }
+      // Handle raw DocumentDetailResponse with versions array
+      if (root && 'versions' in root) {
+        return root as unknown as Document & { versions?: DocumentVersion[] };
+      }
+      // Fallback: coercePaginated for single-object responses
+      const coerced = coercePaginated<Document & { versions?: DocumentVersion[] }>(
+        res.data as unknown as Record<string, unknown>, 'data'
+      );
+      return coerced.data[0] ?? (res.data as unknown as { data?: Document & { versions?: DocumentVersion[] } })?.data!;
     },
 
     upload: async (
@@ -633,7 +685,7 @@ class ApiClient {
       }
     ): Promise<DocumentUploadResponse> => {
       const res = await this.client.post<unknown>(
-        `${KNOWLEDGE_SERVICE_URL}/api/v1/documents/${documentId}/confirm`,
+        `/api/v1/documents/${documentId}/confirm`,
         data
       );
       return res.data as DocumentUploadResponse;
@@ -643,11 +695,12 @@ class ApiClient {
       await this.client.delete(`${KNOWLEDGE_SERVICE_URL}/api/v1/documents/${documentId}/cancel`);
     },
 
-    getVersions: async (documentId: string): Promise<Document[]> => {
-      const res = await this.client.get<ApiResponse<Document[]>>(
+    getVersions: async (documentId: string): Promise<DocumentVersion[]> => {
+      const res = await this.client.get<ApiResponse<DocumentVersion[]>>(
         `/api/v1/documents/${documentId}/versions`
       );
-      return coercePaginated<Document>(res.data as unknown as Record<string, unknown>, 'data').data;
+      const coerced = coercePaginated<DocumentVersion>(res.data as unknown as Record<string, unknown>, 'data');
+      return coerced.data;
     },
 
     triggerProcess: async (documentId: string): Promise<void> => {
@@ -1076,22 +1129,22 @@ class ApiClient {
       }>(res.data as unknown as Record<string, unknown>, 'data').data;
     },
 
-    createTag: async (data: { name: string; color?: string }): Promise<{ id: string; name: string; slug: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
+    createTag: async (data: { name: string; color?: string; icon?: string }): Promise<{ id: string; name: string; slug: string; icon?: string }> => {
+      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string; icon?: string }>>(
         '/api/v1/tags', data
       );
-      return coercePaginated<{ id: string; name: string; slug: string }>(
+      return coercePaginated<{ id: string; name: string; slug: string; icon?: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
       ).data[0] ?? res.data.data!;
     },
 
-    updateTag: async (id: string, data: { name?: string; color?: string }): Promise<{
-      id: string; name: string; slug: string;
+    updateTag: async (id: string, data: { name?: string; color?: string; icon?: string }): Promise<{
+      id: string; name: string; slug: string; icon?: string;
     }> => {
-      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
+      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string; icon?: string }>>(
         `/api/v1/tags/${id}`, data
       );
-      return coercePaginated<{ id: string; name: string; slug: string }>(
+      return coercePaginated<{ id: string; name: string; slug: string; icon?: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
       ).data[0] ?? res.data.data!;
     },
@@ -1110,7 +1163,7 @@ class ApiClient {
     },
 
     // — Access Rules
-    getAccessRules: async (documentId?: string): Promise<{
+    getAccessRules: async (metadataId?: string): Promise<{
       id: string; documentMetadataId: string;
       targetType: string; targetRole?: string;
       targetDepartmentId?: string; targetUserId?: string;
@@ -1121,7 +1174,7 @@ class ApiClient {
         targetType: string; targetRole?: string;
         targetDepartmentId?: string; targetUserId?: string;
         permission: string; createdAt: string;
-      }[]>>('/api/v1/access-rules', { params: { documentId } });
+      }[]>>('/api/v1/access-rules', { params: { metadataId } });
       return coercePaginated<{
         id: string; documentMetadataId: string;
         targetType: string; targetRole?: string;

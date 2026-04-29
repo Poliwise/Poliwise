@@ -4,6 +4,7 @@ import com.poliwise.knowledge.config.MinioConfig;
 import com.poliwise.knowledge.enums.FileType;
 import io.minio.*;
 import io.minio.errors.MinioException;
+import io.minio.http.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -81,6 +82,7 @@ public class StorageService {
                     GetPresignedObjectUrlArgs.builder()
                             .bucket(bucketName)
                             .object(fileKey)
+                            .method(Method.GET)
                             .expiry(3600) // 1 hour
                             .build()
             );

@@ -1,257 +1,436 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
-  Loader2,
-  Edit2,
+  Edit,
   Trash2,
+  ChevronRight,
+  ChevronDown,
+  Loader2,
+  AlertCircle,
+  Search,
   FolderOpen,
+  ArrowLeft,
 } from 'lucide-react';
 import {
-  Button,
-  Input,
-  Textarea,
-  Table,
-  Column,
-  Modal,
-  Badge,
-  EmptyState,
-  ConfirmDialog,
-  PageHeader,
-} from '@/components/ui';
-import { MainLayout } from '@/components/layout';
-import { api } from '@/lib/api';
-import styles from './categories.module.css';
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  documentCount?: number;
-}
+  categoryService,
+} from '@/services/document.service';
+import type { Category, CategoryTree } from '@/types/document';
+import { IconPicker, getIconByName } from '@/components/common/IconPicker';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryTree[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ name: '', slug: '', description: '' });
-  const [saving, setSaving] = useState(false);
-
-  // Delete state
-  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const loadCategories = useCallback(async () => {
-    setLoading(true);
-    setActionError(null);
-    try {
-      const data = await api.metadata.getCategories();
-      setCategories(data as unknown as Category[]);
-    } catch {
-      setActionError('Không thể tải danh sách danh mục.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadCategories();
-  }, [loadCategories]);
+  }, []);
 
-  const openCreate = () => {
-    setEditing(null);
-    setFormData({ name: '', slug: '', description: '' });
-    setModalOpen(true);
-  };
-
-  const openEdit = (cat: Category) => {
-    setEditing(cat);
-    setFormData({ name: cat.name, slug: cat.slug, description: cat.description || '' });
-    setModalOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!formData.name.trim()) return;
-    setSaving(true);
-    setActionError(null);
+  const loadCategories = async () => {
+    setLoading(true);
     try {
-      if (editing) {
-        await api.metadata.updateCategory(editing.id, {
-          name: formData.name.trim(),
-          slug: formData.slug.trim() || undefined,
-          description: formData.description.trim() || undefined,
-        });
-      } else {
-        await api.metadata.createCategory({
-          name: formData.name.trim(),
-          slug: formData.slug.trim() || undefined,
-          description: formData.description.trim() || undefined,
-        });
-      }
-      setModalOpen(false);
+      const [cats, tree] = await Promise.all([
+        categoryService.getCategories(),
+        categoryService.getCategoryTree(),
+      ]);
+      setCategories(cats);
+      setCategoryTree(tree);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleExpanded = (id: string) => {
+    const newExpanded = new Set(expandedIds);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedIds(newExpanded);
+  };
+
+  const handleDelete = async (category: Category) => {
+    if (!confirm(`Bạn có chắc muốn xóa danh mục "${category.name}"?`)) return;
+    try {
+      await categoryService.deleteCategory(category.id);
       loadCategories();
-    } catch {
-      setActionError('Không thể lưu danh mục.');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setShowModal(true);
+  };
+
+  const handleCreate = () => {
+    setEditingCategory(null);
+    setShowModal(true);
+  };
+
+  const handleSuccess = () => {
+    setShowModal(false);
+    setEditingCategory(null);
+    loadCategories();
+  };
+
+  const filteredTree = searchQuery
+    ? flattenTree(categoryTree).filter(
+        (c) => c.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : categoryTree;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Quản lý danh mục</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                {categories.length} danh mục
+              </p>
+            </div>
+            <button
+              onClick={handleCreate}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Thêm danh mục
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="mt-4 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm danh mục..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            {error}
+          </div>
+        )}
+
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          {filteredTree.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p>Không có danh mục nào</p>
+              <button
+                onClick={handleCreate}
+                className="mt-4 text-indigo-600 hover:text-indigo-800"
+              >
+                Tạo danh mục đầu tiên
+              </button>
+            </div>
+          ) : searchQuery ? (
+            // Search results (flat list)
+            <div className="divide-y divide-gray-200">
+              {filteredTree.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="p-4 flex items-center justify-between hover:bg-gray-50"
+                >
+                  <div className="flex items-center">
+                    <FolderOpen className="w-5 h-5 text-indigo-500 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{cat.name}</p>
+                      <p className="text-xs text-gray-500">{cat.slug}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEdit(cat)}
+                      className="p-2 text-gray-400 hover:text-indigo-600"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(cat)}
+                      className="p-2 text-gray-400 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Tree view
+            <div className="divide-y divide-gray-200">
+              {categoryTree.map((cat) => (
+                <CategoryTreeItem
+                  key={cat.id}
+                  category={cat}
+                  expandedIds={expandedIds}
+                  onToggle={toggleExpanded}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <CategoryModal
+          category={editingCategory}
+          categories={categories.filter((c) => c.id !== editingCategory?.id)}
+          onClose={() => setShowModal(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
+    </div>
+  );
+}
+
+function CategoryTreeItem({
+  category,
+  expandedIds,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  category: CategoryTree;
+  expandedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onEdit: (category: Category) => void;
+  onDelete: (category: Category) => void;
+}) {
+  const hasChildren = category.children && category.children.length > 0;
+  const isExpanded = expandedIds.has(category.id);
+
+  return (
+    <>
+      <div className="p-4 flex items-center hover:bg-gray-50">
+        <button
+          onClick={() => hasChildren && onToggle(category.id)}
+          className={`p-1 mr-2 ${hasChildren ? 'text-gray-400 hover:text-gray-600' : 'text-transparent'}`}
+        >
+          {hasChildren ? (
+            isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
+        </button>
+        {category.icon ? (
+          <div className="w-5 h-5 mr-3 text-indigo-500 flex items-center justify-center">
+            {getIconByName(category.icon, 20)}
+          </div>
+        ) : (
+          <FolderOpen className="w-5 h-5 text-indigo-500 mr-3" />
+        )}
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-900">{category.name}</p>
+          <p className="text-xs text-gray-500">{category.slug}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onEdit(category as unknown as Category)}
+            className="p-2 text-gray-400 hover:text-indigo-600"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onDelete(category as unknown as Category)}
+            className="p-2 text-gray-400 hover:text-red-600"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      {hasChildren && isExpanded && (
+        <div className="bg-gray-50 border-l-4 border-indigo-200">
+          {category.children!.map((child) => (
+            <CategoryTreeItem
+              key={child.id}
+              category={child}
+              expandedIds={expandedIds}
+              onToggle={onToggle}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function flattenTree(tree: CategoryTree[]): CategoryTree[] {
+  const result: CategoryTree[] = [];
+  for (const cat of tree) {
+    result.push(cat);
+    if (cat.children && cat.children.length > 0) {
+      result.push(...flattenTree(cat.children));
+    }
+  }
+  return result;
+}
+
+// Category Modal
+function CategoryModal({
+  category,
+  categories,
+  onClose,
+  onSuccess,
+}: {
+  category: Category | null;
+  categories: Category[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: category?.name || '',
+    description: category?.description || '',
+    parentId: category?.parentId || '',
+    icon: category?.icon || '',
+    displayOrder: category?.displayOrder || 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      if (category) {
+        await categoryService.updateCategory(category.id, formData);
+      } else {
+        await categoryService.createCategory(formData);
+      }
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    setActionError(null);
-    try {
-      await api.metadata.deleteCategory(deleteTarget.id);
-      setDeleteTarget(null);
-      loadCategories();
-    } catch {
-      setActionError('Không thể xóa danh mục.');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const columns: Column<Category>[] = [
-    {
-      key: 'name',
-      header: 'Tên danh mục',
-      render: (cat) => (
-        <div className={styles.catName}>
-          <FolderOpen size={16} />
-          <span>{cat.name}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'slug',
-      header: 'Slug',
-      render: (cat) => <code className={styles.slug}>{cat.slug}</code>,
-    },
-    {
-      key: 'description',
-      header: 'Mô tả',
-      render: (cat) => (
-        <span className={styles.desc}>{cat.description || '-'}</span>
-      ),
-    },
-    {
-      key: 'documentCount',
-      header: 'Tài liệu',
-      align: 'center',
-      render: (cat) => (
-        <Badge variant="neutral">{cat.documentCount ?? 0}</Badge>
-      ),
-    },
-    {
-      key: 'actions',
-      header: '',
-      width: '6rem',
-      align: 'right',
-      render: (cat) => (
-        <div className={styles.rowActions}>
-          <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}>
-            <Edit2 size={14} />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(cat)}>
-            <Trash2 size={14} />
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
   return (
-    <MainLayout>
-      <div className={styles.container}>
-        <PageHeader
-          title="Danh mục"
-          description="Quản lý danh mục tài liệu."
-          actions={
-            <Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>
-              Thêm danh mục
-            </Button>
-          }
-        />
-
-        {actionError && (
-          <div className={styles.error}>{actionError}</div>
-        )}
-
-        {loading ? (
-          <div className={styles.loading}>
-            <Loader2 size={24} className={styles.spinner} />
-          </div>
-        ) : categories.length === 0 ? (
-          <EmptyState
-            icon={<FolderOpen size={32} />}
-            title="Chưa có danh mục nào"
-            description="Tạo danh mục đầu tiên để phân loại tài liệu."
-            action={<Button variant="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo danh mục</Button>}
-          />
-        ) : (
-          <Table columns={columns} data={categories} keyExtractor={(c) => c.id} />
-        )}
-
-        {/* Create / Edit Modal */}
-        <Modal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          title={editing ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
-          size="sm"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setModalOpen(false)}>Hủy</Button>
-              <Button variant="primary" loading={saving} onClick={handleSave} disabled={!formData.name.trim()}>
-                {editing ? 'Lưu' : 'Tạo'}
-              </Button>
-            </>
-          }
-        >
-          <div className={styles.form}>
-            <Input
-              label="Tên danh mục"
-              value={formData.name}
-              onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-              placeholder="VD: Chính sách nhân sự"
-              required
-            />
-            <Input
-              label="Slug"
-              value={formData.slug}
-              onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
-              placeholder="Tu dong tao neu de trong"
-              helperText="VD: hr-policies (dể trống để tự động tạo)"
-            />
-            <Textarea
-              label="Mô tả"
-              value={formData.description}
-              onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              placeholder="Mô tả ngắn về danh mục này..."
-              rows={3}
-            />
-          </div>
-        </Modal>
-
-        {/* Delete Confirm */}
-        <ConfirmDialog
-          open={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDelete}
-          loading={deleting}
-          title="Xóa danh mục?"
-          message={`Xóa "${deleteTarget?.name}"? Tài liệu trong danh mục này sẽ không bị xóa.`}
-          confirmLabel="Xóa"
-          cancelLabel="Hủy"
-          variant="danger"
-        />
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {category ? 'Sửa danh mục' : 'Thêm danh mục mới'}
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tên <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục cha</label>
+              <select
+                value={formData.parentId}
+                onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Không có (Danh mục gốc)</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <IconPicker
+                label="Icon"
+                value={formData.icon}
+                onChange={(icon) => setFormData({ ...formData, icon })}
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
+                <input
+                  type="number"
+                  value={formData.displayOrder}
+                  onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {saving ? 'Đang lưu...' : 'Lưu'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }

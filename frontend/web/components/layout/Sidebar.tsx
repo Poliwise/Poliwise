@@ -18,6 +18,7 @@ import {
   User,
   X,
   LogOut,
+  Building2,
 } from 'lucide-react';
 import { useUserRole, useAuthStore } from '@/store';
 import { UserRole } from '@/types';
@@ -67,6 +68,12 @@ const ADMIN_ITEMS: NavItem[] = [
     label: 'Quản lý người dùng',
     href: '/admin/users',
     icon: <Users size={20} />,
+    roles: [UserRole.ADMIN],
+  },
+  {
+    label: 'Phòng ban',
+    href: '/admin/departments',
+    icon: <Building2 size={20} />,
     roles: [UserRole.ADMIN],
   },
   {

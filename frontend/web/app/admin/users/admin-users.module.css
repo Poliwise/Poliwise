@@ -1,6 +1,6 @@
 .container {
   max-width: 1400px;
-  margin: 0 auto;
+  margin: 0;
   padding: 2rem;
 }
 
@@ -76,7 +76,8 @@
   position: relative;
 }
 
-.filterToggleBtn:hover, .filterToggleBtn.active {
+.filterToggleBtn:hover,
+.filterToggleBtn.active {
   background: var(--muted);
 }
 
@@ -202,8 +203,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .table {

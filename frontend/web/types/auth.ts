@@ -1,6 +1,6 @@
 // User Types
 export interface User {
-  userId: string;
+  id: string;
   username: string;
   email: string;
   role: UserRole;
@@ -11,6 +11,8 @@ export interface User {
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** @deprecated Use 'id' instead — kept for compatibility with persisted auth-storage */
+  userId?: string;
 }
 
 export enum UserRole {
@@ -44,7 +46,7 @@ export interface LoginResponse {
   refreshToken: string;
   expiresIn: number;
   user: {
-    userId: string;
+    id: string;
     username: string;
     email: string;
     role: UserRole;

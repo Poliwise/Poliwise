@@ -83,7 +83,6 @@ export class ProxyController {
   @All('users/me/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleUserMe(@Req() request: Request) {
-    // Route to auth-service /me endpoint (current user's profile)
     const path = '/api/v1/auth/me' + request.path.replace('/api/v1/users/me', '');
     return this.proxyService.forward(
       ServiceName.AUTH,
@@ -92,6 +91,9 @@ export class ProxyController {
     );
   }
 
+  // ===== Document Management Endpoints =====
+  
+  /** List documents with pagination, search, and filters */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('documents')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
@@ -103,7 +105,7 @@ export class ProxyController {
     );
   }
 
-  /** Đăng ký trước `documents/*` để POST upload chỉ áp dụng role ADMIN. */
+  /** Upload new document (ADMIN only) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('documents/upload')
   @Roles(UserRole.ADMIN)
@@ -116,6 +118,20 @@ export class ProxyController {
     );
   }
 
+  /** Confirm document metadata after upload (ADMIN only) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('documents/:documentId/confirm')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  handleDocumentConfirm(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
+  }
+
+  /** Document CRUD operations (get detail, delete, etc.) */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('documents/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
@@ -127,10 +143,9 @@ export class ProxyController {
     );
   }
 
-  /**
-   * Public endpoint for fetching active categories (no auth required).
-   * Used by the upload modal to populate the category dropdown.
-   */
+  // ===== Categories Endpoints =====
+
+  /** Get all categories (active only, no auth required for public use) */
   @Get('categories/active')
   handlePublicCategories(@Req() request: Request) {
     return this.proxyService.forward(
@@ -140,15 +155,151 @@ export class ProxyController {
     );
   }
 
+  /** Get category tree (hierarchical structure) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('categories/active/tree')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleCategoriesActiveTree(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/categories/active/tree',
+    );
+  }
+
+  /** Get category children by parent ID */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('categories/active/children')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleCategoriesActiveChildren(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/categories/active/children' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  /** Admin category management endpoints */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('categories')
+  @Roles(UserRole.ADMIN)
+  handleCategoriesAdmin(@Req() request: Request) {
+    const relative = request.path.replace(/^\/api\/v1\/categories/, '') || '/';
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/categories' + (relative === '/' ? '' : relative),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('categories/*path')
+  @Roles(UserRole.ADMIN)
+  handleCategoriesAdminNested(@Req() request: Request) {
+    const relative = request.path.replace(/^\/api\/v1\/categories/, '') || '/';
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/categories' + (relative === '/' ? '' : relative),
+    );
+  }
+
+  // ===== Tags Endpoints =====
+
+  /** Get all tags */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('tags')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleTagsGet(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/tags',
+    );
+  }
+
+  /** Get popular tags */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('tags/popular')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleTagsPopular(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/tags/popular',
+    );
+  }
+
+  /** Search tags */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('tags/search')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleTagsSearch(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/tags/search' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  /** Resolve tags (find-or-create) - ADMIN/MANAGER only */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('tags/resolve')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @HttpCode(HttpStatus.OK)
+  handleTagsResolve(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/tags/resolve',
+    );
+  }
+
+  /** Tag CRUD operations (ADMIN only for create/update/delete) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('tags')
+  @Roles(UserRole.ADMIN)
+  handleTagsAdmin(@Req() request: Request) {
+    const relative = request.path.replace(/^\/api\/v1\/tags/, '') || '/';
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/tags' + (relative === '/' ? '' : relative),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('tags/*path')
+  @Roles(UserRole.ADMIN)
+  handleTagsAdminNested(@Req() request: Request) {
+    const relative = request.path.replace(/^\/api\/v1\/tags/, '') || '/';
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/tags' + (relative === '/' ? '' : relative),
+    );
+  }
+
+  // ===== Metadata Endpoints =====
+
+  /** Document metadata CRUD - ADMIN only */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('metadata')
+  @Roles(UserRole.ADMIN)
+  handleMetadataRoot(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/metadata',
+    );
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('metadata/*path')
   @Roles(UserRole.ADMIN)
   handleMetadata(@Req() request: Request) {
-    // Gateway path: /api/v1/metadata/categories/active
-    // Metadata-service expects: /api/v1/categories/active
-    // Strip "/api/v1/metadata" prefix and prepend "/api/v1"
     const relative = request.path.replace(/^\/api\/v1\/metadata/, '') || '/';
-    const downstream = `/api/v1${relative === '/' ? '' : relative}`;
+    const downstream = `/api/v1/metadata${relative === '/' ? '' : relative}`;
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,
@@ -156,6 +307,31 @@ export class ProxyController {
     );
   }
 
+  // ===== Access Rules Endpoints =====
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('access-rules')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleAccessRulesRoot(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/access-rules' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('access-rules/*path')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleAccessRules(@Req() request: Request) {
+    const relative = request.path.replace(/^\/api\/v1\/access-rules/, '') || '/';
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      '/api/v1/access-rules' + (relative === '/' ? '' : relative) + (request.url.includes('?') && !request.url.includes(relative) ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  // ===== Feedback Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('feedback/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
@@ -167,6 +343,7 @@ export class ProxyController {
     );
   }
 
+  // ===== Analytics Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('analytics/*path')
   @Roles(UserRole.MANAGER, UserRole.ADMIN)
@@ -213,6 +390,7 @@ export class ProxyController {
     return this.proxyService.forward(ServiceName.INGESTION, request, path);
   }
 
+  // Admin endpoints
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('admin/*path')
   @Roles(UserRole.ADMIN)

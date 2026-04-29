@@ -32,6 +32,7 @@ public class DocumentParsingService {
                 case XLSX, XLS -> parseExcel(inputStream);
                 case TXT -> parseText(inputStream);
                 case PNG, JPG, JPEG -> parseImage(inputStream);
+                default -> new ParsingResult("", 0, 0, false, null);
             };
         } catch (Exception e) {
             log.error("Failed to parse file: {}", e.getMessage(), e);

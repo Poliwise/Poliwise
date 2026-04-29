@@ -26,7 +26,6 @@ import {
   Phone,
   Calendar,
 } from 'lucide-react';
-import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { UserRole, AccountStatus } from '@/types';
@@ -167,8 +166,7 @@ export default function AdminUsersPage() {
   const hasActiveFilters = filterRole || filterStatus || filterDepartment || search;
 
   return (
-    <MainLayout>
-      <div className={styles.container}>
+    <div className={styles.container}>
         <div className={styles.header}>
           <div>
             <h1>Quản lý người dùng</h1>
@@ -301,7 +299,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody>
                 {users.map((user) => (
-                  <tr key={user.userId}>
+                  <tr key={user.id}>
                     <td>
                       <div className={styles.userCell}>
                         <div className={styles.avatar}>
@@ -349,7 +347,7 @@ export default function AdminUsersPage() {
                           <>
                             <button
                               className={styles.actionButton}
-                              onClick={() => handleStatusChange(user.userId, AccountStatus.DEACTIVATED)}
+                              onClick={() => handleStatusChange(user.id, AccountStatus.DEACTIVATED)}
                               title="Vô hiệu hóa"
                             >
                               <UserX size={16} />
@@ -366,7 +364,7 @@ export default function AdminUsersPage() {
                         {(user.status === AccountStatus.DEACTIVATED || user.status === AccountStatus.REVOKED) && (
                           <button
                             className={`${styles.actionButton} ${styles.success}`}
-                            onClick={() => handleStatusChange(user.userId, AccountStatus.ACTIVE)}
+                            onClick={() => handleStatusChange(user.id, AccountStatus.ACTIVE)}
                             title="Kích hoạt lại"
                           >
                             <UserCheck size={16} />
@@ -431,7 +429,7 @@ export default function AdminUsersPage() {
           <UserDeleteModal
             user={selectedUser}
             onClose={() => { setShowDeleteModal(false); setSelectedUser(null); }}
-            onConfirm={() => { handleDelete(selectedUser.userId); setShowDeleteModal(false); setSelectedUser(null); }}
+            onConfirm={() => { handleDelete(selectedUser.id); setShowDeleteModal(false); setSelectedUser(null); }}
           />
         )}
 
@@ -453,7 +451,6 @@ export default function AdminUsersPage() {
           />
         )}
       </div>
-    </MainLayout>
   );
 }
 
@@ -544,14 +541,14 @@ function UserDetailModal({ user, departments, onClose, onStatusChange }: UserDet
             <>
               <button
                 className={styles.warningButton}
-                onClick={() => onStatusChange(user.userId, AccountStatus.DEACTIVATED)}
+                onClick={() => onStatusChange(user.id, AccountStatus.DEACTIVATED)}
               >
                 <UserX size={16} />
                 Vô hiệu hóa
               </button>
               <button
                 className={styles.dangerButton}
-                onClick={() => onStatusChange(user.userId, AccountStatus.REVOKED)}
+                onClick={() => onStatusChange(user.id, AccountStatus.REVOKED)}
               >
                 <Shield size={16} />
                 Thu hồi tài khoản
@@ -561,7 +558,7 @@ function UserDetailModal({ user, departments, onClose, onStatusChange }: UserDet
           {(user.status === AccountStatus.DEACTIVATED || user.status === AccountStatus.REVOKED) && (
             <button
               className={styles.successButton}
-              onClick={() => onStatusChange(user.userId, AccountStatus.ACTIVE)}
+              onClick={() => onStatusChange(user.id, AccountStatus.ACTIVE)}
             >
               <UserCheck size={16} />
               Kích hoạt lại
@@ -587,6 +584,7 @@ interface UserEditModalProps {
 function UserEditModal({ user, departments, onClose, onSuccess }: UserEditModalProps) {
   const [form, setForm] = useState({
     role: user.role,
+    status: user.status,
     departmentId: user.department || '',
   });
   const [loading, setLoading] = useState(false);
@@ -594,11 +592,16 @@ function UserEditModal({ user, departments, onClose, onSuccess }: UserEditModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user.id) {
+      setError('Lỗi: Không tìm thấy ID người dùng');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      await api.users.update(user.userId, {
+      await api.users.update(user.id, {
         role: form.role,
+        status: form.status,
         departmentId: form.departmentId || undefined,
       });
       onSuccess();

@@ -9,12 +9,13 @@ import com.poliwise.metadata.exception.DuplicateResourceException;
 import com.poliwise.metadata.repository.TagRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,7 +39,7 @@ public class TagService {
 
         Tag tag = Tag.builder()
                 .id(UUID.randomUUID())
-                .name(request.name())
+                .name(request.name().trim())
                 .slug(slug)
                 .color(request.color() != null ? request.color() : "#6366f1")
                 .usageCount(0)
@@ -56,6 +57,13 @@ public class TagService {
                 .collect(Collectors.toList());
     }
 
+    public List<TagResponse> getActive() {
+        return tagRepository.findAll().stream()
+                .filter(t -> t.getUsageCount() != null && t.getUsageCount() >= 0)
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     public List<TagResponse> getPopular() {
         return tagRepository.findTopByOrderByUsageCountDesc().stream()
                 .map(this::toResponse)
@@ -68,6 +76,22 @@ public class TagService {
         return toResponse(tag);
     }
 
+    public TagResponse getBySlug(String slug) {
+        Tag tag = tagRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found with slug: " + slug));
+        return toResponse(tag);
+    }
+
+    public TagResponse getByName(String name) {
+        Tag tag = tagRepository.findByNameIgnoreCase(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found with name: " + name));
+        return toResponse(tag);
+    }
+
+    public Page<TagResponse> search(String keyword, Pageable pageable) {
+        return tagRepository.searchByName(keyword, pageable).map(this::toResponse);
+    }
+
     @Transactional
     public TagResponse update(UUID id, UpdateTagRequest request) {
         Tag tag = tagRepository.findById(id)
@@ -76,9 +100,11 @@ public class TagService {
         if (request.name() != null && !request.name().equals(tag.getName())) {
             String newSlug = generateSlug(request.name());
             tagRepository.findBySlug(newSlug).ifPresent(existing -> {
-                throw new DuplicateResourceException("Tag already exists with name: " + request.name());
+                if (!existing.getId().equals(id)) {
+                    throw new DuplicateResourceException("Tag already exists with name: " + request.name());
+                }
             });
-            tag.setName(request.name());
+            tag.setName(request.name().trim());
             tag.setSlug(newSlug);
         }
 
@@ -87,7 +113,7 @@ public class TagService {
         }
 
         Tag saved = tagRepository.save(tag);
-        log.info("Updated tag: id={}", id);
+        log.info("Updated tag: id={}, name={}", id, saved.getName());
         return toResponse(saved);
     }
 
@@ -97,62 +123,143 @@ public class TagService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + id));
 
         tagRepository.delete(tag);
-        log.info("Deleted tag: id={}", id);
+        log.info("Deleted tag: id={}, name={}", id, tag.getName());
     }
 
+    /**
+     * Bulk resolve tags - find existing or create new ones.
+     * This is the "find-or-create" strategy for tags.
+     * 
+     * @param tagNames List of tag names to resolve
+     * @return ResolveTagsResponse containing resolved tag IDs and any newly created tags
+     */
     @Transactional
     public com.poliwise.metadata.dto.ResolveTagsResponse resolveTags(List<String> tagNames) {
         if (tagNames == null || tagNames.isEmpty()) {
-            return new com.poliwise.metadata.dto.ResolveTagsResponse(java.util.Collections.emptyMap(), java.util.Collections.emptyList());
+            return new com.poliwise.metadata.dto.ResolveTagsResponse(Collections.emptyMap(), Collections.emptyList());
         }
 
-        // 1. Find existing tags in bulk
+        // 1. Normalize tag names and find existing tags
+        List<String> normalizedNames = tagNames.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::trim)
+                .map(this::generateSlug)
+                .distinct()
+                .toList();
+
+        if (normalizedNames.isEmpty()) {
+            return new com.poliwise.metadata.dto.ResolveTagsResponse(Collections.emptyMap(), Collections.emptyList());
+        }
+
+        // 2. Find existing tags by name (case-insensitive)
         List<Tag> existingTags = tagRepository.findByNameInIgnoreCase(tagNames);
-        java.util.Map<String, UUID> resolvedMap = new java.util.HashMap<>();
-        
+        Map<String, UUID> resolvedMap = new LinkedHashMap<>();
+        List<UUID> orderedTagIds = new ArrayList<>();
+        Set<UUID> foundIds = new HashSet<>();
+
+        // Map existing tags
         for (Tag tag : existingTags) {
-            resolvedMap.put(tag.getName().toLowerCase(), tag.getId());
+            String normalizedName = generateSlug(tag.getName());
+            resolvedMap.put(normalizedName, tag.getId());
+            foundIds.add(tag.getId());
         }
 
-        // 2. Identify missing tags and create them
-        List<UUID> orderedTagIds = new java.util.ArrayList<>();
-        for (String name : tagNames) {
-            if (name == null || name.isBlank()) continue;
+        // 3. Create missing tags (find-or-create)
+        List<Tag> newTags = new ArrayList<>();
+        for (String tagName : tagNames) {
+            if (tagName == null || tagName.isBlank()) continue;
             
-            String normalizedName = name.trim();
-            UUID id = resolvedMap.get(normalizedName.toLowerCase());
+            String normalizedName = generateSlug(tagName.trim());
             
-            if (id == null) {
-                // Not found, create it
-                String slug = generateSlug(normalizedName);
+            if (!resolvedMap.containsKey(normalizedName)) {
+                // Not found, create new tag
+                String slug = generateSlug(tagName.trim());
                 
-                // Final safety check against slug (case-insensitive find above was by name)
-                Tag newTag = tagRepository.findBySlug(slug)
-                        .orElseGet(() -> {
-                            Tag t = Tag.builder()
-                                    .id(UUID.randomUUID())
-                                    .name(normalizedName)
-                                    .slug(slug)
-                                    .color("#6366f1")
-                                    .usageCount(0)
-                                    .createdAt(OffsetDateTime.now())
-                                    .build();
-                            return tagRepository.save(t);
-                        });
-                
-                id = newTag.getId();
-                resolvedMap.put(normalizedName.toLowerCase(), id);
-                log.info("Auto-created tag during resolution: name={}, id={}", normalizedName, id);
+                // Double-check with slug (race condition prevention)
+                Optional<Tag> bySlug = tagRepository.findBySlug(slug);
+                if (bySlug.isPresent()) {
+                    // Tag was created by another request (race condition)
+                    Tag existingBySlug = bySlug.get();
+                    resolvedMap.put(normalizedName, existingBySlug.getId());
+                    if (!foundIds.contains(existingBySlug.getId())) {
+                        orderedTagIds.add(existingBySlug.getId());
+                        foundIds.add(existingBySlug.getId());
+                    }
+                } else {
+                    // Create new tag
+                    Tag newTag = Tag.builder()
+                            .id(UUID.randomUUID())
+                            .name(tagName.trim())
+                            .slug(slug)
+                            .color("#6366f1")
+                            .usageCount(0)
+                            .createdAt(OffsetDateTime.now())
+                            .build();
+                    newTag = tagRepository.save(newTag);
+                    resolvedMap.put(normalizedName, newTag.getId());
+                    newTags.add(newTag);
+                    orderedTagIds.add(newTag.getId());
+                    foundIds.add(newTag.getId());
+                    
+                    log.info("Auto-created tag during resolution: name={}, id={}", tagName.trim(), newTag.getId());
+                }
+            } else {
+                // Found existing tag
+                UUID existingId = resolvedMap.get(normalizedName);
+                if (!foundIds.contains(existingId)) {
+                    orderedTagIds.add(existingId);
+                    foundIds.add(existingId);
+                }
             }
-            orderedTagIds.add(id);
         }
+
+        log.info("Resolved {} tags: {} existing, {} newly created", 
+                tagNames.size(), existingTags.size(), newTags.size());
 
         return new com.poliwise.metadata.dto.ResolveTagsResponse(resolvedMap, orderedTagIds);
+    }
+
+    /**
+     * Increment usage count for tags (called when documents are tagged)
+     */
+    @Transactional
+    public void incrementUsageCount(List<UUID> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return;
+        
+        for (UUID tagId : tagIds) {
+            tagRepository.findById(tagId).ifPresent(tag -> {
+                tag.setUsageCount(tag.getUsageCount() != null ? tag.getUsageCount() + 1 : 1);
+                tagRepository.save(tag);
+            });
+        }
+    }
+
+    /**
+     * Decrement usage count for tags (called when documents are untagged)
+     */
+    @Transactional
+    public void decrementUsageCount(List<UUID> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return;
+        
+        for (UUID tagId : tagIds) {
+            tagRepository.findById(tagId).ifPresent(tag -> {
+                tag.setUsageCount(tag.getUsageCount() != null && tag.getUsageCount() > 0 
+                        ? tag.getUsageCount() - 1 : 0);
+                tagRepository.save(tag);
+            });
+        }
     }
 
     private String generateSlug(String name) {
         if (name == null) return "";
         return name.trim().toLowerCase()
+                .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
+                .replaceAll("[èéẹẻẽêềếệểễ]", "e")
+                .replaceAll("[ìíịỉĩ]", "i")
+                .replaceAll("[òóọỏõôồốộổỗơờớợởỡ]", "o")
+                .replaceAll("[ùúụủũưừứựửữ]", "u")
+                .replaceAll("[ỳýỵỷỹ]", "y")
+                .replaceAll("[đ]", "d")
                 .replaceAll("[^a-z0-9\\s-]", "")
                 .replaceAll("\\s+", "-")
                 .replaceAll("-+", "-")

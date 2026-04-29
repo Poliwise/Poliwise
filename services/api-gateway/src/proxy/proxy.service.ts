@@ -166,6 +166,8 @@ export class ProxyService {
       `| Headers: ${JSON.stringify(context.headers).substring(0, 200)}`,
     );
 
+    // Detect binary responses (download/preview endpoints) to prevent Axios from JSON-parsing them
+    const isDownloadRequest = context.url.includes('/download') || context.url.includes('/preview');
     const config: AxiosRequestConfig = {
       method: context.method as any,
       url: context.url,
@@ -174,6 +176,7 @@ export class ProxyService {
       params: context.params,
       timeout: context.timeout,
       validateStatus: () => true,
+      responseType: isDownloadRequest ? 'arraybuffer' : 'json',
     };
 
     try {
@@ -249,6 +252,7 @@ export class ProxyService {
     params?: Record<string, string>;
     timeout: number;
   }): Observable<unknown> {
+    const isDownloadRequest = context.url.includes('/download') || context.url.includes('/preview');
     const config: AxiosRequestConfig = {
       method: context.method as any,
       url: context.url,
@@ -257,6 +261,7 @@ export class ProxyService {
       params: context.params,
       timeout: context.timeout,
       validateStatus: () => true,
+      responseType: isDownloadRequest ? 'arraybuffer' : 'json',
     };
 
     return from(this.axiosInstance.request(config)).pipe(

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record CreateAccessRuleRequest(
+        UUID metadataId,
         @NotBlank(message = "targetType is required") String targetType,
         String targetRole,
         UUID targetDepartmentId,

@@ -1,6 +1,5 @@
 package com.poliwise.auth.dto.auth;
 
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
@@ -12,6 +11,5 @@ public record UserUpdateRequest(
 
         UUID departmentId,
 
-        @NotNull(message = "Trang thai la bat buoc")
         String status
 ) {}

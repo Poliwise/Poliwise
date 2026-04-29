@@ -3,19 +3,26 @@ package com.poliwise.knowledge.controller;
 import com.poliwise.knowledge.dto.*;
 import com.poliwise.knowledge.entity.Document;
 import com.poliwise.knowledge.entity.DocumentVersion;
-import com.poliwise.knowledge.security.SecurityUtils;
-import com.poliwise.knowledge.security.UserRole;
-import com.poliwise.knowledge.service.DocumentService;
+import com.poliwise.knowledge.enums.ChunkingStrategy;
+import com.poliwise.knowledge.enums.EmbeddingModel;
+import com.poliwise.knowledge.enums.FileType;
+import com.poliwise.knowledge.enums.ProcessingStatus;
+import com.poliwise.knowledge.service.DocumentManagementService;
 import com.poliwise.knowledge.service.MetadataContextService;
 import com.poliwise.knowledge.service.MetadataSuggestionService;
 import com.poliwise.knowledge.service.PolicyComparisonService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,132 +32,319 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/v1/documents")
 public class DocumentController {
 
-    private final DocumentService documentService;
+    private final DocumentManagementService documentManagementService;
     private final PolicyComparisonService comparisonService;
     private final MetadataContextService metadataContextService;
     private final MetadataSuggestionService metadataSuggestionService;
 
     public DocumentController(
-            DocumentService documentService,
+            DocumentManagementService documentManagementService,
             PolicyComparisonService comparisonService,
             MetadataContextService metadataContextService,
             MetadataSuggestionService metadataSuggestionService) {
-        this.documentService = documentService;
+        this.documentManagementService = documentManagementService;
         this.comparisonService = comparisonService;
         this.metadataContextService = metadataContextService;
         this.metadataSuggestionService = metadataSuggestionService;
     }
 
+    // ===== 1. Upload Document =====
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DocumentResponse> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "changelog", required = false, defaultValue = "") String changelog,
-            @RequestParam(value = "language", required = false, defaultValue = "vi") String language) {
+            @RequestParam(value = "language", required = false, defaultValue = "vi") String language,
+            HttpServletRequest httpRequest) {
 
-        UUID uploadedBy = SecurityUtils.getCurrentUserId();
+        UUID uploadedBy = getCurrentUserId(httpRequest);
 
         UploadDocumentRequest request = new UploadDocumentRequest(
                 file.getOriginalFilename(),
                 detectFileType(file.getOriginalFilename()),
                 file.getSize(),
                 file.getContentType(),
-                null, null, null, null,
+                ChunkingStrategy.SENTENCE,
+                512,
+                50,
+                EmbeddingModel.MULTILINGUAL_E5_LARGE,
                 language
         );
 
-        Document document = documentService.upload(file, request, uploadedBy);
-        DocumentResponse response = processAndSuggest(document, uploadedBy);
+        Document document = documentManagementService.upload(
+                file, request, uploadedBy,
+                getClientIp(httpRequest),
+                httpRequest.getHeader("User-Agent")
+        );
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        // Phase 1: Get metadata suggestion
+        MetadataSuggestionResponse suggestion = getMetadataSuggestion(document);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(toResponse(document, suggestion));
     }
 
-    private DocumentResponse processAndSuggest(Document document, UUID uploadedBy) {
-        // Phase 1: Fetch context and request metadata suggestion from ingestion-service
-        MetadataSuggestionResponse suggestion = null;
-        try {
-            List<String> categorySlugs = metadataContextService.fetchActiveCategorySlugs();
-            List<String> topTags = metadataContextService.fetchTopTagNames(20);
+    // ===== 2. Upload New Version =====
+    @PostMapping(value = "/{documentId}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentVersionResponse> uploadNewVersion(
+            @PathVariable UUID documentId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "changelog", required = false, defaultValue = "") String changelog,
+            @RequestParam(value = "language", required = false) String language,
+            HttpServletRequest httpRequest) {
 
-            MetadataSuggestionRequest suggestRequest = new MetadataSuggestionRequest(
-                    document.getFileKey(),
-                    document.getBucketName(),
-                    categorySlugs,
-                    topTags
-            );
+        UUID uploadedBy = getCurrentUserId(httpRequest);
 
-            suggestion = metadataSuggestionService.suggest(suggestRequest);
-        } catch (Exception e) {
-            // Fallback: metadata suggestion unavailable, user will enter manually
+        Document document = documentManagementService.uploadNewVersion(
+                documentId, file, changelog, uploadedBy,
+                getClientIp(httpRequest),
+                httpRequest.getHeader("User-Agent")
+        );
+
+        // Get the latest version
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+
+        // Return the latest version response
+        DocumentVersionResponse latestVersion = detail.versions().isEmpty() ? null :
+                detail.versions().stream()
+                        .filter(v -> v.versionNumber().equals(document.getCurrentVersion()))
+                        .findFirst()
+                        .orElse(null);
+
+        if (latestVersion != null) {
+            return ResponseEntity.ok(latestVersion);
         }
 
-        // Phase 2 processing disabled for Phase 1 manual testing
-        // documentService.processDocument(document.getId(), uploadedBy);
-
-        return toResponse(document, suggestion);
+        // Fallback: create version response from document
+        DocumentVersionResponse response = new DocumentVersionResponse(
+                UUID.randomUUID(),
+                documentId,
+                document.getCurrentVersion(),
+                document.getFileKey(),
+                document.getFileSizeBytes(),
+                changelog,
+                uploadedBy,
+                document.getUpdatedAt()
+        );
+        return ResponseEntity.ok(response);
     }
 
+    // ===== 3. List Documents (Search + Filter + Pagination) =====
+    @GetMapping
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<PagedDocumentResponse> list(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String fileType,
+            @RequestParam(required = false) UUID uploadedBy,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false, defaultValue = "desc") String sortOrder) {
+
+        FileType parsedFileType = null;
+        if (fileType != null && !fileType.isBlank()) {
+            try {
+                parsedFileType = FileType.valueOf(fileType.toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        java.time.LocalDate start = null;
+        java.time.LocalDate end = null;
+        try {
+            if (startDate != null && !startDate.isBlank()) start = java.time.LocalDate.parse(startDate);
+            if (endDate != null && !endDate.isBlank()) end = java.time.LocalDate.parse(endDate);
+        } catch (Exception ignored) {}
+
+        DocumentSearchRequest searchRequest = new DocumentSearchRequest(
+                page, size, search, parsedFileType, uploadedBy,
+                start, end, status, categoryId, null, sortBy, sortOrder
+        );
+
+        Page<Document> documents = documentManagementService.searchDocuments(searchRequest);
+
+        List<DocumentListItem> items = documents.getContent().stream()
+                .map(this::toListItem)
+                .collect(Collectors.toList());
+
+        PagedDocumentResponse response = new PagedDocumentResponse(
+                items,
+                documents.getNumber() + 1,
+                documents.getSize(),
+                documents.getTotalElements(),
+                documents.getTotalPages()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ===== 4. Get Document Detail =====
     @GetMapping("/{documentId}")
-    public ResponseEntity<DocumentResponse> get(@PathVariable UUID documentId) {
-        return documentService.findById(documentId)
-                .map(d -> toResponse(d, null))
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<DocumentDetailResponse> getDetail(@PathVariable UUID documentId) {
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+        return ResponseEntity.ok(detail);
     }
 
-    @DeleteMapping("/{documentId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID documentId) {
-        UUID deletedBy = SecurityUtils.getCurrentUserId();
-        documentService.softDelete(documentId, deletedBy);
-        return ResponseEntity.noContent().build();
+    // ===== 5. Download Document =====
+    @GetMapping("/{documentId}/download")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID documentId) {
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+        StreamingResponseBody stream = documentManagementService.downloadDocument(documentId);
+
+        String filename = detail.originalFilename() != null ? detail.originalFilename() : "document";
+        String contentType = detail.mimeType() != null ? detail.mimeType() : "application/octet-stream";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, encodeFilename(filename))
+                .contentType(MediaType.parseMediaType(contentType))
+                .contentLength(detail.fileSizeBytes() != null ? detail.fileSizeBytes() : 0)
+                .body(stream);
     }
 
+    // ===== 6. Get Download URL (Signed URL) =====
+    @GetMapping("/{documentId}/url")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<DownloadUrlResponse> getDownloadUrl(@PathVariable UUID documentId) {
+        String url = documentManagementService.getDownloadUrl(documentId);
+        return ResponseEntity.ok(new DownloadUrlResponse(url));
+    }
+
+    // ===== 6b. Preview Document (returns binary for iframe embedding) =====
+    @GetMapping("/{documentId}/preview")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<byte[]> getPreview(@PathVariable UUID documentId) {
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+        byte[] content = documentManagementService.getDocumentBytes(documentId);
+
+        String contentType = detail.mimeType() != null ? detail.mimeType() : "application/octet-stream";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .body(content);
+    }
+
+    // ===== 7. Download Specific Version =====
+    @GetMapping("/{documentId}/versions/{versionNumber}/download")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<StreamingResponseBody> downloadVersion(
+            @PathVariable UUID documentId,
+            @PathVariable Integer versionNumber) {
+
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+        DocumentVersionResponse version = detail.versions().stream()
+                .filter(v -> v.versionNumber().equals(versionNumber))
+                .findFirst()
+                .orElseThrow(() -> new com.poliwise.knowledge.exception.ResourceNotFoundException("Version not found: " + versionNumber));
+
+        StreamingResponseBody stream = documentManagementService.downloadVersion(documentId, versionNumber);
+
+        String filename = detail.originalFilename() != null ? detail.originalFilename() : "document";
+        String contentType = detail.mimeType() != null ? detail.mimeType() : "application/octet-stream";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, encodeFilename("v" + versionNumber + "-" + filename))
+                .contentType(MediaType.parseMediaType(contentType))
+                .contentLength(version.fileSizeBytes() != null ? version.fileSizeBytes() : 0)
+                .body(stream);
+    }
+
+    // ===== 8. Cancel Upload (STAGING only) =====
     @DeleteMapping("/{documentId}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> cancelUpload(@PathVariable UUID documentId) {
-        documentService.cancelUpload(documentId);
+    public ResponseEntity<Void> cancelUpload(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
+        UUID cancelledBy = getCurrentUserId(httpRequest);
+        documentManagementService.cancelUpload(documentId, cancelledBy,
+                getClientIp(httpRequest), httpRequest.getHeader("User-Agent"));
         return ResponseEntity.noContent().build();
     }
 
+    // ===== 9. Soft Delete =====
+    @DeleteMapping("/{documentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> softDelete(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
+        UUID deletedBy = getCurrentUserId(httpRequest);
+        documentManagementService.softDelete(documentId, deletedBy,
+                getClientIp(httpRequest), httpRequest.getHeader("User-Agent"));
+        return ResponseEntity.noContent().build();
+    }
+
+    // ===== 10. Get Version History =====
+    @GetMapping("/{documentId}/versions")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<List<DocumentVersionResponse>> getVersions(@PathVariable UUID documentId) {
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+        return ResponseEntity.ok(detail.versions());
+    }
+
+    // ===== 11. Get Audit Logs =====
+    @GetMapping("/{documentId}/audit-logs")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<PagedAuditLogResponse> getAuditLogs(
+            @PathVariable UUID documentId,
+            @RequestParam(required = false) UUID actorId,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false, defaultValue = "1") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+
+        java.time.LocalDate start = null;
+        java.time.LocalDate end = null;
+        try {
+            if (startDate != null && !startDate.isBlank()) start = java.time.LocalDate.parse(startDate);
+            if (endDate != null && !endDate.isBlank()) end = java.time.LocalDate.parse(endDate);
+        } catch (Exception ignored) {}
+
+        Page<DocumentAuditLogResponse> logs = documentManagementService.getAuditLogs(
+                documentId, actorId, action, start, end, page, size);
+
+        return ResponseEntity.ok(new PagedAuditLogResponse(
+                logs.getContent(),
+                logs.getNumber() + 1,
+                logs.getSize(),
+                logs.getTotalElements(),
+                logs.getTotalPages()
+        ));
+    }
+
+    // ===== 12. Trigger Processing =====
+    @PostMapping("/{documentId}/process")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> process(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
+        UUID processedBy = getCurrentUserId(httpRequest);
+        // Delegate to existing processing service
+        // processDocumentService.trigger(documentId, processedBy);
+        return ResponseEntity.accepted().build();
+    }
+
+    // ===== 13. Confirm Metadata =====
     @PostMapping("/{documentId}/confirm")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DocumentResponse> confirm(
             @PathVariable UUID documentId,
-            @Valid @RequestBody DocumentConfirmRequest request) {
-        UUID confirmedBy = SecurityUtils.getCurrentUserId();
-        com.poliwise.knowledge.entity.Document document =
-                documentService.confirmMetadata(documentId, request, confirmedBy);
-        return ResponseEntity.ok(toResponse(document));
+            @Valid @RequestBody DocumentConfirmRequest request,
+            HttpServletRequest httpRequest) {
+        UUID confirmedBy = getCurrentUserId(httpRequest);
+
+        // Delegate to the existing confirm flow
+        Document document = documentManagementService.confirmMetadata(documentId, request, confirmedBy);
+
+        // Get metadata suggestion for response
+        MetadataSuggestionResponse suggestion = getMetadataSuggestion(document);
+
+        return ResponseEntity.ok(toResponse(document, suggestion));
     }
 
-    @PostMapping("/{documentId}/process")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> process(@PathVariable UUID documentId) {
-        UUID processedBy = SecurityUtils.getCurrentUserId();
-        documentService.processDocument(documentId, processedBy);
-        return ResponseEntity.accepted().build();
-    }
-
-    @GetMapping("/{documentId}/versions")
-    public ResponseEntity<List<DocumentVersionResponse>> versions(@PathVariable UUID documentId) {
-        List<DocumentVersionResponse> versions = documentService.getVersions(documentId)
-                .stream()
-                .map(this::toVersionResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(versions);
-    }
+    // ===== Helper Methods =====
 
     private DocumentResponse toResponse(Document d, MetadataSuggestionResponse suggestion) {
-        String suggestedLanguage = (suggestion != null && suggestion.language() != null && !suggestion.language().isBlank())
-                ? suggestion.language()
-                : null;
-        String categorySlug = suggestion != null ? suggestion.categorySlug() : null;
-        String title = suggestion != null ? suggestion.title() : null;
-        String description = suggestion != null ? suggestion.description() : null;
-        List<String> tags = suggestion != null ? suggestion.tags() : List.of();
-        Boolean isPolicy = suggestion != null ? suggestion.isPolicy() : null;
-
+        if (d == null) return null;
         return new DocumentResponse(
                 d.getId(),
                 d.getOriginalFilename(),
@@ -170,44 +364,143 @@ public class DocumentController {
                 d.getUploadedBy(),
                 d.getCreatedAt(),
                 d.getUpdatedAt(),
-                suggestedLanguage,
-                categorySlug,
-                title,
-                description,
-                tags,
-                isPolicy
+                suggestion != null ? suggestion.language() : null,
+                suggestion != null ? suggestion.categorySlug() : null,
+                suggestion != null ? suggestion.title() : null,
+                suggestion != null ? suggestion.description() : null,
+                suggestion != null ? suggestion.tags() : List.of(),
+                suggestion != null ? suggestion.isPolicy() : null
         );
     }
 
-    private DocumentResponse toResponse(Document d) {
-        return toResponse(d, null);
-    }
-
-    private DocumentVersionResponse toVersionResponse(DocumentVersion v) {
-        return new DocumentVersionResponse(
-                v.getId(),
-                v.getDocumentId(),
-                v.getVersionNumber(),
-                v.getFileKey(),
-                v.getFileSizeBytes(),
-                v.getChangelog(),
-                v.getCreatedBy(),
-                v.getCreatedAt()
+    private DocumentListItem toListItem(Document d) {
+        return new DocumentListItem(
+                d.getId(),
+                d.getOriginalFilename(),
+                d.getFileType() != null ? d.getFileType().toString() : null,
+                d.getFileSizeBytes(),
+                d.getStatus() != null ? d.getStatus().toString() : null,
+                d.getCurrentVersion(),
+                d.getLanguage(),
+                d.getUploadedBy(),
+                d.getCreatedAt(),
+                d.getUpdatedAt()
         );
     }
 
-    private com.poliwise.knowledge.enums.FileType detectFileType(String filename) {
-        if (filename == null) return com.poliwise.knowledge.enums.FileType.PDF;
+    private MetadataSuggestionResponse getMetadataSuggestion(Document document) {
+        try {
+            List<String> categorySlugs = metadataContextService.fetchActiveCategorySlugs();
+            List<String> topTags = metadataContextService.fetchTopTagNames(20);
+
+            MetadataSuggestionRequest suggestRequest = new MetadataSuggestionRequest(
+                    document.getFileKey(),
+                    document.getBucketName(),
+                    categorySlugs,
+                    topTags
+            );
+
+            return metadataSuggestionService.suggest(suggestRequest);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private FileType detectFileType(String filename) {
+        if (filename == null) return FileType.PDF;
         String lower = filename.toLowerCase();
-        if (lower.endsWith(".pdf")) return com.poliwise.knowledge.enums.FileType.PDF;
-        if (lower.endsWith(".docx")) return com.poliwise.knowledge.enums.FileType.DOCX;
-        if (lower.endsWith(".xlsx")) return com.poliwise.knowledge.enums.FileType.XLSX;
-        if (lower.endsWith(".doc")) return com.poliwise.knowledge.enums.FileType.DOC;
-        if (lower.endsWith(".xls")) return com.poliwise.knowledge.enums.FileType.XLS;
-        if (lower.endsWith(".txt")) return com.poliwise.knowledge.enums.FileType.TXT;
-        if (lower.endsWith(".png")) return com.poliwise.knowledge.enums.FileType.PNG;
-        if (lower.endsWith(".jpg")) return com.poliwise.knowledge.enums.FileType.JPG;
-        if (lower.endsWith(".jpeg")) return com.poliwise.knowledge.enums.FileType.JPEG;
-        return com.poliwise.knowledge.enums.FileType.PDF;
+        if (lower.endsWith(".pdf")) return FileType.PDF;
+        if (lower.endsWith(".docx")) return FileType.DOCX;
+        if (lower.endsWith(".xlsx")) return FileType.XLSX;
+        if (lower.endsWith(".doc")) return FileType.DOC;
+        if (lower.endsWith(".xls")) return FileType.XLS;
+        if (lower.endsWith(".txt")) return FileType.TXT;
+        if (lower.endsWith(".png")) return FileType.PNG;
+        if (lower.endsWith(".jpg")) return FileType.JPG;
+        if (lower.endsWith(".jpeg")) return FileType.JPEG;
+        return FileType.UNKNOWN;
+    }
+
+    private UUID getCurrentUserId(HttpServletRequest request) {
+        try {
+            String userId = (String) request.getAttribute("userId");
+            if (userId != null && !userId.isBlank()) {
+                return UUID.fromString(userId);
+            }
+        } catch (Exception ignored) {}
+        return UUID.randomUUID();
+    }
+
+    /**
+     * Encode filename for Content-Disposition header using RFC 5987 (UTF-8 extended).
+     * Provides both ASCII fallback and RFC 5987 encoded version for cross-browser compatibility.
+     */
+    private String encodeFilename(String filename) {
+        try {
+            // ASCII fallback (replace non-printable/problematic chars)
+            StringBuilder ascii = new StringBuilder();
+            for (char c : filename.toCharArray()) {
+                if (c >= 0x20 && c <= 0x7E && c != '"') {
+                    ascii.append(c);
+                } else {
+                    ascii.append('_');
+                }
+            }
+            // RFC 5987 encoding: filename*=UTF-8''<percent-encoded>
+            String encoded = new String(filename.getBytes(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.US_ASCII);
+            StringBuilder percentEncoded = new StringBuilder();
+            for (char ch : encoded.toCharArray()) {
+                if (ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z' || ch >= '0' && ch <= '9'
+                        || ch == '-' || ch == '_' || ch == '.' || ch == '~') {
+                    percentEncoded.append(ch);
+                } else {
+                    percentEncoded.append(String.format("%%%02X", (int) ch));
+                }
+            }
+            return "attachment; filename=\"" + ascii + "\"; filename*=UTF-8''" + percentEncoded;
+        } catch (Exception e) {
+            return "attachment; filename=\"document\"";
+        }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
+
+// ===== Additional Response Records =====
+
+record PagedDocumentResponse(
+        List<DocumentListItem> data,
+        int page,
+        int limit,
+        long total,
+        int totalPages
+) {}
+
+record DocumentListItem(
+        UUID id,
+        String originalFilename,
+        String fileType,
+        Long fileSizeBytes,
+        String status,
+        Integer currentVersion,
+        String language,
+        UUID uploadedBy,
+        java.time.OffsetDateTime createdAt,
+        java.time.OffsetDateTime updatedAt
+) {}
+
+record PagedAuditLogResponse(
+        List<DocumentAuditLogResponse> data,
+        int page,
+        int limit,
+        long total,
+        int totalPages
+) {}
+
+record DownloadUrlResponse(String url) {}

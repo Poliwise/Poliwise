@@ -130,7 +130,7 @@ class ApiClient {
             isRefreshing = true;
             try {
               const userId =
-                useAuthStore.getState().user?.userId ||
+                useAuthStore.getState().user?.id ||
                 (typeof window !== 'undefined' ? localStorage.getItem('userId') : null);
               // Use directClient to avoid interceptor recursion
               const response = await directClient.post<unknown>(

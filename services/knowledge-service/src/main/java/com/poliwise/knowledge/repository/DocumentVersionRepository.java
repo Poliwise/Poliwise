@@ -17,4 +17,6 @@ public interface DocumentVersionRepository
     Optional<DocumentVersion> findFirstByDocumentIdOrderByVersionNumberDesc(UUID documentId);
 
     boolean existsByDocumentIdAndVersionNumber(UUID documentId, Integer versionNumber);
+
+    Optional<DocumentVersion> findByDocumentIdAndVersionNumber(UUID documentId, Integer versionNumber);
 }

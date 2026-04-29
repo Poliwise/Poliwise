@@ -7,25 +7,31 @@ import {
   Filter,
   Upload,
   FileText,
-  FileSpreadsheet,
-  Image,
-  File,
   MoreVertical,
   Download,
   Eye,
   Trash2,
   Clock,
   User,
-  Tag,
+  Tag as TagIcon,
   Grid3X3,
   List,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
   X,
-  CheckCircle,
   AlertCircle,
   Loader2,
+  CheckCircle,
+  File,
+  FileSpreadsheet,
+  Image,
+  AlertTriangle,
+  Edit,
+  Archive,
+  EyeOff,
+  Unlock,
+  Lock,
 } from 'lucide-react';
 import {
   documentService,
@@ -37,8 +43,6 @@ import type {
   DocumentListResponse,
   Category,
   Tag as TagType,
-  FileType,
-  ProcessingStatus,
 } from '@/types/document';
 import {
   formatFileSize,
@@ -51,23 +55,23 @@ import { UploadModal } from '@/components/documents/UploadModal';
 
 const PAGE_SIZE = 20;
 
-export default function DocumentsPage() {
+export default function AdminDocumentsPage() {
   const router = useRouter();
   const { user: authUser } = useAuthStore();
   const isAdmin = useIsAdmin();
-  
+
   // State
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  
+
   // Filters
   const [filters, setFilters] = useState<{
     fileType?: string;
@@ -75,17 +79,17 @@ export default function DocumentsPage() {
     categoryId?: string;
   }>({});
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // View mode
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
+
   // Categories and tags for filter dropdowns
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
-  
+
   // Upload modal
   const [showUploadModal, setShowUploadModal] = useState(false);
-  
+
   // Actions menu
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
@@ -144,7 +148,7 @@ export default function DocumentsPage() {
   };
 
   const handleDelete = async (doc: Document) => {
-    if (!confirm(`Are you sure you want to delete "${doc.originalFilename}"?`)) {
+    if (!confirm(`Bạn có chắc muốn xóa tài liệu "${doc.originalFilename}"?`)) {
       return;
     }
     try {
@@ -191,15 +195,13 @@ export default function DocumentsPage() {
                 {total > 0 ? `${total} tài liệu` : 'Không có tài liệu nào'}
               </p>
             </div>
-            {isAdmin && (
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Tải lên
-              </button>
-            )}
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Tải lên
+            </button>
           </div>
 
           {/* Search and Filters */}
@@ -255,7 +257,7 @@ export default function DocumentsPage() {
             <button
               onClick={loadDocuments}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              title="Refresh"
+              title="Làm mới"
             >
               <RefreshCw className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -355,7 +357,7 @@ export default function DocumentsPage() {
                 ? 'Không tìm thấy tài liệu phù hợp với bộ lọc'
                 : 'Bắt đầu bằng cách tải lên tài liệu đầu tiên'}
             </p>
-            {isAdmin && !searchQuery && Object.keys(filters).length === 0 && (
+            {!searchQuery && Object.keys(filters).length === 0 && (
               <button
                 onClick={() => setShowUploadModal(true)}
                 className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
@@ -368,12 +370,12 @@ export default function DocumentsPage() {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {documents.map((doc) => (
-              <DocumentCard
+              <AdminDocumentCard
                 key={doc.id}
                 document={doc}
                 onView={() => router.push(`/documents/${doc.id}`)}
                 onDownload={() => handleDownload(doc)}
-                onDelete={isAdmin ? () => handleDelete(doc) : undefined}
+                onDelete={() => handleDelete(doc)}
                 onAction={() => setActionMenuId(actionMenuId === doc.id ? null : doc.id)}
                 isActionOpen={actionMenuId === doc.id}
               />
@@ -443,20 +445,20 @@ export default function DocumentsPage() {
                           handleDownload(doc);
                         }}
                         className="text-gray-400 hover:text-gray-600 mr-3"
+                        title="Tải xuống"
                       >
                         <Download className="w-4 h-4" />
                       </button>
-                      {isAdmin && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(doc);
-                          }}
-                          className="text-gray-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(doc);
+                        }}
+                        className="text-gray-400 hover:text-red-600"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -506,8 +508,8 @@ export default function DocumentsPage() {
   );
 }
 
-// Document Card Component
-function DocumentCard({
+// Admin Document Card Component
+function AdminDocumentCard({
   document,
   onView,
   onDownload,
@@ -518,7 +520,7 @@ function DocumentCard({
   document: Document;
   onView: () => void;
   onDownload: () => void;
-  onDelete?: () => void;
+  onDelete: () => void;
   onAction: () => void;
   isActionOpen: boolean;
 }) {
@@ -574,18 +576,16 @@ function DocumentCard({
                   <Download className="w-4 h-4 mr-2" />
                   Tải xuống
                 </button>
-                {onDelete && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Xóa
-                  </button>
-                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Xóa
+                </button>
               </div>
             )}
           </div>
@@ -621,7 +621,7 @@ function DocumentCard({
                 key={index}
                 className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600"
               >
-                <Tag className="w-3 h-3 mr-1" />
+                <TagIcon className="w-3 h-3 mr-1" />
                 {tag}
               </span>
             ))}

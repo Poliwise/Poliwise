@@ -42,7 +42,7 @@ export default function LoginPage() {
       const response = await api.auth.login({ username, password });
 
       setUser({
-        userId: response.user.userId,
+        id: response.user.id,
         username: response.user.username,
         email: response.user.email,
         role: response.user.role,
@@ -52,7 +52,7 @@ export default function LoginPage() {
       setTokens(response.accessToken, response.refreshToken);
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('userId', response.user.userId);
+        localStorage.setItem('userId', response.user.id);
         localStorage.setItem('userRole', response.user.role);
         if (rememberMe) {
           localStorage.setItem('rememberUsername', username);
