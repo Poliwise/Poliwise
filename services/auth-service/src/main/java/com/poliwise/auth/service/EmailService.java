@@ -61,6 +61,263 @@ public class EmailService {
                 buildBulkCredentialsEmail(username, password, adminName));
     }
 
+    /**
+     * Gửi email thông báo khi tài khoản bị vô hiệu hóa (DEACTIVATED).
+     */
+    public CompletableFuture<Boolean> sendAccountDeactivatedEmail(String toEmail, String username, String adminName) {
+        if (!emailProperties.enabled()) {
+            log.warn("[EMAIL DISABLED] Would send deactivated email to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return sendEmailAsync(toEmail, "Thông báo: Tài khoản Poliwise của bạn đã bị tạm ngưng",
+                buildAccountDeactivatedEmail(username, adminName));
+    }
+
+    /**
+     * Gửi email thông báo khi tài khoản được kích hoạt lại (ACTIVE).
+     */
+    public CompletableFuture<Boolean> sendAccountReactivatedEmail(String toEmail, String username, String adminName) {
+        if (!emailProperties.enabled()) {
+            log.warn("[EMAIL DISABLED] Would send reactivated email to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return sendEmailAsync(toEmail, "Thông báo: Tài khoản Poliwise của bạn đã được kích hoạt lại",
+                buildAccountReactivatedEmail(username, adminName));
+    }
+
+    /**
+     * Gửi email thông báo khi tài khoản bị thu hồi (REVOKED).
+     */
+    public CompletableFuture<Boolean> sendAccountRevokedEmail(String toEmail, String username, String adminName) {
+        if (!emailProperties.enabled()) {
+            log.warn("[EMAIL DISABLED] Would send revoked email to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return sendEmailAsync(toEmail, "Thông báo: Tài khoản Poliwise của bạn đã bị thu hồi",
+                buildAccountRevokedEmail(username, adminName));
+    }
+
+    /**
+     * Gửi email thông báo khi tài khoản bị xóa (SOFT DELETED).
+     */
+    public CompletableFuture<Boolean> sendAccountDeletedEmail(String toEmail, String username, String adminName) {
+        if (!emailProperties.enabled()) {
+            log.warn("[EMAIL DISABLED] Would send deleted email to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return sendEmailAsync(toEmail, "Thông báo: Tài khoản Poliwise của bạn đã bị xóa",
+                buildAccountDeletedEmail(username, adminName));
+    }
+
+    private String buildAccountDeactivatedEmail(String username, String adminName) {
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .alert { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f39c12; }
+                .info { background: #e8f4f8; padding: 15px; border-radius: 8px; margin-top: 20px; }
+                .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Tài khoản bị tạm ngưng</h1>
+                <p>Thông báo từ hệ thống Poliwise</p>
+            </div>
+            <div class="content">
+                <p>Xin chào <strong>__USERNAME__</strong>,</p>
+                <p>Tài khoản Poliwise của bạn đã bị <strong>tạm ngưng</strong> bởi quản trị viên <strong>__ADMINNAME__</strong>.</p>
+
+                <div class="alert">
+                    <h3>Tình trạng tài khoản</h3>
+                    <ul>
+                        <li>Tên đăng nhập: <strong>__USERNAME__</strong></li>
+                        <li>Trạng thái: <span style="color: #e67e22;">TẠM NGƯNG</span></li>
+                    </ul>
+                </div>
+
+                <div class="info">
+                    <strong>Lưu ý:</strong>
+                    <ul>
+                        <li>Bạn hiện không thể đăng nhập vào hệ thống</li>
+                        <li>Liên hệ quản trị viên nếu bạn cần được hỗ trợ</li>
+                        <li>Tài khoản có thể được kích hoạt lại trong tương lai</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer">
+                <p>Email này được gửi tự động từ hệ thống Poliwise.</p>
+                <p>Không trả lời email này.</p>
+            </div>
+        </body>
+        </html>
+        """.replace("__USERNAME__", escapeHtml(username))
+          .replace("__ADMINNAME__", escapeHtml(adminName));
+    }
+
+    private String buildAccountReactivatedEmail(String username, String adminName) {
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .success { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60; }
+                .info { background: #e8f8f5; padding: 15px; border-radius: 8px; margin-top: 20px; }
+                .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+                a { color: #27ae60; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Tài khoản đã được kích hoạt lại</h1>
+                <p>Thông báo từ hệ thống Poliwise</p>
+            </div>
+            <div class="content">
+                <p>Xin chào <strong>__USERNAME__</strong>,</p>
+                <p>Tài khoản Poliwise của bạn đã được <strong>kích hoạt lại</strong> bởi quản trị viên <strong>__ADMINNAME__</strong>.</p>
+
+                <div class="success">
+                    <h3>Tình trạng tài khoản</h3>
+                    <ul>
+                        <li>Tên đăng nhập: <strong>__USERNAME__</strong></li>
+                        <li>Trạng thái: <span style="color: #27ae60;">HOẠT ĐỘNG</span></li>
+                    </ul>
+                </div>
+
+                <div class="info">
+                    <strong>Bạn có thể:</strong>
+                    <ul>
+                        <li>Đăng nhập vào hệ thống Poliwise</li>
+                        <li>Sử dụng tất cả các tính năng như bình thường</li>
+                    </ul>
+                    <p>Đăng nhập tại: <a href="#">https://poliwise.vn</a></p>
+                </div>
+            </div>
+            <div class="footer">
+                <p>Email này được gửi tự động từ hệ thống Poliwise.</p>
+                <p>Không trả lời email này.</p>
+            </div>
+        </body>
+        </html>
+        """.replace("__USERNAME__", escapeHtml(username))
+          .replace("__ADMINNAME__", escapeHtml(adminName));
+    }
+
+    private String buildAccountRevokedEmail(String username, String adminName) {
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .alert { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #c0392b; }
+                .warning { background: #fdf2f2; border: 1px solid #f5c6cb; padding: 15px; border-radius: 8px; margin-top: 20px; }
+                .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Tài khoản đã bị thu hồi</h1>
+                <p>Thông báo từ hệ thống Poliwise</p>
+            </div>
+            <div class="content">
+                <p>Xin chào <strong>__USERNAME__</strong>,</p>
+                <p>Tài khoản Poliwise của bạn đã bị <strong>thu hồi</strong> bởi quản trị viên <strong>__ADMINNAME__</strong>.</p>
+
+                <div class="alert">
+                    <h3>Tình trạng tài khoản</h3>
+                    <ul>
+                        <li>Tên đăng nhập: <strong>__USERNAME__</strong></li>
+                        <li>Trạng thái: <span style="color: #c0392b;">THU HỒI</span></li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <strong>Lưu ý quan trọng:</strong>
+                    <ul>
+                        <li>Bạn không thể đăng nhập vào hệ thống</li>
+                        <li>Tất cả các phiên đăng nhập đã bị thu hồi</li>
+                        <li>Liên hệ quản trị viên nếu bạn cần được hỗ trợ</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer">
+                <p>Email này được gửi tự động từ hệ thống Poliwise.</p>
+                <p>Không trả lời email này.</p>
+            </div>
+        </body>
+        </html>
+        """.replace("__USERNAME__", escapeHtml(username))
+          .replace("__ADMINNAME__", escapeHtml(adminName));
+    }
+
+    private String buildAccountDeletedEmail(String username, String adminName) {
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .alert { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #8e44ad; }
+                .warning { background: #f5eef8; border: 1px solid #d7bde2; padding: 15px; border-radius: 8px; margin-top: 20px; }
+                .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Tài khoản đã bị xóa</h1>
+                <p>Thông báo từ hệ thống Poliwise</p>
+            </div>
+            <div class="content">
+                <p>Xin chào <strong>__USERNAME__</strong>,</p>
+                <p>Tài khoản Poliwise của bạn đã bị <strong>xóa</strong> bởi quản trị viên <strong>__ADMINNAME__</strong>.</p>
+
+                <div class="alert">
+                    <h3>Tình trạng tài khoản</h3>
+                    <ul>
+                        <li>Tên đăng nhập: <strong>[ĐÃ XÓA]</strong></li>
+                        <li>Trạng thái: <span style="color: #8e44ad;">ĐÃ XÓA</span></li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <strong>Thông tin quan trọng:</strong>
+                    <ul>
+                        <li>Tài khoản và thông tin cá nhân đã được xóa khỏi hệ thống</li>
+                        <li>Bạn không thể đăng nhập hoặc khôi phục tài khoản</li>
+                        <li>Liên hệ quản trị viên nếu bạn cần được hỗ trợ</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer">
+                <p>Email này được gửi tự động từ hệ thống Poliwise.</p>
+                <p>Không trả lời email này.</p>
+            </div>
+        </body>
+        </html>
+        """.replace("__USERNAME__", escapeHtml(username))
+          .replace("__ADMINNAME__", escapeHtml(adminName));
+    }
+
     private CompletableFuture<Boolean> sendEmailAsync(String to, String subject, String htmlBody) {
         return CompletableFuture.supplyAsync(() -> {
             try {

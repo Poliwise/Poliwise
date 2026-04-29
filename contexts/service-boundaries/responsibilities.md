@@ -142,12 +142,28 @@ GET    /api/v1/users/{id}/login-history
 
 **user-service** (`:8082`):
 ```
-GET    /api/v1/users/me
-GET    /api/v1/users/{id}
-PUT    /api/v1/users/me
-GET    /api/v1/users           # Admin only, with filters
-PATCH  /api/v1/users/me/status # User self-deactivate
-DELETE /api/v1/users/{id}      # Admin only
+# User profile endpoints
+GET    /api/v1/users/me              # Get own profile
+PUT    /api/v1/users/me              # Update own profile
+PATCH  /api/v1/users/me/department   # Change own department
+GET    /api/v1/users/me/status       # Get account status
+
+# User management (Admin only)
+GET    /api/v1/users                # Search users with filters
+GET    /api/v1/users/{userId}       # Get any user profile
+PATCH  /api/v1/users/{userId}/status # Change status (Admin)
+DELETE /api/v1/users/{userId}       # Soft delete user (Admin)
+
+# Department management (Admin only)
+GET    /api/v1/departments                # List all departments (paginated)
+GET    /api/v1/departments/active        # List active departments
+GET    /api/v1/departments/tree           # Get hierarchical tree
+GET    /api/v1/departments/{id}          # Get department by ID
+POST   /api/v1/departments               # Create department
+PUT    /api/v1/departments/{id}          # Update department
+DELETE /api/v1/departments/{id}          # Soft delete (deactivate) department
+GET    /api/v1/departments/{id}/users    # Get users in department
+POST   /api/v1/departments/assign-user  # Assign user to department
 ```
 
 **knowledge-service** (`:8083`):

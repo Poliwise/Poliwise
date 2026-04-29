@@ -24,7 +24,12 @@ public interface DepartmentRepository
 
     List<Department> findByParentIsNullAndIsActiveTrueOrderByNameAsc();
 
+    List<Department> findByIsActiveTrueOrderByNameAsc();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from Department d where d.id = :id")
     Optional<Department> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("select d from Department d left join fetch d.subDepartments where d.parent is null and d.isActive = true order by d.name")
+    List<Department> findRootDepartmentsWithChildren();
 }

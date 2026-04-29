@@ -35,4 +35,11 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
+
+    org.springframework.data.domain.Page<User> findByDepartmentId(
+            @Param("departmentId") UUID departmentId,
+            org.springframework.data.domain.Pageable pageable);
+
+    @Query("select count(u) from User u where u.department.id = :departmentId")
+    long countByDepartmentId(@Param("departmentId") UUID departmentId);
 }

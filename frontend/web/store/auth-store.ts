@@ -8,12 +8,14 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  _hasHydrated: boolean;
 
   setUser: (user: User | null) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
   setLoading: (isLoading: boolean) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       isLoading: true,
+      _hasHydrated: false,
 
       setUser: (user) =>
         set((state) => ({ 
@@ -66,6 +69,8 @@ export const useAuthStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
+
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'auth-storage',
@@ -75,6 +80,9 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
@@ -83,7 +91,52 @@ export const useAuthStore = create<AuthState>()(
 export const useUser = () => useAuthStore((state) => state.user);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useUserRole = (): UserRole | null => useAuthStore((state) => state.user?.role || null);
-export const useIsAdmin = () => useAuthStore((state) => state.user?.role === UserRole.ADMIN);
-export const useIsManager = () => useAuthStore((state) =>
-  state.user?.role === UserRole.ADMIN || state.user?.role === UserRole.MANAGER
-);
+export const useIsAdmin = () => {
+  const user = useAuthStore((state) => state.user);
+  const isHydrated = useAuthStore((state) => state._hasHydrated);
+
+  // If store not hydrated yet, check localStorage directly to prevent redirect
+  if (!isHydrated) {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('auth-storage');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const storedUser = parsed.state?.user;
+          if (storedUser?.role === UserRole.ADMIN) {
+            return true;
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return false;
+  }
+
+  return user?.role === UserRole.ADMIN;
+};
+export const useIsManager = () => {
+  const user = useAuthStore((state) => state.user);
+  const isHydrated = useAuthStore((state) => state._hasHydrated);
+
+  if (!isHydrated) {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('auth-storage');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const storedUser = parsed.state?.user;
+          if (storedUser?.role === UserRole.ADMIN || storedUser?.role === UserRole.MANAGER) {
+            return true;
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return false;
+  }
+
+  return user?.role === UserRole.ADMIN || user?.role === UserRole.MANAGER;
+};

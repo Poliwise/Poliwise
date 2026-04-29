@@ -33,6 +33,29 @@ function downstreamPath(request: Request, prefix: string): string {
 export class ProxyController {
   constructor(private readonly proxyService: ProxyService) {}
 
+  // ===== Department Management Endpoints (Admin only) =====
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('departments')
+  @Roles(UserRole.ADMIN)
+  handleDepartmentsRoot(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/departments'),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('departments/*path')
+  @Roles(UserRole.ADMIN)
+  handleDepartmentsNested(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/departments'),
+    );
+  }
+
   // ===== User Management Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('users')

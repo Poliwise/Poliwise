@@ -44,6 +44,16 @@ Provides AI agents with the definitive Role-Based Access Control (RBAC) matrix f
 | 18 | Create Bulk Users (with email) | ❌ | ❌ | ✅ |
 | 19 | View User Login History | ❌ | ❌ | ✅ |
 | 20 | Deactivate / Reactivate Users | ❌ | ❌ | ✅ |
+| 21 | **Search Users (Admin/Manager)** | ❌ | ✅ | ✅ |
+| 22 | **View User Detail (full info)** | ❌ | ✅ | ✅ |
+| 23 | **Update User Role** | ❌ | ❌ | ✅ |
+| 24 | **Assign User to Department** | ❌ | ❌ | ✅ |
+| 25 | **Soft Delete User** | ❌ | ❌ | ✅ |
+| 26 | **View All Departments** | ❌ | ❌ | ✅ |
+| 27 | **Create Department** | ❌ | ❌ | ✅ |
+| 28 | **Edit Department** | ❌ | ❌ | ✅ |
+| 29 | **Deactivate/Activate Department** | ❌ | ❌ | ✅ |
+| 30 | **View Department Users** | ❌ | ❌ | ✅ |
 
 ## Role Definitions
 

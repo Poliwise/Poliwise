@@ -39,6 +39,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION", ex.getMessage());
     }
 
+    @ExceptionHandler(DepartmentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDepartmentNotFound(DepartmentNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, "DEPARTMENT_NOT_FOUND", ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidDepartmentOperationException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDepartmentOp(InvalidDepartmentOperationException ex) {
+        return build(HttpStatus.BAD_REQUEST, "INVALID_DEPARTMENT_OPERATION", ex.getMessage());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return build(HttpStatus.FORBIDDEN, "ACCESS_DENIED", ex.getMessage());

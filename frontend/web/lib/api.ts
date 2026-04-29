@@ -30,6 +30,12 @@ import type {
   UnansweredQuestion,
   DashboardStats,
   AnalyticsOverview,
+  // Department types
+  Department,
+  DepartmentTreeNode,
+  CreateDepartmentRequest,
+  UpdateDepartmentRequest,
+  AssignUserDepartmentRequest,
 } from '@/types';
 
 // ============================================================================
@@ -1138,6 +1144,75 @@ class ApiClient {
 
     deleteAccessRule: async (id: string): Promise<void> => {
       await this.client.delete(`/api/v1/access-rules/${id}`);
+    },
+  };
+
+  // ==========================================================================
+  // Departments
+  // ==========================================================================
+  departments = {
+    getAll: async (params?: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortDir?: string;
+    }): Promise<{ data: Department[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+      const res = await this.client.get<
+        ApiResponse<Department[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
+      >('/api/v1/departments', { params });
+      const coerced = coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data');
+      return {
+        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: Department[] })?.data || [],
+        pagination: coerced.pagination,
+      };
+    },
+
+    getById: async (id: string): Promise<Department> => {
+      const res = await this.client.get<ApiResponse<Department>>(`/api/v1/departments/${id}`);
+      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    },
+
+    getActive: async (): Promise<Department[]> => {
+      const res = await this.client.get<ApiResponse<Department[]>>('/api/v1/departments/active');
+      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data;
+    },
+
+    getTree: async (): Promise<DepartmentTreeNode[]> => {
+      const res = await this.client.get<ApiResponse<DepartmentTreeNode[]>>('/api/v1/departments/tree');
+      return coercePaginated<DepartmentTreeNode>(res.data as unknown as Record<string, unknown>, 'data').data;
+    },
+
+    create: async (data: CreateDepartmentRequest): Promise<Department> => {
+      const res = await this.client.post<ApiResponse<Department>>('/api/v1/departments', data);
+      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    },
+
+    update: async (id: string, data: UpdateDepartmentRequest): Promise<Department> => {
+      const res = await this.client.put<ApiResponse<Department>>(`/api/v1/departments/${id}`, data);
+      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await this.client.delete(`/api/v1/departments/${id}`);
+    },
+
+    getUsers: async (departmentId: string, params?: {
+      page?: number;
+      limit?: number;
+    }): Promise<{ data: User[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+      const res = await this.client.get<
+        ApiResponse<User[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
+      >(`/api/v1/departments/${departmentId}/users`, { params });
+      const coerced = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data');
+      return {
+        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [],
+        pagination: coerced.pagination,
+      };
+    },
+
+    assignUser: async (data: AssignUserDepartmentRequest): Promise<User> => {
+      const res = await this.client.post<ApiResponse<User>>('/api/v1/departments/assign-user', data);
+      return coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
     },
   };
 }

@@ -17,6 +17,9 @@ public class RabbitMQConfig {
     public static final String USER_ROUTING_KEY_REGISTERED = "user.registered";
     public static final String USER_ROUTING_KEY_STATUS = "user.status.changed";
 
+    // Queue nhận events từ user-service
+    public static final String USER_SERVICE_STATUS_QUEUE = "poliwise.user.status.received";
+
     @Bean
     public TopicExchange authExchange() {
         return new TopicExchange(AUTH_EXCHANGE, true, false);
@@ -32,6 +35,12 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(USER_STATUS_CHANGED_QUEUE).build();
     }
 
+    // Queue nhận status changed events từ user-service
+    @Bean
+    public Queue userServiceStatusQueue() {
+        return QueueBuilder.durable(USER_SERVICE_STATUS_QUEUE).build();
+    }
+
     @Bean
     public Binding userRegisteredBinding(Queue userRegisteredQueue, TopicExchange authExchange) {
         return BindingBuilder.bind(userRegisteredQueue)
@@ -44,6 +53,20 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(userStatusChangedQueue)
                 .to(authExchange)
                 .with(USER_ROUTING_KEY_STATUS);
+    }
+
+    // Exchange của user-service để nhận events
+    @Bean
+    public TopicExchange userExchange() {
+        return new TopicExchange("poliwise.user.exchange", true, false);
+    }
+
+    // Binding để nhận events từ user-service exchange
+    @Bean
+    public Binding userServiceStatusBinding(Queue userServiceStatusQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(userServiceStatusQueue)
+                .to(userExchange)
+                .with("user.status.changed");
     }
 
     @Bean
