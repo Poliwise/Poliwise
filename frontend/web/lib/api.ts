@@ -642,7 +642,7 @@ class ApiClient {
       const coerced = coercePaginated<Document & { versions?: DocumentVersion[] }>(
         res.data as unknown as Record<string, unknown>, 'data'
       );
-      return coerced.data[0] ?? (res.data as unknown as { data?: Document & { versions?: DocumentVersion[] } })?.data!;
+      return coerced.data[0] ?? (res.data as unknown as { data?: Document & { versions?: DocumentVersion[] } })?.data;
     },
 
     upload: async (
@@ -1079,7 +1079,7 @@ class ApiClient {
       const res = await this.client.get<ApiResponse<{
         id: string; name: string; slug: string;
         description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-      }>>(`/api/v1/categories/${id}`);
+      }>>(`/api/v1/metadata/categories/${id}`);
       return coercePaginated<{
         id: string; name: string; slug: string;
         description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
@@ -1094,7 +1094,7 @@ class ApiClient {
       displayOrder?: number;
     }): Promise<{ id: string; name: string; slug: string }> => {
       const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
-        '/api/v1/categories', data
+        '/api/v1/metadata/categories', data
       );
       return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
@@ -1108,7 +1108,7 @@ class ApiClient {
       displayOrder?: number;
     }): Promise<{ id: string; name: string; slug: string }> => {
       const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
-        `/api/v1/categories/${id}`, data
+        `/api/v1/metadata/categories/${id}`, data
       );
       return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
@@ -1116,46 +1116,46 @@ class ApiClient {
     },
 
     deleteCategory: async (id: string): Promise<void> => {
-      await this.client.delete(`/api/v1/categories/${id}`);
+      await this.client.delete(`/api/v1/metadata/categories/${id}`);
     },
 
     // — Tags
     getTags: async (): Promise<{ id: string; name: string; slug: string; color?: string; usageCount?: number }[]> => {
       const res = await this.client.get<ApiResponse<{
         id: string; name: string; slug: string; color?: string; usageCount?: number;
-      }[]>>('/api/v1/tags');
+      }[]>>('/api/v1/metadata/tags');
       return coercePaginated<{
         id: string; name: string; slug: string; color?: string; usageCount?: number;
       }>(res.data as unknown as Record<string, unknown>, 'data').data;
     },
 
-    createTag: async (data: { name: string; color?: string; icon?: string }): Promise<{ id: string; name: string; slug: string; icon?: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string; icon?: string }>>(
-        '/api/v1/tags', data
+createTag: async (data: { name: string; color?: string }): Promise<{ id: string; name: string; slug: string }> => {
+      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
+        '/api/v1/metadata/tags', data
       );
-      return coercePaginated<{ id: string; name: string; slug: string; icon?: string }>(
+      return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
+      ).data[0] ?? { id: '', name: '', slug: '' };
     },
 
-    updateTag: async (id: string, data: { name?: string; color?: string; icon?: string }): Promise<{
-      id: string; name: string; slug: string; icon?: string;
+updateTag: async (id: string, data: { name?: string; color?: string }): Promise<{
+      id: string; name: string; slug: string;
     }> => {
-      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string; icon?: string }>>(
-        `/api/v1/tags/${id}`, data
-      );
-      return coercePaginated<{ id: string; name: string; slug: string; icon?: string }>(
+      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
+        `/api/v1/metadata/tags/${id}`, data
+);
+      return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
+      ).data[0] ?? { id: '', name: '', slug: '' };
     },
 
     deleteTag: async (id: string): Promise<void> => {
-      await this.client.delete(`/api/v1/tags/${id}`);
+      await this.client.delete(`/api/v1/metadata/tags/${id}`);
     },
 
     resolveTags: async (tagNames: string[]): Promise<{ id: string; name: string; slug: string }[]> => {
       const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }[]>>(
-        '/api/v1/tags/resolve', { tagNames }
+        '/api/v1/metadata/tags/resolve', { tagNames }
       );
       return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
@@ -1163,7 +1163,7 @@ class ApiClient {
     },
 
     // — Access Rules
-    getAccessRules: async (metadataId?: string): Promise<{
+getAccessRules: async (documentMetadataId?: string): Promise<{
       id: string; documentMetadataId: string;
       targetType: string; targetRole?: string;
       targetDepartmentId?: string; targetUserId?: string;
@@ -1174,7 +1174,7 @@ class ApiClient {
         targetType: string; targetRole?: string;
         targetDepartmentId?: string; targetUserId?: string;
         permission: string; createdAt: string;
-      }[]>>('/api/v1/access-rules', { params: { metadataId } });
+      }[]>>('/api/v1/metadata/access-rules', { params: { documentMetadataId } });
       return coercePaginated<{
         id: string; documentMetadataId: string;
         targetType: string; targetRole?: string;
@@ -1191,12 +1191,12 @@ class ApiClient {
       targetUserId?: string;
       permission: string;
     }): Promise<{ id: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string }>>('/api/v1/access-rules', data);
+      const res = await this.client.post<ApiResponse<{ id: string }>>('/api/v1/metadata/access-rules', data);
       return coercePaginated<{ id: string }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
     },
 
     deleteAccessRule: async (id: string): Promise<void> => {
-      await this.client.delete(`/api/v1/access-rules/${id}`);
+      await this.client.delete(`/api/v1/metadata/access-rules/${id}`);
     },
   };
 

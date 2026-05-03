@@ -31,6 +31,7 @@ async function bootstrap() {
       'X-Forwarded-For',
       'X-Real-IP',
       'X-User-Id',
+      'X-User-ID',
     ],
     maxAge: 86400,
   });

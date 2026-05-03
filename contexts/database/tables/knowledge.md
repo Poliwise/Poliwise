@@ -102,6 +102,9 @@ owner: knowledge-service, ingestion-service
 | `file_key` | VARCHAR(500) | NOT NULL | MinIO key for this version's file |
 | `file_size_bytes` | BIGINT | NOT NULL | File size at this version |
 | `bucket_name` | VARCHAR(100) | NOT NULL | MinIO bucket |
+| `file_checksum` | VARCHAR(64) | NULLABLE | SHA256 of raw file bytes (for exact duplicate detection) |
+| `content_hash` | VARCHAR(64) | NULLABLE | SHA256 of extracted text (for content deduplication) |
+| `similarity_to_previous` | FLOAT | NULLABLE | Cosine similarity score vs previous version (0.0-1.0) |
 | `changelog` | TEXT | NULLABLE | What changed in this version |
 | `extracted_text` | TEXT | NULLABLE | Extracted text at this version |
 | `is_current` | BOOLEAN | DEFAULT false | Whether this is the active version (only ONE per document) |
@@ -112,6 +115,8 @@ owner: knowledge-service, ingestion-service
 
 - `idx_document_versions_document_id` on `document_id`
 - `idx_document_versions_is_current` on `is_current` (partial index WHERE is_current = true)
+- `idx_versions_file_checksum` on `file_checksum` (for exact duplicate lookup)
+- `idx_versions_content_hash` on `content_hash` (for content deduplication)
 - Composite unique: `UNIQUE(document_id, version_number)`
 - Composite: `UNIQUE(document_id, is_current)` with partial index ensures only one current per document
 
@@ -139,6 +144,19 @@ WHERE is_current = true;
   ```
 - **Chunk Linking**: `knowledge.chunks.document_version_id` points to the specific version that produced them.
 - **Re-indexing**: To re-process a document, create a new version (do not overwrite existing).
+
+### Redundancy Detection Fields
+
+| Field | Purpose | Usage |
+|-------|---------|-------|
+| `file_checksum` | SHA256 of raw file bytes | Layer 1: Exact duplicate detection before ingestion |
+| `content_hash` | SHA256 of extracted text | Layer 2: Content deduplication (handles renames) |
+| `similarity_to_previous` | Cosine similarity vs prior version | Detect minor changes between versions |
+
+**Detection Flow**:
+1. Compute `file_checksum` from MinIO download → if exists, link to existing version
+2. After extraction, compute `content_hash` → query for content matches
+3. Compare embedding with existing versions → store `similarity_to_previous`
 
 ---
 

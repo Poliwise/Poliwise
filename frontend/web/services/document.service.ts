@@ -506,15 +506,15 @@ export const tagService = {
   /**
    * Create new tag (ADMIN only)
    */
-  async createTag(data: { name: string; color?: string; icon?: string }): Promise<Tag> {
-    return await api.metadata.createTag({ name: data.name, color: data.color, icon: data.icon }) as Tag;
+  async createTag(data: { name: string; color?: string }): Promise<Tag> {
+    return await api.metadata.createTag({ name: data.name, color: data.color }) as Tag;
   },
 
   /**
    * Update tag (ADMIN only)
    */
-  async updateTag(id: string, data: { name?: string; color?: string; icon?: string }): Promise<Tag> {
-    return await api.metadata.updateTag(id, { name: data.name, color: data.color, icon: data.icon }) as Tag;
+  async updateTag(id: string, data: { name?: string; color?: string }): Promise<Tag> {
+    return await api.metadata.updateTag(id, { name: data.name, color: data.color }) as Tag;
   },
 
   /**

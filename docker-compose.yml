@@ -16,6 +16,7 @@ services:
       - ./infrastructure/init-db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - ./docs/supbase_sql:/docker-entrypoint-initdb.d/supbase_sql:ro
       - ./docs/supbase_sql_update_v1:/docker-entrypoint-initdb.d/supbase_sql_update_v1:ro
+      - ./infrastructure/init-db/supbase_sql_update_v2:/docker-entrypoint-initdb.d/supbase_sql_update_v2:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -342,8 +343,8 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_SECURE: "false"
-      LITSERVE_EMBEDDING_URL: ${LITSERVE_EMBEDDING_URL:-http://host.docker.internal:8001}
-      LITSERVE_RERANKER_URL: ${LITSERVE_RERANKER_URL:-http://host.docker.internal:8002}
+      EMBEDDING_URL: http://bge-m3-embedding:80
+      RERANKER_URL: ${RERANKER_URL:-http://host.docker.internal:8002}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
     ports:
@@ -354,6 +355,8 @@ services:
       rabbitmq:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      bge-m3-embedding:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8088/health" ]
@@ -368,6 +371,35 @@ services:
           memory: 1G
         reservations:
           memory: 512M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # AI Embedding Model (BGE-M3 via HuggingFace TEI)
+  # ============================================================
+
+  bge-m3-embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
+    container_name: poliwise-bge-m3
+    restart: unless-stopped
+    command: --model-id BAAI/bge-m3 --pooling cls
+    volumes:
+      - ./data/hf_cache:/data
+    ports:
+      - "8001:80"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
+      interval: 30s
+      timeout: 30s
+      retries: 10
+      start_period: 600s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 2G
     networks:
       - poliwise
 
@@ -398,7 +430,7 @@ services:
       THROTTLE_LIMIT_USER: 100
       THROTTLE_LIMIT_MANAGER: 200
       THROTTLE_LIMIT_ADMIN: 500
-      THROTTLE_LIMIT_PUBLIC: 20
+      THROTTLE_LIMIT_PUBLIC: 200
       CIRCUIT_BREAKER_TIMEOUT: 30000
       CIRCUIT_BREAKER_VOLUME_THRESHOLD: 10
       LOG_LEVEL: info

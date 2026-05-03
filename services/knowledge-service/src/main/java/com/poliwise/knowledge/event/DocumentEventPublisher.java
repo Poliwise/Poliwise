@@ -46,4 +46,23 @@ public class DocumentEventPublisher {
             log.error("Failed to publish DocumentDeletedEvent: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * Publish ingestion.requested event to trigger the Python ingestion pipeline.
+     * The Python consumer expects payload with: job_id, document_id,
+     * document_version_id, file_key, bucket_name, metadata.
+     */
+    public void publishIngestionRequested(Map<String, Object> payload) {
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.KNOWLEDGE_EXCHANGE,
+                    RabbitMQConfig.INGESTION_ROUTING_KEY_REQUESTED,
+                    Map.of("payload", payload)
+            );
+            log.info("Published ingestion.requested: documentId={}, jobId={}",
+                    payload.get("document_id"), payload.get("job_id"));
+        } catch (Exception e) {
+            log.error("Failed to publish ingestion.requested: {}", e.getMessage(), e);
+        }
+    }
 }

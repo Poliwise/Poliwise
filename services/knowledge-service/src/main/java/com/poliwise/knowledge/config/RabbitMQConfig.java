@@ -16,6 +16,7 @@ public class RabbitMQConfig {
     public static final String DOCUMENT_DELETED_QUEUE = "poliwise.knowledge.document.deleted";
     public static final String DOCUMENT_ROUTING_KEY_UPLOADED = "document.uploaded";
     public static final String DOCUMENT_ROUTING_KEY_DELETED = "document.deleted";
+    public static final String INGESTION_ROUTING_KEY_REQUESTED = "ingestion.requested";
 
     @Bean
     public TopicExchange knowledgeExchange() {

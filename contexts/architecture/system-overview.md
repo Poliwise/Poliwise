@@ -45,7 +45,7 @@ Consult this document before:
 | | Java | 17 | Runtime |
 | | Spring Cloud | 2024.0.3 | Service communication |
 | **AI Services** | Python FastAPI | 0.115+ | ML/ML workloads |
-| | LitServe | 0.2.0 | Model serving |
+| | HuggingFace TEI | 1.5.x | Model serving |
 | **Database** | PostgreSQL | 16-alpine | Primary data store |
 | | pgvector | latest | Vector embeddings |
 | **Message Queue** | RabbitMQ | 3.13-management | Event bus |
@@ -236,7 +236,7 @@ These rules **MUST** be followed at all times:
 | `feedback-service` | 8085 | Spring Boot | Feedback, usage stats, analytics, audit logs | `analytics` |
 | `ai-qa-service` | 8086 | FastAPI | Query processing, retrieval orchestration, LLM generation, conversation management | `conversation`, `analytics` (reads `knowledge`, `metadata`) |
 | `ingestion-service` | 8088 | FastAPI | Document extraction, chunking, embedding generation, vector indexing | `knowledge` (writes) |
-| `embedding-service` | 8001 | LitServe | BGE-M3 embedding model serving | — |
+| `embedding-service` | 8001 | HuggingFace TEI | BGE-M3 embedding model serving | — |
 
 ## Cross-Service Communication Rules
 
@@ -315,8 +315,8 @@ JWT_REFRESH_EXPIRY=604800  # 7 days
 ```env
 EMBEDDING_MODEL=BAAI/bge-m3
 EMBEDDING_DIMENSION=1024
-LITSERVE_EMBEDDING_URL=http://localhost:8001
-LITSERVE_RERANKER_URL=http://localhost:8002
+EMBEDDING_URL=http://localhost:8001
+RERANKER_URL=http://localhost:8002
 LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-...
 LLM_MODEL=qwen/qwen-2.5-7b-instruct

@@ -5,7 +5,6 @@ import com.poliwise.knowledge.config.KnowledgeProperties;
 import com.poliwise.knowledge.config.MinioConfig;
 import com.poliwise.knowledge.dto.DocumentConfirmRequest;
 import com.poliwise.knowledge.dto.event.DocumentUploadedEvent;
-import com.poliwise.knowledge.dto.ProcessDocumentRequest;
 import com.poliwise.knowledge.dto.UploadDocumentRequest;
 import com.poliwise.knowledge.entity.Document;
 import com.poliwise.knowledge.entity.DocumentVersion;
@@ -25,8 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.poliwise.knowledge.exception.ResourceNotFoundException;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -43,8 +40,6 @@ public class DocumentService {
     private final DocumentVersionRepository versionRepository;
     private final ProcessingJobRepository jobRepository;
     private final StorageService storageService;
-    private final DocumentParsingService parsingService;
-    private final TextChunkingService chunkingService;
     private final DocumentEventPublisher eventPublisher;
     private final KnowledgeProperties properties;
     private final MetadataServiceClient metadataServiceClient;
@@ -54,8 +49,6 @@ public class DocumentService {
             DocumentVersionRepository versionRepository,
             ProcessingJobRepository jobRepository,
             StorageService storageService,
-            DocumentParsingService parsingService,
-            TextChunkingService chunkingService,
             DocumentEventPublisher eventPublisher,
             KnowledgeProperties properties,
             MetadataServiceClient metadataServiceClient) {
@@ -63,8 +56,6 @@ public class DocumentService {
         this.versionRepository = versionRepository;
         this.jobRepository = jobRepository;
         this.storageService = storageService;
-        this.parsingService = parsingService;
-        this.chunkingService = chunkingService;
         this.eventPublisher = eventPublisher;
         this.properties = properties;
         this.metadataServiceClient = metadataServiceClient;
@@ -204,7 +195,19 @@ public class DocumentService {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
 
-        // Create processing job
+        // Get latest version for the version_id needed by Python pipeline
+        List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+        if (versions.isEmpty()) {
+            throw new RuntimeException("No versions found for document: " + documentId);
+        }
+        DocumentVersion latestVersion = versions.get(0);
+
+        // Update document status to UPLOADED (indicates processing has been requested)
+        document.setStatus(ProcessingStatus.UPLOADED);
+        document.setUpdatedAt(OffsetDateTime.now());
+        documentRepository.save(document);
+
+        // Create processing job record to track progress
         UUID jobId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now();
 
@@ -222,86 +225,24 @@ public class DocumentService {
                 .build();
         jobRepository.save(job);
 
-        try {
-            // Step 1: Parse document
-            updateJobStatus(job, ProcessingStatus.PARSING, 10);
-            InputStream fileStream = storageService.downloadFile(document.getFileKey());
-            DocumentParsingService.ParsingResult parseResult = parsingService.parse(
-                    fileStream, document.getFileType(), document.getOriginalFilename()
-            );
+        // Publish ingestion.requested event to RabbitMQ for Python pipeline
+        // Python consumer.py expects: job_id, document_id, document_version_id,
+        // file_key, bucket_name, metadata
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("job_id", jobId.toString());
+        payload.put("document_id", documentId.toString());
+        payload.put("document_version_id", latestVersion.getId().toString());
+        payload.put("file_key", document.getFileKey());
+        payload.put("bucket_name", document.getBucketName());
+        payload.put("metadata", java.util.Map.of(
+                "allowed_roles", java.util.List.of("USER", "ADMIN"),
+                "access_level", "PUBLIC"
+        ));
 
-            document.setExtractedText(parseResult.text());
-            document.setPageCount(parseResult.pageCount());
-            document.setWordCount(parseResult.wordCount());
-            document.setOcrRequired(parseResult.ocrRequired());
-            if (parseResult.ocrConfidence() != null) {
-                document.setOcrConfidence(new java.math.BigDecimal(parseResult.ocrConfidence()));
-            }
-            document.setStatus(ProcessingStatus.PARSED);
-            documentRepository.save(document);
-            updateJobStatus(job, ProcessingStatus.PARSED, 30);
+        eventPublisher.publishIngestionRequested(payload);
 
-            // Step 2: Chunk text
-            updateJobStatus(job, ProcessingStatus.CHUNKING, 30);
-            List<TextChunkingService.Chunk> chunks = chunkingService.chunk(
-                    parseResult.text(),
-                    document.getChunkingStrategy(),
-                    document.getChunkSize(),
-                    document.getChunkOverlap()
-            );
-            updateJobStatus(job, ProcessingStatus.CHUNKED, 50);
-
-            // Step 3: Generate embeddings (placeholder - would call vector search service)
-            updateJobStatus(job, ProcessingStatus.EMBEDDING, 50);
-            // TODO: Call vector search service to generate and store embeddings
-            log.info("Would generate {} embeddings for document {}", chunks.size(), documentId);
-            updateJobStatus(job, ProcessingStatus.EMBEDDED, 80);
-
-            // Step 4: Index chunks (placeholder - would call vector search service)
-            updateJobStatus(job, ProcessingStatus.INDEXING, 80);
-            // TODO: Call vector search service to index chunks
-            updateJobStatus(job, ProcessingStatus.INDEXED, 90);
-
-            // Complete
-            document.setStatus(ProcessingStatus.READY);
-            documentRepository.save(document);
-            completeJob(job, true, null);
-
-            log.info("Document processed successfully: id={}, chunks={}", documentId, chunks.size());
-
-        } catch (Exception e) {
-            log.error("Failed to process document {}: {}", documentId, e.getMessage(), e);
-            document.setStatus(ProcessingStatus.FAILED);
-            documentRepository.save(document);
-            failJob(job, e.getMessage());
-            throw new RuntimeException("Failed to process document: " + e.getMessage(), e);
-        }
-    }
-
-    private void updateJobStatus(ProcessingJob job, ProcessingStatus status, int progress) {
-        job.setStatus(status);
-        job.setProgressPercent(progress);
-        job.setUpdatedAt(OffsetDateTime.now());
-        jobRepository.save(job);
-    }
-
-    private void completeJob(ProcessingJob job, boolean success, String errorMessage) {
-        job.setStatus(success ? ProcessingStatus.READY : ProcessingStatus.FAILED);
-        job.setProgressPercent(100);
-        job.setSuccess(success);
-        job.setCompletedAt(OffsetDateTime.now());
-        job.setErrorMessage(errorMessage);
-        job.setUpdatedAt(OffsetDateTime.now());
-        jobRepository.save(job);
-    }
-
-    private void failJob(ProcessingJob job, String errorMessage) {
-        job.setStatus(ProcessingStatus.FAILED);
-        job.setSuccess(false);
-        job.setErrorMessage(errorMessage);
-        job.setCompletedAt(OffsetDateTime.now());
-        job.setUpdatedAt(OffsetDateTime.now());
-        jobRepository.save(job);
+        log.info("Ingestion requested via RabbitMQ: documentId={}, jobId={}, fileKey={}",
+                documentId, jobId, document.getFileKey());
     }
 
     @Transactional
@@ -384,6 +325,10 @@ public class DocumentService {
 
     public List<DocumentVersion> getVersions(UUID documentId) {
         return versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+    }
+
+    public org.springframework.data.domain.Page<Document> findAll(org.springframework.data.domain.Pageable pageable) {
+        return documentRepository.findAll(pageable);
     }
 
     private void validateFile(MultipartFile file, FileType fileType) {

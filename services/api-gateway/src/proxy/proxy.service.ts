@@ -302,6 +302,7 @@ export class ProxyService {
       'trailers',
       'transfer-encoding',
       'upgrade',
+      'content-length',
     ];
 
     for (const [key, value] of Object.entries(request.headers)) {

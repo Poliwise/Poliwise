@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False
 
-    # LitServe
-    litserve_embedding_url: str = "http://localhost:8001"
-    litserve_reranker_url: str = "http://localhost:8002"
+    # Inference Services
+    embedding_url: str = "http://localhost:8001"
+    reranker_url: str = "http://localhost:8002"
 
     # LLM (Groq for Metadata Suggestion)
     groq_api_key: str = Field(..., description="Groq API key for metadata suggestion")
@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     ocr_fallback_min_text_length: int = 50
     ocr_fallback_min_image_count: int = 1
     ocr_language: str = "eng"
+
+    # Redundancy Detection
+    similarity_threshold: float = 0.90
+    similarity_threshold_digital: float = 0.98
+    similarity_threshold_ocr: float = 0.90
 
     model_config = {"env_file": ".env", "case_sensitive": False}
 

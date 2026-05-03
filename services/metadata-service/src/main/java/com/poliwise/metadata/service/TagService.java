@@ -31,10 +31,15 @@ public class TagService {
 
     @Transactional
     public TagResponse create(CreateTagRequest request) {
+        // Check duplicate name (case-insensitive)
+        if (tagRepository.existsByNameIgnoreCase(request.name())) {
+            throw new DuplicateResourceException("Tag name already exists: " + request.name());
+        }
+
         String slug = generateSlug(request.name());
 
         if (tagRepository.findBySlug(slug).isPresent()) {
-            throw new DuplicateResourceException("Tag already exists with name: " + request.name());
+            throw new DuplicateResourceException("Tag slug already exists: " + slug);
         }
 
         Tag tag = Tag.builder()
@@ -251,8 +256,11 @@ public class TagService {
     }
 
     private String generateSlug(String name) {
-        if (name == null) return "";
-        return name.trim().toLowerCase()
+        if (name == null) {
+            // Fallback random slug
+            return "tag-" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        String slug = name.trim().toLowerCase()
                 .replaceAll("[àáạảãâầấậẩẫăằắặẳẵ]", "a")
                 .replaceAll("[èéẹẻẽêềếệểễ]", "e")
                 .replaceAll("[ìíịỉĩ]", "i")
@@ -264,6 +272,11 @@ public class TagService {
                 .replaceAll("\\s+", "-")
                 .replaceAll("-+", "-")
                 .replaceAll("^-|-$", "");
+        if (slug.isEmpty()) {
+            // Fallback random slug
+            return "tag-" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        return slug;
     }
 
     private TagResponse toResponse(Tag tag) {
@@ -273,7 +286,6 @@ public class TagService {
                 tag.getSlug(),
                 tag.getColor(),
                 tag.getUsageCount(),
-                tag.getCreatedAt()
-        );
+                tag.getCreatedAt());
     }
 }

@@ -15,6 +15,7 @@ import {
   documentService,
   categoryService,
 } from '@/services/document.service';
+import { api } from '@/lib/api';
 import type {
   DocumentUploadResponse,
   Category,
@@ -140,7 +141,7 @@ export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps
     setError(null);
 
     try {
-      await documentService.confirmMetadata(uploadedDocument.id, {
+await documentService.confirmMetadata(uploadedDocument.id, {
         title: formData.title,
         description: formData.description,
         categorySlug: formData.categorySlug,
@@ -148,10 +149,18 @@ export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps
         language: formData.language,
         isPolicy: formData.isPolicy,
       });
-      
-      setStep(4);
-    } catch (err: any) {
-      setError(err.message || 'Xác nhận thất bại. Vui lòng thử lại.');
+
+      try {
+        await api.documents.triggerProcess(uploadedDocument.id);
+      } catch (processErr) {
+        console.warn('Failed to trigger processing, document saved as READY:', processErr);
+      }
+
+setStep(4);
+      onSuccess();
+} catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } }; message?: string };
+      setError(axiosError.response?.data?.detail || axiosError.message || 'Có lỗi xảy ra khi xác nhận metadata.');
     } finally {
       setConfirming(false);
     }

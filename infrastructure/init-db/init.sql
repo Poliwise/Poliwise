@@ -41,3 +41,6 @@ CREATE SCHEMA IF NOT EXISTS analytics;
 -- Apply additional additive patch set.
 \i /docker-entrypoint-initdb.d/supbase_sql_update_v1/001_pure_additions.sql
 \i /docker-entrypoint-initdb.d/supbase_sql_update_v1/002_staging_upload.sql
+
+-- Apply Phase 2 migrations (redundancy detection + indexes)
+\i /docker-entrypoint-initdb.d/supbase_sql_update_v2/001_redundancy_detection.sql
