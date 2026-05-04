@@ -121,8 +121,10 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      EMAIL_USER: ${EMAIL_USER:-xuanvietle20050228@gmail.com}
+      EMAIL_USERNAME: ${EMAIL_USERNAME:-xuanvietle20050228@gmail.com}
       EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-mjhclmhmzwxhowpi}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:

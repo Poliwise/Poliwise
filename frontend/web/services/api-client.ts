@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import { useAuthStore } from '@/store/auth-store';
 // useToast is dynamically imported inside interceptor to avoid circular dependency issues
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // Separate axios instance for auth endpoints that must NOT trigger interceptors
 // (e.g. logout during a failed refresh chain — prevents infinite recursion)
@@ -50,9 +50,9 @@ function parseRefreshTokens(body: unknown): { accessToken: string; refreshToken:
   }
   const payload =
     'data' in root &&
-    root.data &&
-    typeof root.data === 'object' &&
-    'accessToken' in (root.data as object)
+      root.data &&
+      typeof root.data === 'object' &&
+      'accessToken' in (root.data as object)
       ? (root.data as { accessToken: string; refreshToken: string })
       : (root as { accessToken: string; refreshToken: string });
   if (!payload?.accessToken || !payload?.refreshToken) {
