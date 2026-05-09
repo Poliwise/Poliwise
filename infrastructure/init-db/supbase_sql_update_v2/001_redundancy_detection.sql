@@ -14,11 +14,13 @@ BEGIN;
 ALTER TABLE knowledge.document_versions
 ADD COLUMN IF NOT EXISTS file_checksum VARCHAR(64),
 ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64),
-ADD COLUMN IF NOT EXISTS similarity_to_previous FLOAT;
+ADD COLUMN IF NOT EXISTS similarity_to_previous FLOAT,
+ADD COLUMN IF NOT EXISTS fingerprint_embedding VECTOR(1024);
 
 COMMENT ON COLUMN knowledge.document_versions.file_checksum IS 'SHA256 of raw file bytes for exact duplicate detection';
 COMMENT ON COLUMN knowledge.document_versions.content_hash IS 'SHA256 of extracted text for content deduplication';
 COMMENT ON COLUMN knowledge.document_versions.similarity_to_previous IS 'Cosine similarity score vs previous version (0.0-1.0)';
+COMMENT ON COLUMN knowledge.document_versions.fingerprint_embedding IS 'Semantic fingerprint embedding of first 4000 chars for similarity detection';
 
 -- ============================================================
 -- 2. Indexes for redundancy detection
@@ -49,21 +51,14 @@ COMMENT ON COLUMN knowledge.chunks.section_path IS 'Hierarchical path like handb
 COMMENT ON COLUMN knowledge.chunks.parent_chunk_id IS 'Parent chunk ID for parent-child chunking';
 COMMENT ON COLUMN knowledge.chunks.bucket_name IS 'MinIO bucket for source file reference';
 
--- ============================================================
 -- 4. Unique constraint for chunks (prevents duplicates)
 -- ============================================================
 
--- Check if constraint exists first, add if not
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uniq_chunk_per_version'
-    ) THEN
-        ALTER TABLE knowledge.chunks
-        ADD CONSTRAINT uniq_chunk_per_version
-        UNIQUE (document_version_id, chunk_index, chunk_type);
-    END IF;
-END $$;
+DROP INDEX IF EXISTS knowledge.uniq_chunk_per_version;
+
+ALTER TABLE knowledge.chunks
+ADD CONSTRAINT uniq_chunk_per_version
+UNIQUE (document_version_id, chunk_index, chunk_type);
 
 -- ============================================================
 -- 5. HNSW vector index for embedding similarity search

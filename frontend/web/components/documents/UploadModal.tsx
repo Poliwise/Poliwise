@@ -25,25 +25,26 @@ interface UploadModalProps {
   onClose: () => void;
   onSuccess: () => void;
   categories: Category[];
+  initialDocument?: DocumentUploadResponse;
 }
 
-export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps) {
-  const [step, setStep] = useState(1);
+export function UploadModal({ onClose, onSuccess, categories, initialDocument }: UploadModalProps) {
+  const [step, setStep] = useState(initialDocument ? 2 : 1);
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedDocument, setUploadedDocument] = useState<DocumentUploadResponse | null>(null);
+  const [uploadedDocument, setUploadedDocument] = useState<DocumentUploadResponse | null>(initialDocument || null);
   const [error, setError] = useState<string | null>(null);
 
   // Metadata form state
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    categorySlug: '',
-    tags: [] as string[],
-    language: 'vi',
-    isPolicy: false,
+    title: (initialDocument as any)?.title || initialDocument?.suggestedTitle || '',
+    description: (initialDocument as any)?.description || initialDocument?.suggestedDescription || '',
+    categorySlug: (initialDocument as any)?.categoryId || initialDocument?.suggestedCategorySlug || '',
+    tags: (initialDocument as any)?.tags || initialDocument?.suggestedTags || [] as string[],
+    language: initialDocument?.language || initialDocument?.suggestedLanguage || 'vi',
+    isPolicy: (initialDocument as any)?.isPolicy || initialDocument?.suggestedIsPolicy || false,
   });
   const [tagInput, setTagInput] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -86,10 +87,14 @@ export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps
       'text/plain',
       'image/png',
       'image/jpeg',
+      'text/markdown',
+      'text/x-markdown',
     ];
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'png', 'jpg', 'jpeg', 'md'];
 
-    if (!allowedTypes.includes(selectedFile.type)) {
-      setError('Loại file không được hỗ trợ. Vui lòng chọn PDF, Word, Excel, Text, hoặc hình ảnh.');
+    if (!allowedTypes.includes(selectedFile.type) && !allowedExtensions.includes(ext || '')) {
+      setError('Loại file không được hỗ trợ. Vui lòng chọn PDF, Word, Excel, Text, Markdown, hoặc hình ảnh.');
       return;
     }
 
@@ -179,7 +184,7 @@ setStep(4);
   const handleRemoveTag = (tag: string) => {
     setFormData({
       ...formData,
-      tags: formData.tags.filter((t) => t !== tag),
+      tags: formData.tags.filter((t: string) => t !== tag),
     });
   };
 
@@ -208,6 +213,8 @@ setStep(4);
         return '📊';
       case 'txt':
         return '📃';
+      case 'md':
+        return '📋';
       case 'png':
       case 'jpg':
       case 'jpeg':
@@ -295,10 +302,10 @@ setStep(4);
                     type="file"
                     className="hidden"
                     onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.md"
                   />
                   <p className="mt-4 text-sm text-gray-500">
-                    PDF, Word, Excel, Text, hoặc hình ảnh (tối đa 100MB)
+                    PDF, Word, Excel, Text, Markdown, hoặc hình ảnh (tối đa 100MB)
                   </p>
                 </div>
                 {error && (
@@ -417,7 +424,7 @@ setStep(4);
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {formData.tags.map((tag) => (
+                    {formData.tags.map((tag: string) => (
                       <span
                         key={tag}
                         className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800"

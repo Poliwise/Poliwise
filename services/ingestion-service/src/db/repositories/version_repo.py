@@ -42,6 +42,7 @@ class VersionRepository:
         extracted_text: Optional[str] = None,
         file_checksum: Optional[str] = None,
         content_hash: Optional[str] = None,
+        fingerprint_embedding: Optional[list[float]] = None,
         similarity_to_previous: Optional[float] = None,
         page_count: Optional[int] = None,
         language: Optional[str] = None,
@@ -54,6 +55,8 @@ class VersionRepository:
             values["file_checksum"] = file_checksum
         if content_hash is not None:
             values["content_hash"] = content_hash
+        if fingerprint_embedding is not None:
+            values["fingerprint_embedding"] = fingerprint_embedding
         if similarity_to_previous is not None:
             values["similarity_to_previous"] = similarity_to_previous
         # Note: page_count and language are not columns on document_versions table,
@@ -86,3 +89,31 @@ class VersionRepository:
             query = query.where(DocumentVersion.id != exclude_version_id)
         result = await self.session.execute(query.limit(10))
         return list(result.scalars().all())
+
+    async def find_near_duplicates(
+        self, 
+        embedding: list[float], 
+        threshold: float = 0.90,
+        limit: int = 5
+    ) -> list[tuple[DocumentVersion, float]]:
+        """Find versions with high semantic similarity using vector distance.
+        The embedding should be a 'Semantic Fingerprint' (typically from the first 4000 chars).
+        """
+        # pgvector uses <=> for cosine distance (1 - similarity)
+        # So similarity = 1 - (embedding_vector <=> :embedding)
+        # We want similarity > threshold  =>  distance < 1 - threshold
+        distance_threshold = 1.0 - threshold
+        
+        from sqlalchemy import text
+        # Using raw SQL for direct access to pgvector operators if needed, 
+        # but SQLAlchemy with pgvector supports .distance_compare or <=>
+        # For clarity with the plan, we use the distance operator
+        query = select(
+            DocumentVersion,
+            DocumentVersion.fingerprint_embedding.cosine_distance(embedding).label("distance")
+        ).where(
+            DocumentVersion.fingerprint_embedding.cosine_distance(embedding) < distance_threshold
+        ).order_by("distance").limit(limit)
+        
+        result = await self.session.execute(query)
+        return [(row[0], 1.0 - float(row[1])) for row in result.all()]

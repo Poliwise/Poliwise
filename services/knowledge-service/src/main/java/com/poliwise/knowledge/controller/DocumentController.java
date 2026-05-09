@@ -2,7 +2,6 @@ package com.poliwise.knowledge.controller;
 
 import com.poliwise.knowledge.dto.*;
 import com.poliwise.knowledge.entity.Document;
-import com.poliwise.knowledge.entity.DocumentVersion;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
@@ -10,10 +9,9 @@ import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.service.DocumentManagementService;
 import com.poliwise.knowledge.service.MetadataContextService;
 import com.poliwise.knowledge.service.MetadataSuggestionService;
-import com.poliwise.knowledge.service.PolicyComparisonService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.core.io.InputStreamResource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,28 +23,18 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/documents")
+@RequiredArgsConstructor
 public class DocumentController {
 
     private final DocumentManagementService documentManagementService;
-    private final PolicyComparisonService comparisonService;
     private final MetadataContextService metadataContextService;
     private final MetadataSuggestionService metadataSuggestionService;
-
-    public DocumentController(
-            DocumentManagementService documentManagementService,
-            PolicyComparisonService comparisonService,
-            MetadataContextService metadataContextService,
-            MetadataSuggestionService metadataSuggestionService) {
-        this.documentManagementService = documentManagementService;
-        this.comparisonService = comparisonService;
-        this.metadataContextService = metadataContextService;
-        this.metadataSuggestionService = metadataSuggestionService;
-    }
 
     // ===== 1. Upload Document =====
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -282,6 +270,15 @@ public class DocumentController {
         return ResponseEntity.ok(detail.versions());
     }
 
+    @GetMapping("/{documentId}/versions/{versionNumber}/content")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<Map<String, String>> getContent(
+            @PathVariable UUID documentId,
+            @PathVariable Integer versionNumber) {
+        String content = documentManagementService.getExtractedText(documentId, versionNumber);
+        return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
+    }
+
     // ===== 11. Get Audit Logs =====
     @GetMapping("/{documentId}/audit-logs")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
@@ -315,11 +312,10 @@ public class DocumentController {
 
     // ===== 12. Trigger Processing =====
     @PostMapping("/{documentId}/process")
-    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> process(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
         UUID processedBy = getCurrentUserId(httpRequest);
-        // Delegate to existing processing service
-        // processDocumentService.trigger(documentId, processedBy);
+        documentManagementService.triggerIngestion(documentId, processedBy);
         return ResponseEntity.accepted().build();
     }
 

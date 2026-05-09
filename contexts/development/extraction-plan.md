@@ -842,23 +842,43 @@ async def check_exact_duplicate(session, file_checksum: str) -> Optional[UUID]:
     return result.scalar_one_or_none()
 ```
 
-#### Layer 2: Near-Duplicate (Embedding Similarity)
+#### Layer 2: Exact Content Duplicate (content_hash)
+
+Handles cases where the same text is extracted from different file formats (e.g., a `.docx` file converted to `.pdf`). We hash the cleaned, extracted text using SHA256.
+
+```python
+async def compute_content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+async def check_content_duplicate(session, content_hash: str) -> list[UUID]:
+    result = await session.execute(text("""
+        SELECT id FROM knowledge.document_versions
+        WHERE content_hash = :hash
+        LIMIT 5
+    """), {"hash": content_hash})
+    return result.scalars().all()
+```
+
+#### Layer 3: Near-Duplicate (Semantic Fingerprint)
+
+To optimize resource usage, we do NOT embed the entire document for Layer 3. Instead, we generate a **Semantic Fingerprint** by embedding only the first 4000 characters of the extracted text. This is sufficient to identify the document's identity and detect minor revisions or similar documents without the overhead of full-document vectorization.
 
 ```python
 async def check_near_duplicate(
     session,
-    embedding: list[float],
+    fingerprint_embedding: list[float],
     threshold: float = 0.90
 ) -> list[dict]:
+    # Query semantic similarity against existing fingerprints
     result = await session.execute(text("""
         SELECT d.id, d.title,
-               (cv.embedding_vector <=> :embedding::vector) as similarity
+               (1 - (cv.embedding_vector <=> :embedding::vector)) as similarity
         FROM knowledge.document_versions cv
         JOIN knowledge.documents d ON d.id = cv.document_id
         WHERE cv.embedding_vector <=> :embedding::vector < :threshold
-        ORDER BY similarity ASC
+        ORDER BY similarity DESC
         LIMIT 5
-    """), {"embedding": embedding, "threshold": 1 - threshold})
+    """), {"embedding": fingerprint_embedding, "threshold": 1 - threshold})
     return result.fetchall()
 ```
 

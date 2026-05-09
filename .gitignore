@@ -29,3 +29,6 @@ __pycache__/
 test-*.ps1
 test-*.bat
 test-*.md
+
+# Environment backup (local only)
+environment_setup/

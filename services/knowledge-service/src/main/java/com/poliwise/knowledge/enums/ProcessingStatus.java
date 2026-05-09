@@ -9,7 +9,7 @@ public enum ProcessingStatus {
 
     STAGING("STAGING"), UPLOADED("UPLOADED"), PARSING("PARSING"), PARSED("PARSED"), CHUNKING("CHUNKING"), CHUNKED(
             "CHUNKED"), EMBEDDING("EMBEDDING"), EMBEDDED("EMBEDDED"), INDEXING(
-                    "INDEXING"), INDEXED("INDEXED"), READY("READY"), FAILED("FAILED");
+                    "INDEXING"), INDEXED("INDEXED"), READY("READY"), FAILED("FAILED"), DUPLICATE("DUPLICATE");
 
     private final String value;
 

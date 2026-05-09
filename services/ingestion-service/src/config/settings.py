@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False
 
-    # Inference Services
-    embedding_url: str = "http://localhost:8001"
-    reranker_url: str = "http://localhost:8002"
+    # Inference Services (Self-hosted BAAI/bge-m3 via HuggingFace TEI)
+    embedding_url: str = "http://bge-m3-embedding:80"
+    reranker_url: str = "http://host.docker.internal:8002"
 
     # LLM (Groq for Metadata Suggestion)
     groq_api_key: str = Field(..., description="Groq API key for metadata suggestion")
@@ -48,7 +48,12 @@ class Settings(BaseSettings):
     similarity_threshold_digital: float = 0.98
     similarity_threshold_ocr: float = 0.90
 
-    model_config = {"env_file": ".env", "case_sensitive": False}
+    model_config = {
+        "env_file": ".env", 
+        "case_sensitive": False,
+        "extra": "ignore",
+        "populate_by_name": True
+    }
 
 
 settings = Settings()

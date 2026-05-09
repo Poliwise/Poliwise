@@ -213,6 +213,7 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       INGESTION_SERVICE_URL: http://ingestion-service:8088
       METADATA_SERVICE_URL: http://metadata-service:8084
+      KNOWLEDGE_INGESTION_SUGGESTION_TIMEOUT_SECONDS: 30
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8083:8083"

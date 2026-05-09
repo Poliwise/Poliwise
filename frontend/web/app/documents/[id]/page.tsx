@@ -25,8 +25,10 @@ import {
   documentService,
   documentMetadataService,
   accessRuleService,
+  categoryService,
 } from '@/services/document.service';
 import type {
+  Document,
   DocumentDetail,
   DocumentVersion,
   AccessRule,
@@ -41,8 +43,9 @@ import {
 } from '@/types/document';
 import { useAuthStore, useIsAdmin, useIsManager } from '@/store/auth-store';
 import PreviewModal from '@/components/documents/PreviewModal';
+import { UploadModal } from '@/components/documents/UploadModal';
 
-type Tab = 'detail' | 'versions' | 'access' | 'audit';
+type Tab = 'detail' | 'content' | 'versions' | 'access' | 'audit';
 
 export default function DocumentDetailPage() {
   const router = useRouter();
@@ -57,15 +60,29 @@ export default function DocumentDetailPage() {
   const [accessRules, setAccessRules] = useState<AccessRule[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('detail');
+  const [extractedContent, setExtractedContent] = useState<string | null>(null);
+  const [contentLoading, setContentLoading] = useState(false);
   const [auditPage, setAuditPage] = useState(1);
   const [auditTotalPages, setAuditTotalPages] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     loadDocument();
+    loadCategories();
   }, [documentId]);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await categoryService.getCategories();
+      setCategories(cats);
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+    }
+  };
 
   const loadDocument = async () => {
     setLoading(true);
@@ -129,9 +146,24 @@ export default function DocumentDetailPage() {
     }
   };
 
+  const loadExtractedContent = async () => {
+    if (!document) return;
+    setContentLoading(true);
+    try {
+      const content = await documentService.getDocumentContent(documentId, document.currentVersion);
+      setExtractedContent(content);
+    } catch (err) {
+      console.error('Failed to load extracted content:', err);
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'audit') {
       loadAuditLogs();
+    } else if (activeTab === 'content' && !extractedContent) {
+      loadExtractedContent();
     }
   }, [activeTab]);
 
@@ -247,6 +279,7 @@ export default function DocumentDetailPage() {
           <div className="mt-4 flex space-x-8 border-b border-gray-200">
             {[
               { id: 'detail', label: 'Chi tiết', icon: Eye },
+              { id: 'content', label: 'Nội dung', icon: FileText },
               { id: 'versions', label: 'Phiên bản', icon: History },
               { id: 'access', label: 'Phân quyền', icon: Shield },
               { id: 'audit', label: 'Nhật ký', icon: Clock },
@@ -268,8 +301,31 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Status Banners */}
+        {document.status === 'STAGING' && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between">
+            <div className="flex items-center text-amber-800">
+              <AlertCircle className="w-5 h-5 mr-3" />
+              <span>Tài liệu này đang chờ xác nhận thông tin. Vui lòng hoàn tất để bắt đầu xử lý.</span>
+            </div>
+            <button 
+              onClick={() => setIsConfirming(true)}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium transition-colors"
+            >
+              Tiếp tục xác nhận
+            </button>
+          </div>
+        )}
+
+        {document.status === 'DUPLICATE' && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
+            <span className="text-red-800">Cảnh báo: Tài liệu này được xác định là trùng lặp với một tài liệu đã có trong hệ thống.</span>
+          </div>
+        )}
+
         {/* Detail Tab */}
         {activeTab === 'detail' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -405,6 +461,50 @@ export default function DocumentDetailPage() {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Content Tab */}
+        {activeTab === 'content' && (
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900">Nội dung đã trích xuất</h2>
+              <button 
+                onClick={loadExtractedContent}
+                disabled={contentLoading}
+                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center"
+              >
+                {contentLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <History className="w-4 h-4 mr-1" />}
+                Làm mới
+              </button>
+            </div>
+            <div className="p-6">
+              {contentLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                  <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                  <p>Đang tải nội dung tài liệu...</p>
+                </div>
+              ) : extractedContent ? (
+                <div className="prose prose-indigo max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-800 bg-gray-50 p-6 rounded-lg border border-gray-200 font-sans leading-relaxed">
+                    {extractedContent}
+                  </pre>
+                </div>
+              ) : (
+                <div className="text-center py-20 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>Tài liệu chưa được trích xuất nội dung hoặc đang trong quá trình xử lý.</p>
+                  {document.status === 'READY' && (
+                    <button 
+                      onClick={() => documentService.triggerProcess(documentId)}
+                      className="mt-4 text-indigo-600 hover:underline"
+                    >
+                      Kích hoạt xử lý lại
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -571,6 +671,18 @@ export default function DocumentDetailPage() {
           filename={document.originalFilename || document.fileName || 'document'}
           fileType={(document.fileType as unknown as string) || 'UNKNOWN'}
           getPreviewUrl={documentService.getPreviewUrl}
+        />
+      )}
+
+      {isConfirming && document && (
+        <UploadModal
+          onClose={() => setIsConfirming(false)}
+          onSuccess={() => {
+            setIsConfirming(false);
+            loadDocument();
+          }}
+          categories={categories}
+          initialDocument={document as any}
         />
       )}
     </div>

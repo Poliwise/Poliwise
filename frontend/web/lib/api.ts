@@ -707,6 +707,14 @@ class ApiClient {
       await this.client.post(`/api/v1/documents/${documentId}/process`);
     },
 
+    getContent: async (documentId: string, versionNumber: number): Promise<string> => {
+      const res = await this.client.get<{ data?: { content: string }; content?: string }>(
+        `/api/v1/documents/${documentId}/versions/${versionNumber}/content`
+      );
+      // Handle both wrapped and unwrapped formats
+      return res.data?.data?.content ?? (res.data as any)?.content ?? '';
+    },
+
     comparePolicies: async (doc1Id: string, doc2Id: string): Promise<{
       document1: Document;
       document2: Document;

@@ -129,7 +129,13 @@ class ParentChildChunker:
             chunks.append(chunk)
             chunk_index += 1
 
-            start = end - self.child_overlap
+            # Ensure we always move forward, even if overlap is large
+            new_start = end - self.child_overlap
+            if new_start <= start:
+                start = end
+            else:
+                start = new_start
+
             if start >= len(tokens):
                 break
 
@@ -168,7 +174,13 @@ class ParentChildChunker:
                 )
             )
 
-            start = end - self.child_overlap
+            # Ensure we always move forward
+            new_start = end - self.child_overlap
+            if new_start <= start:
+                start = end
+            else:
+                start = new_start
+
             parent_idx += 1
 
         return child_chunks

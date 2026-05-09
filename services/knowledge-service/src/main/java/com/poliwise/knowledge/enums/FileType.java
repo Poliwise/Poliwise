@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 public enum FileType {
 
-    PDF("PDF"), DOCX("DOCX"), XLSX("XLSX"), DOC("DOC"), XLS("XLS"), TXT("TXT"), PNG("PNG"), JPG("JPG"), JPEG("JPEG"), UNKNOWN("UNKNOWN");
+    PDF("PDF"), DOCX("DOCX"), XLSX("XLSX"), DOC("DOC"), XLS("XLS"), TXT("TXT"), PNG("PNG"), JPG("JPG"), JPEG("JPEG"), MD("MD"), UNKNOWN("UNKNOWN");
 
     private final String value;
 

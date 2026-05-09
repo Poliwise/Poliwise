@@ -31,6 +31,7 @@ import com.poliwise.knowledge.exception.ResourceNotFoundException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -370,10 +371,10 @@ public class DocumentManagementService {
         }
 
         String lower = filename.toLowerCase();
-        Set<String> allowedExtensions = Set.of(".pdf", ".docx", ".doc", ".xlsx", ".xls", ".txt", ".png", ".jpg", ".jpeg");
+        Set<String> allowedExtensions = Set.of(".pdf", ".docx", ".doc", ".xlsx", ".xls", ".txt", ".png", ".jpg", ".jpeg", ".md");
         boolean validExtension = allowedExtensions.stream().anyMatch(lower::endsWith);
         if (!validExtension) {
-            throw new IllegalArgumentException("Unsupported file type. Allowed: PDF, DOCX, DOC, XLSX, XLS, TXT, PNG, JPG, JPEG");
+            throw new IllegalArgumentException("Unsupported file type. Allowed: PDF, DOCX, DOC, XLSX, XLS, TXT, PNG, JPG, JPEG, MD");
         }
     }
 
@@ -487,8 +488,8 @@ public class DocumentManagementService {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
 
-        if (document.getStatus() != ProcessingStatus.STAGING) {
-            throw new IllegalStateException("Document is not in staging status: " + document.getStatus());
+        if (document.getStatus() != ProcessingStatus.STAGING && document.getStatus() != ProcessingStatus.READY) {
+            throw new IllegalStateException("Document is not in staging or ready status: " + document.getStatus());
         }
 
         // 1. Resolve category slug → UUID
@@ -527,6 +528,63 @@ public class DocumentManagementService {
         log.info("Document metadata confirmed: documentId={}, title='{}', categorySlug='{}'",
                 documentId, request.title(), request.categorySlug());
 
+        // Phase 2: Trigger Ingestion automatically after confirmation
+        try {
+            triggerIngestion(saved.getId(), confirmedBy);
+        } catch (Exception e) {
+            log.error("Failed to auto-trigger ingestion for document {}: {}", documentId, e.getMessage());
+        }
+
         return saved;
+    }
+
+    /**
+     * Get extracted text for a specific document version.
+     */
+    public String getExtractedText(UUID documentId, Integer versionNumber) {
+        DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Document version not found: " + documentId + " v" + versionNumber));
+        return version.getExtractedText();
+    }
+
+    /**
+     * Trigger the ingestion pipeline by publishing an ingestion.requested event.
+     */
+    public void triggerIngestion(UUID documentId, UUID triggeredBy) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        // Get latest version ID
+        List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+        if (versions.isEmpty()) {
+            throw new IllegalStateException("No versions found for document: " + documentId);
+        }
+        UUID latestVersionId = versions.get(0).getId();
+
+        // Generate a new job ID for tracking
+        UUID jobId = UUID.randomUUID();
+
+        // Prepare payload for Python ingestion-service
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("job_id", jobId.toString());
+        payload.put("document_id", documentId.toString());
+        payload.put("document_version_id", latestVersionId.toString());
+        payload.put("file_key", document.getFileKey());
+        payload.put("bucket_name", document.getBucketName());
+        
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("language", document.getLanguage());
+        metadata.put("uploaded_by", triggeredBy.toString());
+        payload.put("metadata", metadata);
+
+        // Update document status to PARSING
+        document.setStatus(ProcessingStatus.PARSING);
+        document.setUpdatedAt(OffsetDateTime.now());
+        documentRepository.save(document);
+
+        // Publish to RabbitMQ
+        eventPublisher.publishIngestionRequested(payload);
+        
+        log.info("Ingestion triggered: documentId={}, versionId={}, jobId={}", documentId, latestVersionId, jobId);
     }
 }

@@ -70,7 +70,7 @@ class ExtractionOrchestrator:
     def _get_extension(self, file_key: str) -> str:
         """Extract lowercase file extension from a file key."""
         if "." in file_key:
-            return file_key.rsplit(".", 1)[-1].lower()
+            return "." + file_key.rsplit(".", 1)[-1].lower()
         return ""
 
 
