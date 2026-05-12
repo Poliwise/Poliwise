@@ -316,7 +316,10 @@ export class ProxyService {
 
     for (const [key, value] of Object.entries(request.headers)) {
       if (!hopByHopHeaders.includes(key.toLowerCase()) && value) {
-        headers[key] = Array.isArray(value) ? value[0] : value;
+        const normalized = Array.isArray(value) ? value[0] : value;
+        if (normalized && normalized !== 'undefined') {
+          headers[key] = normalized;
+        }
       }
     }
 

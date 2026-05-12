@@ -130,13 +130,13 @@ const { user, isAdmin } = useAuth();
 
 ## Access Rules
 
-Document-level access control via access rules:
+Document-level access control via access rules (managed by `metadata-service`):
 
 ### Rule Types
 
 | Type | Description |
 |------|-------------|
-| `ROLE` | Grant/deny access by role |
+| `ROLE` | Grant/deny access by role (ADMIN, MANAGER, USER) |
 | `DEPARTMENT` | Grant/deny access by department |
 | `USER` | Grant/deny access by specific user |
 
@@ -147,13 +147,43 @@ Document-level access control via access rules:
 | `VIEW` | Allow viewing the document |
 | `DENY` | Explicitly deny access |
 
-### Rule Evaluation
+### Rule Evaluation (OR Algorithm)
 
-1. ADMIN always has access
-2. PUBLIC documents accessible to all authenticated users
-3. DENY rules evaluated first
-4. VIEW rules evaluated second
-5. No matching rule = deny
+When multiple rules exist for a document, access is determined by:
+
+1. **ADMIN always has access** — admin role bypasses all rules
+2. **PUBLIC documents** — accessible to all authenticated users
+3. **DENY rules evaluated FIRST** — if any DENY rule matches the user, access is denied
+4. **VIEW rules evaluated SECOND (OR logic)** — if at least one VIEW rule matches, access is granted
+5. **No matching rule = deny by default**
+
+```
+User has access = (ADMIN role) OR (PUBLIC doc) OR (has VIEW rule AND no DENY rule)
+```
+
+**Example:**
+- Document has rules: `[ROLE=USER:VIEW, DEPARTMENT=HR:VIEW]`
+- A USER in Finance department → has access (matches USER role rule)
+- A MANAGER in HR department → has access (matches DEPARTMENT rule)
+- A USER explicitly DENY'd for that department → no access (DENY takes priority)
+
+### Duplicate Rules
+
+Rules targeting different targets are always allowed (no 100%-identical duplicate enforcement). Rules targeting the same target will update the existing rule instead of creating a duplicate.
+
+### Simulation Feature
+
+ADMIN can preview who in the company has access to a document via the simulation endpoint:
+- Shows all users grouped by access (granted/denied) with reasoning
+- Helps verify access rules before deployment
+
+### Default Behavior on Upload
+
+When a new document is uploaded:
+- Metadata is auto-created with `accessLevel = RESTRICTED`
+- **No access rules exist initially**
+- **Only ADMIN can access the document** until access rules are added
+- To make a document public, add a `ROLE=USER:VIEW` rule or set `accessLevel = PUBLIC`
 
 ## Security Considerations
 

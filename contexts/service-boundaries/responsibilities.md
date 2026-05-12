@@ -176,12 +176,36 @@ DELETE /api/v1/documents/{id}
 
 **metadata-service** (`:8084`):
 ```
-GET    /api/v1/metadata/categories
-GET    /api/v1/metadata/tags
-GET    /api/v1/metadata/documents/{id}
-PUT    /api/v1/metadata/documents/{id}
-POST   /api/v1/metadata/access-rules
-GET    /api/v1/metadata/documents/{id}/access
+# Categories (public read)
+GET    /api/v1/categories/active           # Public
+GET    /api/v1/categories/active/tree      # Authenticated
+GET    /api/v1/categories/active/children  # Authenticated
+
+# Categories admin CRUD (ADMIN only)
+ALL    /api/v1/categories                  # CRUD operations
+ALL    /api/v1/categories/*path
+
+# Tags (public read)
+GET    /api/v1/tags                        # Authenticated
+GET    /api/v1/tags/popular               # Authenticated
+GET    /api/v1/tags/search                # Authenticated
+
+# Tags admin CRUD (ADMIN only)
+ALL    /api/v1/tags                        # CRUD operations
+ALL    /api/v1/tags/*path
+
+# Document metadata (ADMIN only)
+ALL    /api/v1/metadata                   # CRUD operations
+ALL    /api/v1/metadata/*path
+
+# Access Rules (ADMIN only for create/update/delete)
+GET     /api/v1/access-rules?metadataId=   # Get rules by metadata ID
+GET     /api/v1/access-rules/all           # Get all rules
+POST    /api/v1/access-rules               # Create rule
+PUT     /api/v1/access-rules/{ruleId}      # Update rule
+DELETE  /api/v1/access-rules/{ruleId}      # Delete rule
+GET     /api/v1/access-rules/by-document/{documentId}  # Get rules by document ID
+GET     /api/v1/access-rules/simulation/by-document/{documentId}  # Simulate access (preview who has access)
 ```
 
 **feedback-service** (`:8085`):

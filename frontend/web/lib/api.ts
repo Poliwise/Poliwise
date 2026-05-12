@@ -38,6 +38,7 @@ import type {
   AssignUserDepartmentRequest,
 } from '@/types';
 import type { DocumentVersion } from '@/types/document';
+import type { AccessRule, CreateAccessRuleRequest } from '@/types/document';
 
 // ============================================================================
 // Constants
@@ -266,10 +267,13 @@ class ApiClient {
             this.isRefreshing = true;
             try {
               // Use directClient to avoid interceptor recursion
+              const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
+              const refreshHeaders: Record<string, string> = {};
+              if (userId) refreshHeaders['x-user-id'] = userId;
               const refreshRes = await this.directClient.post<unknown>(
                 '/api/v1/auth/refresh',
                 { refreshToken },
-                { headers: { 'x-user-id': typeof window !== 'undefined' ? localStorage.getItem('userId') || '' : '' } }
+                { headers: refreshHeaders }
               );
               const tokens = coerceRefreshResponse(refreshRes.data);
               if (typeof window !== 'undefined') {
@@ -533,12 +537,30 @@ class ApiClient {
   users = {
     getMe: async (): Promise<User> => {
       const res = await this.client.get<ApiResponse<User>>('/api/v1/users/me');
-      return coercePaginated<User>(res.data, 'data').data[0] ?? res.data.data!;
+      const raw = coercePaginated<User>(res.data, 'data').data[0] ?? (res.data as unknown as User);
+      return {
+        ...raw,
+        department: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as { id: string }).id
+          : (raw.department as string | null),
+        departmentName: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as { name: string }).name
+          : undefined,
+      };
     },
 
     getById: async (userId: string): Promise<User> => {
       const res = await this.client.get<ApiResponse<User>>(`/api/v1/users/${userId}`);
-      return coercePaginated<User>(res.data, 'data').data[0] ?? res.data.data!;
+      const raw = coercePaginated<User>(res.data, 'data').data[0] ?? (res.data as unknown as User);
+      return {
+        ...raw,
+        department: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as { id: string }).id
+          : (raw.department as string | null),
+        departmentName: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as { name: string }).name
+          : undefined,
+      };
     },
 
     updateMe: async (data: Partial<User>): Promise<User> => {
@@ -562,8 +584,18 @@ class ApiClient {
         ApiResponse<User[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
       >('/api/v1/users', { params });
       const coerced = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data');
+      const rawUsers: User[] = coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [];
+      const users: User[] = rawUsers.map((u) => ({
+        ...u,
+        department: typeof u.department === 'object' && u.department !== null
+          ? (u.department as { id: string }).id
+          : (u.department as string | null),
+        departmentName: typeof u.department === 'object' && u.department !== null
+          ? (u.department as { name: string }).name
+          : undefined,
+      }));
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [],
+        data: users,
         pagination: coerced.pagination,
       };
     },
@@ -1281,40 +1313,116 @@ class ApiClient {
     },
 
     // — Access Rules
-    getAccessRules: async (metadataId?: string): Promise<{
-      id: string; documentMetadataId: string;
-      targetType: string; targetRole?: string;
-      targetDepartmentId?: string; targetUserId?: string;
-      permission: string; createdAt: string;
-    }[]> => {
-      const res = await this.client.get<ApiResponse<{
-        id: string; documentMetadataId: string;
-        targetType: string; targetRole?: string;
-        targetDepartmentId?: string; targetUserId?: string;
-        permission: string; createdAt: string;
-      }[]>>('/api/v1/access-rules', { params: { metadataId } });
-      return coercePaginated<{
-        id: string; documentMetadataId: string;
-        targetType: string; targetRole?: string;
-        targetDepartmentId?: string; targetUserId?: string;
-        permission: string; createdAt: string;
-      }>(res.data as unknown as Record<string, unknown>, 'data').data;
+    getAccessRules: async (metadataId: string): Promise<AccessRule[]> => {
+      const res = await this.client.get<ApiResponse<AccessRule[]>>('/api/v1/access-rules', { params: { metadataId } });
+      return coercePaginated<AccessRule>(res.data as unknown as Record<string, unknown>, 'data').data;
     },
 
-    createAccessRule: async (data: {
-      documentMetadataId: string;
+    getAllAccessRules: async (): Promise<AccessRule[]> => {
+      const res = await this.client.get<{
+        success: boolean;
+        data?: AccessRule[];
+      }>('/api/v1/access-rules/all');
+      return res.data?.data ?? [];
+    },
+
+    getAccessRulesByDocumentId: async (documentId: string): Promise<AccessRule[]> => {
+      const res = await this.client.get<AccessRule[] | {
+        success: boolean;
+        data?: AccessRule[];
+        _proxied?: boolean;
+      }>(`/api/v1/access-rules/by-document/${documentId}`);
+      // Backend may return raw array, wrapped {success, data}, or proxied {_proxied, data}
+      const raw = res.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && '_proxied' in raw) return (raw as { _proxied: boolean; data: AccessRule[] }).data ?? [];
+      return (raw as { success: boolean; data?: AccessRule[] })?.data ?? [];
+    },
+
+    createAccessRule: async (data: CreateAccessRuleRequest): Promise<{ id: string }> => {
+      const res = await this.client.post<ApiResponse<{ id: string }>>('/api/v1/access-rules', data);
+      return coercePaginated<{ id: string }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    },
+
+    updateAccessRule: async (id: string, data: {
       targetType: string;
+      permission: string;
       targetRole?: string;
       targetDepartmentId?: string;
       targetUserId?: string;
-      permission: string;
     }): Promise<{ id: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string }>>('/api/v1/access-rules', data);
+      const res = await this.client.put<ApiResponse<{ id: string }>>(`/api/v1/access-rules/${id}`, data);
       return coercePaginated<{ id: string }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
     },
 
     deleteAccessRule: async (id: string): Promise<void> => {
       await this.client.delete(`/api/v1/access-rules/${id}`);
+    },
+
+    simulateAccess: async (documentId: string): Promise<{
+      documentId: string;
+      metadataId: string;
+      totalCompanyUsers: number;
+      usersWithAccess: number;
+      usersWithoutAccess: number;
+      grantedUsers: Array<{
+        userId: string;
+        username: string;
+        fullName: string | null;
+        role: string | null;
+        departmentId: string;
+        departmentName: string;
+        hasAccess: boolean;
+        reason: string;
+        simulatedAt: string;
+      }>;
+      deniedUsers: Array<{
+        userId: string;
+        username: string;
+        fullName: string | null;
+        role: string | null;
+        departmentId: string;
+        departmentName: string;
+        hasAccess: boolean;
+        reason: string;
+        simulatedAt: string;
+      }>;
+      simulatedAt: string;
+    }> => {
+      const res = await this.client.get<{
+        documentId: string;
+        metadataId: string;
+        totalCompanyUsers: number;
+        usersWithAccess: number;
+        usersWithoutAccess: number;
+        grantedUsers: Array<{
+          userId: string;
+          username: string;
+          fullName: string | null;
+          role: string | null;
+          departmentId: string;
+          departmentName: string;
+          hasAccess: boolean;
+          reason: string;
+          simulatedAt: string;
+        }>;
+        deniedUsers: Array<{
+          userId: string;
+          username: string;
+          fullName: string | null;
+          role: string | null;
+          departmentId: string;
+          departmentName: string;
+          hasAccess: boolean;
+          reason: string;
+          simulatedAt: string;
+        }>;
+        simulatedAt: string;
+      }>(`/api/v1/access-rules/simulation/by-document/${documentId}`);
+      // Backend may return raw object or proxied {_proxied, data} wrapper
+      const raw = res.data;
+      if (raw && '_proxied' in raw) return (raw as unknown as { _proxied: boolean; data: unknown }).data as typeof res.data;
+      return res.data;
     },
   };
 
@@ -1375,15 +1483,35 @@ class ApiClient {
         ApiResponse<User[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
       >(`/api/v1/departments/${departmentId}/users`, { params });
       const coerced = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data');
+      const rawUsers: User[] = coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [];
+      const users: User[] = rawUsers.map((u) => ({
+        ...u,
+        department: typeof u.department === 'object' && u.department !== null
+          ? (u.department as { id: string }).id
+          : (u.department as string | null),
+        departmentName: typeof u.department === 'object' && u.department !== null
+          ? (u.department as { name: string }).name
+          : undefined,
+      }));
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [],
+        data: users,
         pagination: coerced.pagination,
       };
     },
 
     assignUser: async (data: AssignUserDepartmentRequest): Promise<User> => {
       const res = await this.client.post<ApiResponse<User>>('/api/v1/departments/assign-user', data);
-      return coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const raw = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data').data[0]
+        ?? (res.data as unknown as User);
+      return {
+        ...raw,
+        department: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as { id: string }).id
+          : (raw.department as string | null),
+        departmentName: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as { name: string }).name
+          : undefined,
+      };
     },
   };
 }

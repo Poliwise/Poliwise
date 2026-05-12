@@ -198,8 +198,8 @@ export interface AccessRule {
   targetType: 'ROLE' | 'DEPARTMENT' | 'USER';
   targetRole?: string;
   targetDepartmentId?: string;
-  targetUserId?: string;
   targetDepartmentName?: string;
+  targetUserId?: string;
   targetUserName?: string;
   permission: 'VIEW' | 'DENY';
   createdBy?: string;
@@ -207,6 +207,7 @@ export interface AccessRule {
 }
 
 export interface CreateAccessRuleRequest {
+  documentId?: string;
   documentMetadataId?: string;
   targetType: 'ROLE' | 'DEPARTMENT' | 'USER';
   targetRole?: string;

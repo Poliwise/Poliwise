@@ -26,11 +26,13 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Shield,
 } from 'lucide-react';
 import {
   documentService,
   categoryService,
   tagService,
+  accessRuleService,
 } from '@/services/document.service';
 import type {
   Document,
@@ -55,19 +57,19 @@ export default function DocumentsPage() {
   const router = useRouter();
   const { user: authUser } = useAuthStore();
   const isAdmin = useIsAdmin();
-  
+
   // State
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  
+
   // Filters
   const [filters, setFilters] = useState<{
     fileType?: string;
@@ -75,17 +77,20 @@ export default function DocumentsPage() {
     categoryId?: string;
   }>({});
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // View mode
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
+
   // Categories and tags for filter dropdowns
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
-  
+
   // Upload modal
   const [showUploadModal, setShowUploadModal] = useState(false);
-  
+
+  // Access rules count per document (admin only)
+  const [accessRulesCount, setAccessRulesCount] = useState<Record<string, number>>({});
+
   // Actions menu
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
@@ -136,6 +141,20 @@ export default function DocumentsPage() {
       setDocuments(response.data || []);
       setTotalPages(response.totalPages);
       setTotal(response.total);
+
+      // Load access rules count for admin view
+      if (isAdmin && response.data && response.data.length > 0) {
+        const counts: Record<string, number> = {};
+        await Promise.all(response.data.map(async (doc) => {
+          try {
+            const rules = await accessRuleService.getRulesByDocumentId(doc.id);
+            counts[doc.id] = rules.length;
+          } catch {
+            counts[doc.id] = 0;
+          }
+        }));
+        setAccessRulesCount(counts);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load documents');
     } finally {
@@ -186,9 +205,9 @@ export default function DocumentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý tài liệu</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Quan ly tai lieu</h1>
               <p className="mt-1 text-sm text-gray-500">
-                {total > 0 ? `${total} tài liệu` : 'Không có tài liệu nào'}
+                {total > 0 ? `${total} tai lieu` : 'Khong co tai lieu nao'}
               </p>
             </div>
             {isAdmin && (
@@ -197,7 +216,7 @@ export default function DocumentsPage() {
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Tải lên
+                Tai len
               </button>
             )}
           </div>
@@ -208,7 +227,7 @@ export default function DocumentsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Tìm kiếm tài liệu..."
+                placeholder="Tim kiem tai lieu..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -231,7 +250,7 @@ export default function DocumentsPage() {
               }`}
             >
               <Filter className="w-4 h-4 mr-2" />
-              Bộ lọc
+              Bo loc
               {Object.keys(filters).length > 0 && (
                 <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-700">
                   {Object.keys(filters).length}
@@ -267,14 +286,14 @@ export default function DocumentsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Loại file
+                    Loai file
                   </label>
                   <select
                     value={filters.fileType || ''}
                     onChange={(e) => setFilters({ ...filters, fileType: e.target.value || undefined })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="">Tất cả</option>
+                    <option value="">Tat ca</option>
                     <option value="PDF">PDF</option>
                     <option value="DOCX">Word</option>
                     <option value="XLSX">Excel</option>
@@ -284,30 +303,30 @@ export default function DocumentsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trạng thái
+                    Trang thai
                   </label>
                   <select
                     value={filters.status || ''}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value || undefined })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="">Tất cả</option>
-                    <option value="READY">Sẵn sàng</option>
-                    <option value="STAGING">Chờ xác nhận</option>
-                    <option value="PARSING">Đang xử lý</option>
-                    <option value="FAILED">Thất bại</option>
+                    <option value="">Tat ca</option>
+                    <option value="READY">San sang</option>
+                    <option value="STAGING">Cho xac nhan</option>
+                    <option value="PARSING">Dang xu ly</option>
+                    <option value="FAILED">That bai</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Danh mục
+                    Danh muc
                   </label>
                   <select
                     value={filters.categoryId || ''}
                     onChange={(e) => setFilters({ ...filters, categoryId: e.target.value || undefined })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="">Tất cả</option>
+                    <option value="">Tat ca</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
@@ -322,7 +341,7 @@ export default function DocumentsPage() {
                     onClick={clearFilters}
                     className="text-sm text-indigo-600 hover:text-indigo-800"
                   >
-                    Xóa bộ lọc
+                    Xoa bo loc
                   </button>
                 </div>
               )}
@@ -336,24 +355,24 @@ export default function DocumentsPage() {
         {loading && documents.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Đang tải...</span>
+            <span className="ml-2 text-gray-600">Dang tai...</span>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
             <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Lỗi</h3>
+              <h3 className="text-sm font-medium text-red-800">Loi</h3>
               <p className="mt-1 text-sm text-red-600">{error}</p>
             </div>
           </div>
         ) : documents.length === 0 ? (
           <div className="text-center py-12">
             <File className="w-12 h-12 text-gray-400 mx-auto" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Không có tài liệu nào</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Khong co tai lieu nao</h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchQuery || Object.keys(filters).length > 0
-                ? 'Không tìm thấy tài liệu phù hợp với bộ lọc'
-                : 'Bắt đầu bằng cách tải lên tài liệu đầu tiên'}
+                ? 'Khong tim thay tai lieu phu hop voi bo loc'
+                : 'Bat dau bang cach tai len tai lieu dau tien'}
             </p>
             {isAdmin && !searchQuery && Object.keys(filters).length === 0 && (
               <button
@@ -361,7 +380,7 @@ export default function DocumentsPage() {
                 className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Tải lên tài liệu
+                Tai len tai lieu
               </button>
             )}
           </div>
@@ -371,6 +390,7 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc.id}
                 document={doc}
+                accessRulesCount={isAdmin ? (accessRulesCount[doc.id] || 0) : 0}
                 onView={() => router.push(`/documents/${doc.id}`)}
                 onDownload={() => handleDownload(doc)}
                 onDelete={isAdmin ? () => handleDelete(doc) : undefined}
@@ -385,22 +405,22 @@ export default function DocumentsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tên file
+                    Ten file
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Loại
+                    Loai
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kích thước
+                    Kich thuoc
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trạng thái
+                    Trang thai
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ngày tải lên
+                    Ngay tai len
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thao tác
+                    Thao tac
                   </th>
                 </tr>
               </thead>
@@ -469,7 +489,7 @@ export default function DocumentsPage() {
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Hiển thị {(page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, total)} của {total}
+              Hien thi {(page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, total)} cua {total}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -509,6 +529,7 @@ export default function DocumentsPage() {
 // Document Card Component
 function DocumentCard({
   document,
+  accessRulesCount,
   onView,
   onDownload,
   onDelete,
@@ -516,6 +537,7 @@ function DocumentCard({
   isActionOpen,
 }: {
   document: Document;
+  accessRulesCount?: number;
   onView: () => void;
   onDownload: () => void;
   onDelete?: () => void;
@@ -542,52 +564,63 @@ function DocumentCard({
               </div>
             </div>
           </div>
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAction();
-              }}
-              className="p-1 rounded hover:bg-gray-100"
-            >
-              <MoreVertical className="w-5 h-5 text-gray-400" />
-            </button>
-            {isActionOpen && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onView();
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  Xem chi tiết
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload();
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Tải xuống
-                </button>
-                {onDelete && (
+          <div className="flex items-center gap-2 ml-2">
+            {accessRulesCount !== undefined && accessRulesCount > 0 && (
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700"
+                title={`${accessRulesCount} quy tac truy cap`}
+              >
+                <Shield className="w-3 h-3 mr-1" />
+                {accessRulesCount}
+              </span>
+            )}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction();
+                }}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <MoreVertical className="w-5 h-5 text-gray-400" />
+              </button>
+              {isActionOpen && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete();
+                      onView();
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Xóa
+                    <Eye className="w-4 h-4 mr-2" />
+                    Xem chi tiet
                   </button>
-                )}
-              </div>
-            )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload();
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Tai xuong
+                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete();
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Xoa
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
