@@ -266,6 +266,7 @@ export const documentService = {
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
     const blob = await res.blob();
     const url = window.URL.createObjectURL(new Blob([blob]));
     const link = document.createElement('a');
