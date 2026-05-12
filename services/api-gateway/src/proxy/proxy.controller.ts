@@ -56,6 +56,51 @@ export class ProxyController {
     );
   }
 
+  // ===== User "me" endpoints (authenticated self-service — route to user-service for profile data) =====
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/me')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMeGet(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('users/me')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMePut(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/me/status')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMeStatus(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me/status',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Patch('users/me/department')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMeDepartment(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me/department',
+    );
+  }
+
   // ===== User Management Endpoints =====
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('users')
@@ -79,15 +124,15 @@ export class ProxyController {
     );
   }
 
+  /** Get login history for a specific user — accessible by the user themselves */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('users/me/*path')
+  @Get('users/:userId/login-history')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleUserMe(@Req() request: Request) {
-    const path = '/api/v1/auth/me' + request.path.replace('/api/v1/users/me', '');
+  handleLoginHistory(@Req() request: Request) {
     return this.proxyService.forward(
       ServiceName.AUTH,
       request,
-      path || '/api/v1/auth/me',
+      downstreamPath(request, '/api/v1/users'),
     );
   }
 

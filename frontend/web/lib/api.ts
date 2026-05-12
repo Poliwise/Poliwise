@@ -63,6 +63,20 @@ type RawTokenBody = {
   user?: LoginResponse['user'];
 };
 
+/**
+ * Strip "Bearer " prefix from token if present.
+ * This ensures tokens are stored without the prefix, and the Authorization header
+ * is constructed correctly with the "Bearer " prefix added later.
+ */
+function normalizeToken(token: string): string {
+  if (typeof token !== 'string') return token;
+  const trimmed = token.trim();
+  if (trimmed.toLowerCase().startsWith('bearer ')) {
+    return trimmed.substring(7).trim();
+  }
+  return trimmed;
+}
+
 function coerceLoginResponse(body: unknown): LoginResponse {
   const root = body as Record<string, unknown> | null;
   if (!root || typeof root !== 'object') throw new Error('Phản hồi đăng nhập không hợp lệ');
@@ -81,7 +95,12 @@ function coerceLoginResponse(body: unknown): LoginResponse {
     throw new Error('Phản hồi đăng nhập không hợp lệ');
   }
 
-  return { accessToken: data.accessToken, refreshToken: data.refreshToken, expiresIn, user: data.user };
+  return {
+    accessToken: normalizeToken(data.accessToken),
+    refreshToken: normalizeToken(data.refreshToken),
+    expiresIn,
+    user: data.user
+  };
 }
 
 function coerceRefreshResponse(body: unknown): RefreshTokenResponse {
@@ -100,7 +119,11 @@ function coerceRefreshResponse(body: unknown): RefreshTokenResponse {
 
   if (!data.accessToken || !data.refreshToken) throw new Error('Phản hồi làm mới token không hợp lệ');
 
-  return { accessToken: data.accessToken, refreshToken: data.refreshToken, expiresIn };
+  return {
+    accessToken: normalizeToken(data.accessToken),
+    refreshToken: normalizeToken(data.refreshToken),
+    expiresIn
+  };
 }
 
 function coercePaginated<T>(
@@ -414,6 +437,97 @@ class ApiClient {
   };
 
   // ==========================================================================
+  // Profile (user-service — full profile with extended fields)
+  // ==========================================================================
+  profile = {
+    /** Fetches extended profile from user-service + auth metadata from auth-service */
+    getFull: async (): Promise<{
+      id: string;
+      username: string;
+      email: string;
+      role: string;
+      status: string;
+      departmentId: string | null;
+      departmentName: string | null;
+      createdAt: string;
+      passwordChangedAt: string | null;
+      mustChangePassword: boolean;
+      fullName?: string;
+      phone?: string | null;
+      position?: string | null;
+      bio?: string | null;
+      dateOfBirth?: string | null;
+      employeeCode?: string | null;
+      joinedDate?: string | null;
+    }> => {
+      // user-service: extended profile (fullName, phone, position, bio, etc.)
+      const profileRes = await this.client.get<{
+        id: string;
+        username: string;
+        email: string;
+        role: string;
+        accountStatus: string;
+        department: { id: string; name: string; code: string } | null;
+        profile: {
+          id: string;
+          fullName: string;
+          phone: string | null;
+          position: string | null;
+          avatarUrl: string | null;
+          bio: string | null;
+          dateOfBirth: string | null;
+          employeeCode: string | null;
+          joinedDate: string | null;
+        } | null;
+        createdAt: string;
+        updatedAt: string;
+      }>('/api/v1/users/me');
+
+      // auth-service: auth metadata (passwordChangedAt, mustChangePassword)
+      const authRes = await this.client.get<{
+        id: string;
+        passwordChangedAt: string | null;
+        mustChangePassword: boolean;
+      }>('/api/v1/auth/me');
+
+      const p = profileRes.data;
+      const a = authRes.data;
+
+      return {
+        id: p.id,
+        username: p.username,
+        email: p.email,
+        role: p.role,
+        status: p.accountStatus,
+        departmentId: p.department?.id ?? null,
+        departmentName: p.department?.name ?? null,
+        createdAt: p.createdAt,
+        passwordChangedAt: a.passwordChangedAt ?? null,
+        mustChangePassword: a.mustChangePassword ?? false,
+        fullName: p.profile?.fullName,
+        phone: p.profile?.phone,
+        position: p.profile?.position,
+        bio: p.profile?.bio,
+        dateOfBirth: p.profile?.dateOfBirth,
+        employeeCode: p.profile?.employeeCode,
+        joinedDate: p.profile?.joinedDate,
+      };
+    },
+
+    update: async (data: {
+      fullName?: string;
+      phone?: string;
+      position?: string;
+      avatarUrl?: string;
+      bio?: string;
+      dateOfBirth?: string;
+    }): Promise<unknown> => {
+      const res = await this.client.put<unknown>('/api/v1/users/me', data);
+      return res.data;
+    },
+  };
+
+  // ==========================================================================
   // Users
   // ==========================================================================
   users = {
@@ -667,10 +781,14 @@ class ApiClient {
     },
 
     download: async (id: string): Promise<Blob> => {
-      const res = await this.client.get(`/api/v1/documents/${id}/download`, {
-        responseType: 'blob',
+      // Use fetch directly with correct API Gateway URL (not axios client which defaults to frontend port 3000)
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const apiUrl = API_BASE_URL.replace(':3000', ':3001') || 'http://localhost:3001';
+      const res = await fetch(`${apiUrl}/api/v1/documents/${id}/download`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
       });
-      return res.data;
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      return res.blob();
     },
 
     confirmMetadata: async (

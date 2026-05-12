@@ -1,0 +1,372 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.toolbarLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toolbarBtn:hover {
+  background: var(--muted);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ── Tree ── */
+.tree {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 0.75rem 0.75rem;
+  overflow: hidden;
+  background: var(--card);
+}
+
+/* ── Node Wrapper ── */
+.nodeWrapper {
+  position: relative;
+}
+
+.rootNode {
+  border-bottom: 1px solid var(--border);
+}
+
+.rootNode:last-child {
+  border-bottom: none;
+}
+
+.childNode {
+  border-bottom: 1px solid var(--border);
+  border-left: none;
+}
+
+.childNode:last-child {
+  border-bottom: none;
+}
+
+/* ── Node Row ── */
+.nodeRow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+  background: var(--card);
+}
+
+.nodeRow:hover {
+  background: var(--muted);
+}
+
+.inactive .nodeRow {
+  opacity: 0.65;
+}
+
+/* ── Tree Line ── */
+.treeLine {
+  width: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.connectorIcon {
+  color: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+/* ── Toggle ── */
+.toggleBtn {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggleBtn.hasChildren:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.toggleBtn.expanded svg {
+  transform: rotate(0deg);
+}
+
+.toggleBtn:not(.expanded) svg {
+  transform: rotate(0deg);
+}
+
+/* ── Department Icon ── */
+.deptIcon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rootIcon {
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+}
+
+.childIcon {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.inactiveIcon {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* ── Node Info ── */
+.nodeInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.nodeNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nodeName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.inactiveText {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+.nodeCode {
+  display: inline-block;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.childBadge {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.5rem;
+  background: rgba(139, 92, 246, 0.08);
+  color: #7c3aed;
+  border-radius: 9999px;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.childBadgeExpanded {
+  background: rgba(139, 92, 246, 0.15);
+  color: #6d28d9;
+}
+
+.nodeDesc {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+
+/* ── User Count ── */
+.userCount {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--muted);
+  border-radius: 0.375rem;
+}
+
+/* ── Status Dot ── */
+.statusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.active {
+  background: #059669;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.inactiveDot {
+  background: #9ca3af;
+}
+
+/* ── Actions ── */
+.nodeActions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.nodeRow:hover .nodeActions {
+  opacity: 1;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--background);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actionBtn.actionDanger:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.actionBtn.actionSuccess:hover:not(:disabled) {
+  background: #f0fdf4;
+  color: #059669;
+  border-color: #bbf7d0;
+}
+
+/* ── Children ── */
+.children {
+  border-left: 2px solid var(--border);
+  margin-left: calc(1.5rem + 1rem + 2rem + 0.625rem);
+  background: var(--muted);
+}
+
+/* ── Empty ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: var(--muted-foreground);
+  gap: 0.75rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--card);
+}
+
+.empty p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .nodeNameRow {
+    flex-wrap: wrap;
+  }
+
+  .nodeDesc {
+    max-width: 180px;
+  }
+
+  .nodeActions {
+    opacity: 1;
+  }
+
+  .children {
+    margin-left: 1.5rem;
+  }
+}

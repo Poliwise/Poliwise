@@ -48,27 +48,55 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Optional<Claims> claimsOpt = extractClaims(rawToken.get());
 
-                if (claimsOpt.isPresent()) {
-                    Claims claims = claimsOpt.get();
+                if (claimsOpt.isEmpty()) {
+                    // Token exists but couldn't be parsed - return 401 instead of letting through
+                    sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+                    return;
+                }
 
-                    AccountStatus status = AccountStatus.valueOf(claims.get("status", String.class));
-                    if (status != AccountStatus.ACTIVE) {
-                        sendError(response, HttpServletResponse.SC_FORBIDDEN, "Account is not active");
-                        return;
-                    }
+                Claims claims = claimsOpt.get();
 
-                    UUID userId = UUID.fromString(claims.getSubject());
-                    String username = claims.get("username", String.class);
-                    String email = claims.get("email", String.class);
-                    UserRole role = UserRole.valueOf(claims.get("role", String.class));
-                    UUID department = parseDepartment(claims.get("department", String.class));
+                // Check account status
+                String statusStr = claims.get("status", String.class);
+                AccountStatus status;
+                try {
+                    status = AccountStatus.valueOf(statusStr);
+                } catch (IllegalArgumentException e) {
+                    sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token claims");
+                    return;
+                }
 
-                    JwtAuthenticationToken authentication = new JwtAuthenticationToken(
-                            userId, username, email, role, status, department, rawToken.get(),
-                            JwtAuthenticationToken.buildAuthorities(role)
-                    );
+                if (status != AccountStatus.ACTIVE) {
+                    sendError(response, HttpServletResponse.SC_FORBIDDEN, "Account is not active");
+                    return;
+                }
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                UUID userId = UUID.fromString(claims.getSubject());
+                String username = claims.get("username", String.class);
+                String email = claims.get("email", String.class);
+                String roleStr = claims.get("role", String.class);
+                UserRole role;
+                try {
+                    role = UserRole.valueOf(roleStr);
+                } catch (IllegalArgumentException e) {
+                    sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid role in token");
+                    return;
+                }
+                UUID department = parseDepartment(claims.get("department", String.class));
+
+                JwtAuthenticationToken authentication = new JwtAuthenticationToken(
+                        userId, username, email, role, status, department, rawToken.get(),
+                        JwtAuthenticationToken.buildAuthorities(role)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                // Propagate userId to request attribute for downstream use (e.g., audit logging)
+                request.setAttribute("userId", userId.toString());
+                request.setAttribute("username", username);
+                request.setAttribute("role", role.name());
+                if (department != null) {
+                    request.setAttribute("department", department.toString());
                 }
             } catch (JwtException | IllegalArgumentException ex) {
                 sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");

@@ -22,6 +22,11 @@ export interface DepartmentTreeNode {
   name: string;
   code: string;
   isActive: boolean;
+  description?: string;
+  parent?: DepartmentInfo;
+  userCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
   children: DepartmentTreeNode[];
 }
 

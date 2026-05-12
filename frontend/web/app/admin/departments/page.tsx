@@ -3,13 +3,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Building2, Plus, Search, Edit2, Trash2, X, Loader2,
-  ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle,
+  ChevronLeft, ChevronRight, AlertCircle, CheckCircle,
   ToggleLeft, ToggleRight, Users, LayoutGrid, TreeDeciduous,
   UserPlus, ArrowRight, UserCheck2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { useRouter } from 'next/navigation';
+import { HierarchyTreeView } from '@/components/hierarchy-tree/HierarchyTreeView';
 import type {
   Department,
   DepartmentTreeNode,
@@ -45,22 +46,6 @@ interface DeptUser {
   fullName?: string;
   departmentId?: string | null;
   department?: string | null;
-}
-
-interface FlatNode {
-  id: string;
-  name: string;
-  code: string;
-  isActive: boolean;
-  description?: string;
-  parent?: { id: string; name: string; code: string };
-  userCount?: number;
-  createdAt?: string;
-  updatedAt?: string;
-  depth: number;
-  hasChildren: boolean;
-  isExpanded: boolean;
-  children?: DepartmentTreeNode[];
 }
 
 // ============================================================================
@@ -152,12 +137,22 @@ export default function DepartmentsPage() {
     }
   }, []);
 
-  function collectIds(node: DepartmentTreeNode, set: Set<string>) {
+function collectIds(node: DepartmentTreeNode, set: Set<string>) {
+  if (node.children && node.children.length > 0) {
+    set.add(node.id);
+    node.children.forEach(c => collectIds(c, set));
+  }
+}
+
+function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Set<string> {
+  for (const node of nodes) {
     if (node.children && node.children.length > 0) {
-      set.add(node.id);
-      node.children.forEach(c => collectIds(c, set));
+      ids.add(node.id);
+      collectAllIds(node.children, ids);
     }
   }
+  return ids;
+}
 
   useEffect(() => {
     if (!isAdmin) {
@@ -177,45 +172,6 @@ export default function DepartmentsPage() {
     dept.code.toLowerCase().includes(search.toLowerCase()) ||
     (dept.description?.toLowerCase() || '').includes(search.toLowerCase())
   );
-
-  function flattenTree(nodes: DepartmentTreeNode[], expanded: Set<string>, depth = 0): FlatNode[] {
-    const result: FlatNode[] = [];
-    for (const node of nodes) {
-      const hasChildren = node.children && node.children.length > 0;
-      result.push({
-        id: node.id,
-        name: node.name,
-        code: node.code,
-        isActive: node.isActive,
-        depth,
-        hasChildren,
-        isExpanded: expanded.has(node.id),
-        children: node.children,
-      });
-      if (hasChildren && expanded.has(node.id) && node.children) {
-        result.push(...flattenTree(node.children, expanded, depth + 1));
-      }
-    }
-    return result;
-  }
-
-  const filteredTreeNodes = flattenTree(
-    search
-      ? filterTreeBySearch(treeData, search.toLowerCase())
-      : treeData,
-    expandedTree
-  );
-
-  function filterTreeBySearch(nodes: DepartmentTreeNode[], term: string): DepartmentTreeNode[] {
-    return nodes.reduce<DepartmentTreeNode[]>((acc, node) => {
-      const matches = node.name.toLowerCase().includes(term) || node.code.toLowerCase().includes(term);
-      const filteredChildren = filterTreeBySearch(node.children || [], term);
-      if (matches || filteredChildren.length > 0) {
-        acc.push({ ...node, children: filteredChildren });
-      }
-      return acc;
-    }, []);
-  }
 
   // ============================================================================
   // CRUD Handlers
@@ -665,36 +621,23 @@ export default function DepartmentsPage() {
           </>
         ) : (
           <>
-            {/* Tree View */}
+            {/* Hierarchy Tree View */}
             <div className={styles.treeView}>
-              {filteredTreeNodes.length === 0 ? (
-                <div className={styles.empty}>
-                  <TreeDeciduous size={40} />
-                  <p>Không có phòng ban nào</p>
-                </div>
-              ) : (
-                filteredTreeNodes.map(node => (
-                  node.depth === 0 ? (
-                    <TreeRootNode
-                      key={node.id}
-                      node={node}
-                      expandedTree={expandedTree}
-                      toggleTreeNode={toggleTreeNode}
-                      openUsersModal={openUsersModal}
-                      openEditModal={openEditModal}
-                      openDeleteModal={openDeleteModal}
-                      handleToggleActive={handleToggleActive}
-                    />
-                  ) : (
-                    <TreeChildNode
-                      key={node.id}
-                      node={node}
-                      openUsersModal={openUsersModal}
-                      openEditModal={openEditModal}
-                    />
-                  )
-                ))
-              )}
+              <HierarchyTreeView
+                nodes={treeData}
+                expanded={expandedTree}
+                onToggle={toggleTreeNode}
+                onExpandAll={() => {
+                  const allIds = new Set<string>();
+                  collectAllIds(treeData, allIds);
+                  setExpandedTree(allIds);
+                }}
+                onCollapseAll={() => setExpandedTree(new Set())}
+                onEdit={(dept) => openEditModal(dept)}
+                onDelete={(dept) => openDeleteModal(dept)}
+                onToggleActive={handleToggleActive}
+                onViewUsers={openUsersModal}
+              />
             </div>
           </>
         )}
@@ -1133,143 +1076,3 @@ export default function DepartmentsPage() {
   );
 }
 
-// ============================================================================
-// Tree Node Components
-// ============================================================================
-
-interface TreeRootNodeProps {
-  node: FlatNode;
-  expandedTree: Set<string>;
-  toggleTreeNode: (id: string) => void;
-  openUsersModal: (dept: Department) => void;
-  openEditModal: (dept: Department) => void;
-  openDeleteModal: (dept: Department) => void;
-  handleToggleActive: (dept: Department, e: React.MouseEvent) => void;
-}
-
-function TreeRootNode({
-  node,
-  expandedTree,
-  toggleTreeNode,
-  openUsersModal,
-  openEditModal,
-  openDeleteModal,
-  handleToggleActive,
-}: TreeRootNodeProps) {
-  const isExpanded = expandedTree.has(node.id);
-
-  return (
-    <div key={node.id} className={styles.treeNode}>
-      <div
-        className={styles.treeNodeHeader}
-        onClick={() => node.hasChildren && toggleTreeNode(node.id)}
-      >
-        <div className={`${styles.treeNodeToggle} ${node.hasChildren ? '' : styles.hidden} ${isExpanded ? styles.expanded : ''}`}>
-          <ChevronDown size={14} />
-        </div>
-        <div className={`${styles.treeNodeIcon} ${!node.isActive ? styles.inactive : ''}`}>
-          <Building2 size={16} />
-        </div>
-        <div className={styles.treeNodeInfo}>
-          <span className={`${styles.treeNodeName} ${!node.isActive ? styles.inactive : ''}`}>
-            {node.name}
-          </span>
-          <span className={styles.deptCode}>{node.code}</span>
-          {node.children && node.children.length > 0 && (
-            <span className={styles.treeNodeBadge}>
-              {node.children.length} con
-            </span>
-          )}
-        </div>
-        <div className={styles.treeNodeActions}>
-          <button
-            className={`${styles.actionBtn} ${node.isActive ? styles.success : ''}`}
-            onClick={e => handleToggleActive({ ...node, id: node.id, userCount: 0 } as Department, e)}
-            title={node.isActive ? 'Tắt hoạt động' : 'Bật hoạt động'}
-          >
-            {node.isActive ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
-          </button>
-          <button
-            className={styles.actionBtn}
-            onClick={e => { e.stopPropagation(); openUsersModal({ ...node, id: node.id, userCount: 0 } as Department); }}
-            title="Nhân viên"
-          >
-            <Users size={14} />
-          </button>
-          <button
-            className={styles.actionBtn}
-            onClick={e => { e.stopPropagation(); openEditModal({ ...node, id: node.id, userCount: 0 } as Department); }}
-            title="Chỉnh sửa"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button
-            className={`${styles.actionBtn} ${styles.danger}`}
-            onClick={e => { e.stopPropagation(); openDeleteModal({ ...node, id: node.id, userCount: 0 } as Department); }}
-            title="Xóa"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </div>
-      {node.hasChildren && isExpanded && node.children && (
-        <div className={styles.treeChildren}>
-          {node.children.map(child => {
-            const flatChild: FlatNode = {
-              ...child,
-              depth: 1,
-              hasChildren: !!(child.children && child.children.length > 0),
-              isExpanded: false,
-            };
-            return (
-              <TreeChildNode
-                key={child.id}
-                node={flatChild}
-                openUsersModal={openUsersModal}
-                openEditModal={openEditModal}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface TreeChildNodeProps {
-  node: FlatNode;
-  openUsersModal: (dept: Department) => void;
-  openEditModal: (dept: Department) => void;
-}
-
-function TreeChildNode({ node, openUsersModal, openEditModal }: TreeChildNodeProps) {
-  return (
-    <div key={node.id} className={styles.treeChildNode}>
-      <div className={styles.treeChildHeader}>
-        <div className={`${styles.treeChildIcon} ${!node.isActive ? styles.inactive : ''}`}>
-          <Building2 size={14} />
-        </div>
-        <span className={`${styles.treeNodeName} ${!node.isActive ? styles.inactive : ''}`}>
-          {node.name}
-        </span>
-        <span className={styles.deptCode}>{node.code}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
-          <button
-            className={styles.actionBtn}
-            onClick={e => { e.stopPropagation(); openUsersModal({ ...node, id: node.id, userCount: 0 } as Department); }}
-            title="Nhân viên"
-          >
-            <Users size={14} />
-          </button>
-          <button
-            className={styles.actionBtn}
-            onClick={e => { e.stopPropagation(); openEditModal({ ...node, id: node.id, userCount: 0 } as Department); }}
-            title="Chỉnh sửa"
-          >
-            <Edit2 size={14} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

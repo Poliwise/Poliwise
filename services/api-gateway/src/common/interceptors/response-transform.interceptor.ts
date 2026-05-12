@@ -24,9 +24,20 @@ export class ResponseTransformInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map((data) => {
         if (data && typeof data === 'object' && '_proxied' in data) {
-          const proxied = data as { _proxied: boolean; data: unknown; statusCode?: number };
+          const proxied = data as {
+            _proxied: boolean;
+            data: unknown;
+            statusCode?: number;
+            headers?: Record<string, string>;
+          };
           if (proxied.statusCode !== undefined) {
             response.status(proxied.statusCode);
+          }
+          // Forward all downstream headers (critical for binary responses: Content-Type, Content-Disposition, etc.)
+          if (proxied.headers) {
+            for (const [key, value] of Object.entries(proxied.headers)) {
+              response.setHeader(key, value);
+            }
           }
           if (this.isBinaryResponse(proxied.data)) {
             return proxied.data;
