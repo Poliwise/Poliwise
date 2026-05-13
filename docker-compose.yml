@@ -220,7 +220,7 @@ services:
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       INGESTION_SERVICE_URL: http://ingestion-service:8088
-      KNOWLEDGE_INGESTION_INTERNAL_API_KEY: ${INTERNAL_API_KEY:-secret-key-for-internal-services}
+      KNOWLEDGE_INGESTION_INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
       METADATA_SERVICE_URL: http://metadata-service:8084
       KNOWLEDGE_INGESTION_SUGGESTION_TIMEOUT_SECONDS: 30
       JAVA_OPTS: "-Xmx512m -Xms256m"
@@ -350,7 +350,7 @@ services:
       HOST: 0.0.0.0
       PORT: 8088
       LOG_LEVEL: info
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-secret-key-for-internal-services}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
       DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:-poliwise_secure_password}@postgres:5432/poliwise
       DATABASE_SCHEMA: knowledge
       RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:-poliwise_secure_password}@rabbitmq:5672
@@ -446,6 +446,7 @@ services:
       GATEWAY_API_KEY: ${GATEWAY_API_KEY}
       GATEWAY_MODEL: ${GATEWAY_MODEL:-gemini-1.5-flash}
       GATEWAY_ENABLED: ${GATEWAY_ENABLED:-true}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8086:8086"

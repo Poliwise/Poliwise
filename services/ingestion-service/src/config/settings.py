@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8088
     log_level: str = "info"
-    internal_api_key: str = "secret-key-for-internal-services"
+    internal_api_key: str = Field(..., description="Internal API Key for service-to-service authentication")
 
     # Database
     database_url: str = Field(..., description="PostgreSQL connection URL with asyncpg")

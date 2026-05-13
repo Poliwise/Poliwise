@@ -482,7 +482,8 @@ export class ProxyController {
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
   handleAI(@Req() request: Request) {
     const path = request.url.replace('/api/v1/ai', '');
-    return this.proxyService.forward(ServiceName.AI_QA, request, path);
+    const isStream = path.includes('/stream');
+    return this.proxyService.forward(ServiceName.AI_QA, request, path, isStream);
   }
 
   // Ingestion endpoints — route to ingestion-service

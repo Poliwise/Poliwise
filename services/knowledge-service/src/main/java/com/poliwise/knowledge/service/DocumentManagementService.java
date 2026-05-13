@@ -352,16 +352,16 @@ public class DocumentManagementService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<DocumentAuditLog> logs = auditLogRepository.searchAuditLogs(documentId, actorId, action, start, end, pageable);
 
-        return logs.map(log -> new DocumentAuditLogResponse(
-                log.getId(),
-                log.getDocumentId(),
-                log.getAction(),
-                log.getActorId(),
-                log.getActorUsername(),
-                parseJson(log.getOldValues()),
-                parseJson(log.getNewValues()),
-                log.getIpAddress(),
-                log.getCreatedAt()
+        return logs.map(auditLog -> new DocumentAuditLogResponse(
+                auditLog.getId(),
+                auditLog.getDocumentId(),
+                auditLog.getAction(),
+                auditLog.getActorId(),
+                auditLog.getActorUsername(),
+                parseJson(auditLog.getOldValues()),
+                parseJson(auditLog.getNewValues()),
+                auditLog.getIpAddress(),
+                auditLog.getCreatedAt()
         ));
     }
 
@@ -550,14 +550,7 @@ public class DocumentManagementService {
         return saved;
     }
 
-    /**
-     * Get extracted text for a specific document version.
-     */
-    public String getExtractedText(UUID documentId, Integer versionNumber) {
-        DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
-                .orElseThrow(() -> new ResourceNotFoundException("Document version not found: " + documentId + " v" + versionNumber));
-        return version.getExtractedText();
-    }
+
 
     /**
      * Trigger the ingestion pipeline by publishing an ingestion.requested event.

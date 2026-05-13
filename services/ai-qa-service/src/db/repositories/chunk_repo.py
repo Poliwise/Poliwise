@@ -28,9 +28,9 @@ class ChunkRepository:
             doc_filter = ""
             if filters and filters.document_ids:
                 doc_filter = f"AND c.document_id = ANY(${5})"
-                params = [query_embedding, user_roles, user_departments, user_ids, [str(d) for d in filters.document_ids], limit]
+                params = [str(query_embedding), user_roles, user_departments, user_ids, [str(d) for d in filters.document_ids], limit]
             else:
-                params = [query_embedding, user_roles, user_departments, user_ids, limit]
+                params = [str(query_embedding), user_roles, user_departments, user_ids, limit]
 
             query = f"""
                 SELECT c.id, c.document_id, dm.title as document_name, c.content,

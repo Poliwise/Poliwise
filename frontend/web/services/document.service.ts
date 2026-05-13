@@ -280,20 +280,13 @@ export const documentService = {
 
   // ============ Version Management ============
 
-  /**
-   * Get all versions of a document
-   */
-  async getDocumentContent(documentId: string, versionNumber: number): Promise<string> {
-    return await api.documents.getContent(documentId, versionNumber);
-  },
+
 
   async getVersions(documentId: string): Promise<DocumentVersion[]> {
     return await (api.documents.getVersions(documentId) as unknown) as DocumentVersion[];
   },
 
-  async triggerProcess(documentId: string): Promise<void> {
-    await api.documents.triggerProcess(documentId);
-  },
+
 
   // ============ Audit Logs ============
 

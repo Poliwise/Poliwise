@@ -47,12 +47,7 @@ export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    role: UserRole;
-  };
+  user: User;
 }
 
 export interface RefreshTokenRequest {

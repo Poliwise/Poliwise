@@ -206,12 +206,13 @@ export class ProxyService {
     service: ServiceName,
     request: Request,
     path: string,
+    isStream = false,
   ): Observable<unknown> {
     const serviceConfig = this.services[service];
     if (!serviceConfig) {
       return throwError(() => new Error(`Unknown service: ${service}`));
     }
-
+    
     const targetUrl = `${serviceConfig.baseUrl}${path}`;
     const user = request.user as IUserContext | undefined;
     const traceId =
@@ -230,7 +231,8 @@ export class ProxyService {
       headers,
       data,
       params,
-      timeout: serviceConfig.timeout,
+      timeout: isStream ? 0 : serviceConfig.timeout,
+      isStream,
     };
 
     const breaker = this.circuitBreakers.get(service);
@@ -256,8 +258,19 @@ export class ProxyService {
     data?: unknown;
     params?: Record<string, string>;
     timeout: number;
+    isStream?: boolean;
   }): Observable<unknown> {
-    const isDownloadRequest = context.url.includes('/download') || context.url.includes('/preview');
+    const isDownloadRequest =
+      context.url.includes('/download') || context.url.includes('/preview');
+    
+    let responseType: AxiosRequestConfig['responseType'] = isDownloadRequest
+      ? 'arraybuffer'
+      : 'json';
+      
+    if (context.isStream) {
+      responseType = 'stream';
+    }
+
     const config: AxiosRequestConfig = {
       method: context.method as any,
       url: context.url,
@@ -266,7 +279,7 @@ export class ProxyService {
       params: context.params,
       timeout: context.timeout,
       validateStatus: () => true,
-      responseType: isDownloadRequest ? 'arraybuffer' : 'json',
+      responseType,
     };
 
     return from(this.axiosInstance.request(config)).pipe(
@@ -363,6 +376,15 @@ export class ProxyService {
       }
     }
     return forwarded;
+  }
+
+  private isStreamResponse(data: unknown): boolean {
+    if (data === null || data === undefined) return false;
+    const proto = Object.prototype.toString.call(data);
+    // Node.js streams often have this proto or similar
+    if (proto === '[object ReadableStream]' || proto === '[object Readable]') return true;
+    // Check if it's a pipeable stream
+    return typeof (data as any).pipe === 'function';
   }
 
   getServiceHealth(service: ServiceName): Promise<boolean> {

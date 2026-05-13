@@ -321,8 +321,8 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         role: u.role,
         status: u.status,
         fullName: u.fullName,
-        departmentId: u.department ?? undefined,
-        department: u.department,
+        departmentId: u.departmentId,
+        department: u.department?.name ?? null,
       }));
       setDeptUsers(users);
       setUsersTotalPages(result.pagination.totalPages);
@@ -358,8 +358,8 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
           role: u.role,
           status: u.status,
           fullName: u.fullName,
-          departmentId: u.department ?? undefined,
-          department: u.department,
+          departmentId: u.departmentId,
+          department: u.department?.name ?? null,
         }));
         setAssignResults(users.filter(u => !u.departmentId || u.departmentId === selectedDept?.id));
       } catch { setAssignResults([]); }

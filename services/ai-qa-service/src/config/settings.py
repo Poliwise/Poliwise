@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8086
     log_level: str = "info"
-    internal_api_key: str = "secret-key-for-internal-services"
+    internal_api_key: str = Field(..., description="Internal API Key for service-to-service authentication")
 
     database_url: str = "postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise"
     database_schema: str = "conversation"

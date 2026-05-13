@@ -43,6 +43,19 @@ export class ResponseTransformInterceptor implements NestInterceptor {
     if (!this.isProxiedResponse(data)) return;
 
     const proxied = data as ProxiedResponse;
+    if (this.isStreamResponse(proxied.data)) {
+      const status = proxied.statusCode ?? 200;
+      response.status(status);
+      this.copyHeaders(response, proxied.headers);
+      // For streams, we pipe the data directly to the response
+      const stream = proxied.data as any;
+      if (stream.pipe) {
+        stream.pipe(response);
+      } else {
+        response.end(proxied.data);
+      }
+      return;
+    }
     if (!this.isBinaryResponse(proxied.data)) return;
 
     const status = proxied.statusCode ?? 200;
@@ -97,6 +110,15 @@ export class ResponseTransformInterceptor implements NestInterceptor {
       return this.isBinaryResponse((data as ProxiedResponse).data);
     }
     return false;
+  }
+
+  private isStreamResponse(data: unknown): boolean {
+    if (data === null || data === undefined) return false;
+    const proto = Object.prototype.toString.call(data);
+    // Node.js streams often have this proto or similar
+    if (proto === '[object ReadableStream]' || proto === '[object Readable]') return true;
+    // Check if it's a pipeable stream
+    return typeof (data as any).pipe === 'function';
   }
 
   private extractBinary(data: unknown): Buffer | ArrayBuffer | Blob {

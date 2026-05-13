@@ -1,0 +1,23 @@
+import google.generativeai as genai
+import os
+
+api_key = "AIzaSyD9LILEdoG2l0afrvtlfqV_r4ZiNZ-wDO8"
+genai.configure(api_key=api_key)
+
+model_name = 'gemini-1.5-flash'
+print(f"Testing model: {model_name}")
+try:
+    model = genai.GenerativeModel(model_name)
+    response = model.generate_content("Hello")
+    print(f"Response: {response.text}")
+except Exception as e:
+    print(f"Error with {model_name}: {e}")
+
+model_name = 'gemini-pro'
+print(f"\nTesting model: {model_name}")
+try:
+    model = genai.GenerativeModel(model_name)
+    response = model.generate_content("Hello")
+    print(f"Response: {response.text}")
+except Exception as e:
+    print(f"Error with {model_name}: {e}")

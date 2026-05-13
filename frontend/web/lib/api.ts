@@ -49,7 +49,7 @@ import type { AccessRule, CreateAccessRuleRequest } from '@/types/document';
 // Constants
 // ============================================================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 /** Direct knowledge-service URL for multipart uploads (bypass gateway streaming issues) */
 const KNOWLEDGE_SERVICE_URL =
@@ -853,13 +853,7 @@ class ApiClient {
       await this.client.post(`/api/v1/documents/${documentId}/process`);
     },
 
-    getContent: async (documentId: string, versionNumber: number): Promise<string> => {
-      const res = await this.client.get<{ data?: { content: string }; content?: string }>(
-        `/api/v1/documents/${documentId}/versions/${versionNumber}/content`
-      );
-      // Handle both wrapped and unwrapped formats
-      return res.data?.data?.content ?? res.data?.content ?? '';
-    },
+
 
     comparePolicies: async (doc1Id: string, doc2Id: string): Promise<{
       document1: Document;
@@ -877,15 +871,15 @@ class ApiClient {
           modified: { old: string; new: string }[];
         };
       }>(`/api/v1/documents/compare?doc1=${doc1Id}&doc2=${doc2Id}`);
-      return res.data!.data!;
+      return (res.data as any).data || res.data;
     },
 
     getContent: async (documentId: string, version?: number): Promise<string> => {
-      const res = await this.client.get<string>(
+      const res = await this.client.get<any>(
         `/api/v1/documents/${documentId}/content`,
         { params: { version } }
       );
-      return res.data;
+      return typeof res.data === 'string' ? res.data : res.data?.content ?? '';
     },
   };
 
@@ -909,15 +903,19 @@ class ApiClient {
       const stream = new ReadableStream<StreamEvent>({
         async start(controller) {
           try {
-            const response = await fetch('/api/v1/ai/chat/stream', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '',
-              },
-              body: JSON.stringify(data),
-              signal,
-            });
+          const streamUrl = API_BASE_URL.startsWith('http') 
+            ? `${API_BASE_URL}/api/v1/ai/chat/stream`
+            : '/api/v1/ai/chat/stream';
+
+          const response = await fetch(streamUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : '',
+            },
+            body: JSON.stringify(data),
+            signal,
+          });
 
             if (!response.body) {
               controller.enqueue({ type: 'error', error: 'No response body' });

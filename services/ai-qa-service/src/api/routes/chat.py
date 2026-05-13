@@ -139,6 +139,8 @@ async def chat(request: ChatRequest, user: UserContext = Depends(get_user_contex
             has_sources=False
         )
         return ChatResponse(
+            answer=answer_msg.content,
+            conversationId=answer_msg.conversation_id,
             message=MessageResponse(
                 id=answer_msg.id,
                 conversation_id=answer_msg.conversation_id,
@@ -335,8 +337,6 @@ async def chat_stream(request: ChatRequest, user: UserContext = Depends(get_user
     profile = llm_client.registry.get_profile(request.model_id)
 
     async def generate():
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=profile.api_key, base_url=profile.base_url)
         full_content = ""
         start_time = time.time()
 
@@ -348,25 +348,21 @@ async def chat_stream(request: ChatRequest, user: UserContext = Depends(get_user
             yield f"data: {json.dumps({'sources': [s.model_dump(mode='json') for s in sources_data]})}\n\n"
 
         try:
-            stream = await client.chat.completions.create(
-                model=profile.model_name,
+            # Use the unified streaming generator from llm_client
+            async for chunk_content in llm_client.generate_streaming(
                 messages=messages_for_llm,
+                model_id=request.model_id,
                 temperature=0.3,
-                max_tokens=1024,
-                stream=True
-            )
-
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_content += content
-                    yield f"data: {json.dumps({'content': content})}\n\n"
+                max_tokens=1024
+            ):
+                full_content += chunk_content
+                yield f"data: {json.dumps({'content': chunk_content})}\n\n"
 
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Persist the assistant message after streaming completes
             confidence = "HIGH" if gap_result.top_similarity >= 0.7 else ("MEDIUM" if gap_result.top_similarity >= 0.4 else "LOW")
-            await conversation_service.add_message(
+            assistant_msg = await conversation_service.add_message(
                 request.conversation_id,
                 role="ASSISTANT",
                 content=full_content,
@@ -384,6 +380,7 @@ async def chat_stream(request: ChatRequest, user: UserContext = Depends(get_user
                     user.user_id,
                     request.conversation_id,
                     request.message,
+                    message_id=assistant_msg.id,
                     user_department_id=user.department_id,
                     user_role=user.role
                 )

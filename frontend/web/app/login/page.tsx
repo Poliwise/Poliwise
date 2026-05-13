@@ -41,14 +41,7 @@ export default function LoginPage() {
     try {
       const response = await api.auth.login({ username, password });
 
-      setUser({
-        id: response.user.id,
-        username: response.user.username,
-        email: response.user.email,
-        role: response.user.role,
-        status: AccountStatus.ACTIVE,
-        department: null,
-      });
+      setUser(response.user);
       setTokens(response.accessToken, response.refreshToken);
 
       if (typeof window !== 'undefined') {

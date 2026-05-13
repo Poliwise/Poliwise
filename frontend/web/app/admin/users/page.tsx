@@ -315,10 +315,10 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td>
-                      {user.departmentName ? (
+                      {user.department?.name ? (
                         <div className={styles.deptCell}>
                           <Building2 size={14} />
-                          <span>{user.departmentName}</span>
+                          <span>{user.department.name}</span>
                         </div>
                       ) : <span className={styles.noData}>-</span>}
                     </td>
@@ -512,7 +512,7 @@ function UserDetailModal({ user, departments, onClose, onStatusChange }: UserDet
                 <div className={styles.detailItem}>
                   <Building2 size={14} />
                   <label>Phòng ban:</label>
-                  <span>{user.departmentName || 'Chưa phân công'}</span>
+                  <span>{user.department?.name || 'Chưa phân công'}</span>
                 </div>
               </div>
             </div>
@@ -585,7 +585,7 @@ function UserEditModal({ user, departments, onClose, onSuccess }: UserEditModalP
   const [form, setForm] = useState({
     role: user.role,
     status: user.status,
-    departmentId: user.department || '',
+    departmentId: user.departmentId || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

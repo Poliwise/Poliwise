@@ -4,4 +4,4 @@ export { userService } from './user.service';
 export { knowledgeService } from './knowledge.service';
 export { feedbackService } from './feedback.service';
 export { analyticsService } from './analytics.service';
-export { aiService } from './ai.service';
+export { documentService } from './document.service';
