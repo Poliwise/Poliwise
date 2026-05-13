@@ -52,6 +52,12 @@ export class RateLimitInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
+    
+    // Skip rate limiting for health checks
+    if (request.url === '/health' || request.url === '/api/v1/health') {
+      return next.handle();
+    }
+
     const response = context.switchToHttp().getResponse<Response>();
     const user = request.user as IUserContext | undefined;
 
@@ -105,7 +111,12 @@ export class RateLimitInterceptor implements NestInterceptor {
     if (user) {
       return `user:${user.userId}`;
     }
-    return `ip:${request.ip || request.socket.remoteAddress || 'unknown'}`;
+    const forwardedFor = request.headers['x-forwarded-for'];
+    const realIp = request.headers['x-real-ip'];
+    const ip = forwardedFor 
+      ? (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor.split(',')[0]) 
+      : (realIp || request.ip || request.socket.remoteAddress || 'unknown');
+    return `ip:${ip}`;
   }
 
   private getLimit(user?: IUserContext): number {

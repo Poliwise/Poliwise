@@ -25,7 +25,12 @@ import type {
   QuestionRequest,
   QuestionResponse,
   Conversation,
+  ConversationListResponse,
   Message,
+  ChatRequest,
+  ChatResponse,
+  SourceDocument,
+  StreamEvent,
   ConversationHistory,
   UnansweredQuestion,
   DashboardStats,
@@ -779,7 +784,7 @@ class ApiClient {
       const coerced = coercePaginated<Document & { versions?: DocumentVersion[] }>(
         res.data as unknown as Record<string, unknown>, 'data'
       );
-      return coerced.data[0] ?? (res.data as unknown as { data?: Document & { versions?: DocumentVersion[] } })?.data!;
+      return coerced.data[0] ?? (res.data as unknown as { data?: Document & { versions?: DocumentVersion[] } })?.data;
     },
 
     upload: async (
@@ -848,6 +853,14 @@ class ApiClient {
       await this.client.post(`/api/v1/documents/${documentId}/process`);
     },
 
+    getContent: async (documentId: string, versionNumber: number): Promise<string> => {
+      const res = await this.client.get<{ data?: { content: string }; content?: string }>(
+        `/api/v1/documents/${documentId}/versions/${versionNumber}/content`
+      );
+      // Handle both wrapped and unwrapped formats
+      return res.data?.data?.content ?? res.data?.content ?? '';
+    },
+
     comparePolicies: async (doc1Id: string, doc2Id: string): Promise<{
       document1: Document;
       document2: Document;
@@ -881,8 +894,79 @@ class ApiClient {
   // ==========================================================================
   ai = {
     ask: async (data: QuestionRequest): Promise<QuestionResponse> => {
-      const res = await this.client.post<ApiResponse<QuestionResponse>>('/api/v1/ai/ask', data);
+      const res = await this.client.post<ApiResponse<QuestionResponse>>('/api/v1/ai/chat', { message: data.question, conversationId: data.conversationId });
       return coercePaginated<QuestionResponse>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    },
+
+    chat: async (data: ChatRequest): Promise<ChatResponse> => {
+      const res = await this.client.post<ApiResponse<ChatResponse>>('/api/v1/ai/chat', data);
+      return coercePaginated<ChatResponse>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    },
+
+    askStream: (data: QuestionRequest, signal?: AbortSignal): ReadableStream<StreamEvent> => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+
+      const stream = new ReadableStream<StreamEvent>({
+        async start(controller) {
+          try {
+            const response = await fetch('/api/v1/ai/chat/stream', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '',
+              },
+              body: JSON.stringify(data),
+              signal,
+            });
+
+            if (!response.body) {
+              controller.enqueue({ type: 'error', error: 'No response body' });
+              controller.close();
+              return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() ?? '';
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6).trim();
+                  if (data === '[DONE]') {
+                    controller.enqueue({ type: 'done' });
+                  } else {
+                    try {
+                      const parsed = JSON.parse(data);
+                      if (parsed.conversationId) {
+                        controller.enqueue({ type: 'conversationId', conversationId: parsed.conversationId });
+                      } else if (parsed.sources) {
+                        controller.enqueue({ type: 'sources', sources: parsed.sources });
+                      } else if (parsed.content !== undefined) {
+                        controller.enqueue({ type: 'content', content: parsed.content });
+                      } else if (parsed.error) {
+                        controller.enqueue({ type: 'error', error: parsed.error });
+                      }
+                    } catch { /* skip malformed */ }
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            controller.enqueue({ type: 'error', error: err instanceof Error ? err.message : 'Stream failed' });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return stream;
     },
 
     getConversations: async (params?: {
@@ -898,6 +982,19 @@ class ApiClient {
         conversations: coerced.data.length ? coerced.data : (res.data as unknown as { data?: Conversation[] })?.data || [],
         pagination: coerced.pagination,
       };
+    },
+
+    getConversationList: async (params?: {
+      page?: number;
+      size?: number;
+      keyword?: string;
+    }): Promise<ConversationListResponse> => {
+      const res = await this.client.get<ApiResponse<ConversationListResponse>>('/api/v1/ai/conversations', { params });
+      const root = res.data as unknown as Record<string, unknown> | null;
+      if (root && 'data' in root && typeof root.data === 'object' && root.data !== null) {
+        return root.data as ConversationListResponse;
+      }
+      return coercePaginated<ConversationListResponse>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data as unknown as ConversationListResponse;
     },
 
     getConversationById: async (id: string): Promise<Conversation> => {
@@ -1000,9 +1097,11 @@ class ApiClient {
       const coerced = coercePaginated<{
         date: string; questions: number; likes: number; dislikes: number; avgResponseTime: number; uniqueUsers: number;
       }>(res.data as unknown as Record<string, unknown>, 'data');
-      return coerced.data.length ? coerced.data : (res.data as unknown as { data?: {
-        date: string; questions: number; likes: number; dislikes: number; avgResponseTime: number; uniqueUsers: number;
-      }[] })?.data || [];
+      return coerced.data.length ? coerced.data : (res.data as unknown as {
+        data?: {
+          date: string; questions: number; likes: number; dislikes: number; avgResponseTime: number; uniqueUsers: number;
+        }[]
+      })?.data || [];
     },
 
     getTopQuestions: async (
@@ -1031,9 +1130,11 @@ class ApiClient {
       const coerced = coercePaginated<{
         documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
       }>(res.data as unknown as Record<string, unknown>, 'data');
-      return coerced.data.length ? coerced.data : (res.data as unknown as { data?: {
-        documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
-      }[] })?.data || [];
+      return coerced.data.length ? coerced.data : (res.data as unknown as {
+        data?: {
+          documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
+        }[]
+      })?.data || [];
     },
 
     getUnansweredQuestions: async (params?: {
@@ -1165,11 +1266,13 @@ class ApiClient {
         ipAddress?: string; createdAt: string;
       }>(res.data as unknown as Record<string, unknown>, 'data');
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: {
-          id: string; userId: string; username: string; action: string;
-          resourceType: string; resourceId?: string; resourceName?: string;
-          ipAddress?: string; createdAt: string;
-        }[] })?.data || [],
+        data: coerced.data.length ? coerced.data : (res.data as unknown as {
+          data?: {
+            id: string; userId: string; username: string; action: string;
+            resourceType: string; resourceId?: string; resourceName?: string;
+            ipAddress?: string; createdAt: string;
+          }[]
+        })?.data || [],
         pagination: coerced.pagination,
       };
     },
@@ -1228,7 +1331,7 @@ class ApiClient {
       const res = await this.client.get<ApiResponse<{
         id: string; name: string; slug: string;
         description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-      }>>(`/api/v1/categories/${id}`);
+      }>>(`/api/v1/metadata/categories/${id}`);
       return coercePaginated<{
         id: string; name: string; slug: string;
         description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
@@ -1243,7 +1346,7 @@ class ApiClient {
       displayOrder?: number;
     }): Promise<{ id: string; name: string; slug: string }> => {
       const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
-        '/api/v1/categories', data
+        '/api/v1/metadata/categories', data
       );
       return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
@@ -1257,7 +1360,7 @@ class ApiClient {
       displayOrder?: number;
     }): Promise<{ id: string; name: string; slug: string }> => {
       const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
-        `/api/v1/categories/${id}`, data
+        `/api/v1/metadata/categories/${id}`, data
       );
       return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
@@ -1265,46 +1368,46 @@ class ApiClient {
     },
 
     deleteCategory: async (id: string): Promise<void> => {
-      await this.client.delete(`/api/v1/categories/${id}`);
+      await this.client.delete(`/api/v1/metadata/categories/${id}`);
     },
 
     // — Tags
     getTags: async (): Promise<{ id: string; name: string; slug: string; color?: string; usageCount?: number }[]> => {
       const res = await this.client.get<ApiResponse<{
         id: string; name: string; slug: string; color?: string; usageCount?: number;
-      }[]>>('/api/v1/tags');
+      }[]>>('/api/v1/metadata/tags');
       return coercePaginated<{
         id: string; name: string; slug: string; color?: string; usageCount?: number;
       }>(res.data as unknown as Record<string, unknown>, 'data').data;
     },
 
-    createTag: async (data: { name: string; color?: string; icon?: string }): Promise<{ id: string; name: string; slug: string; icon?: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string; icon?: string }>>(
-        '/api/v1/tags', data
+    createTag: async (data: { name: string; color?: string }): Promise<{ id: string; name: string; slug: string }> => {
+      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
+        '/api/v1/metadata/tags', data
       );
-      return coercePaginated<{ id: string; name: string; slug: string; icon?: string }>(
+      return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
+      ).data[0] ?? { id: '', name: '', slug: '' };
     },
 
-    updateTag: async (id: string, data: { name?: string; color?: string; icon?: string }): Promise<{
-      id: string; name: string; slug: string; icon?: string;
+    updateTag: async (id: string, data: { name?: string; color?: string }): Promise<{
+      id: string; name: string; slug: string;
     }> => {
-      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string; icon?: string }>>(
-        `/api/v1/tags/${id}`, data
+      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
+        `/api/v1/metadata/tags/${id}`, data
       );
-      return coercePaginated<{ id: string; name: string; slug: string; icon?: string }>(
+      return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
+      ).data[0] ?? { id: '', name: '', slug: '' };
     },
 
     deleteTag: async (id: string): Promise<void> => {
-      await this.client.delete(`/api/v1/tags/${id}`);
+      await this.client.delete(`/api/v1/metadata/tags/${id}`);
     },
 
     resolveTags: async (tagNames: string[]): Promise<{ id: string; name: string; slug: string }[]> => {
       const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }[]>>(
-        '/api/v1/tags/resolve', { tagNames }
+        '/api/v1/metadata/tags/resolve', { tagNames }
       );
       return coercePaginated<{ id: string; name: string; slug: string }>(
         res.data as unknown as Record<string, unknown>, 'data'
@@ -1355,7 +1458,7 @@ class ApiClient {
     },
 
     deleteAccessRule: async (id: string): Promise<void> => {
-      await this.client.delete(`/api/v1/access-rules/${id}`);
+      await this.client.delete(`/api/v1/metadata/access-rules/${id}`);
     },
 
     simulateAccess: async (documentId: string): Promise<{

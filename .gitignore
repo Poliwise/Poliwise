@@ -29,3 +29,17 @@ __pycache__/
 test-*.ps1
 test-*.bat
 test-*.md
+
+# Environment backup (local only)
+environment_setup/
+
+# AI/Editor rules
+.cursor
+.roo
+.claude
+.agent/
+.agentrules
+
+local_llm_server/
+
+node_modules/

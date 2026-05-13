@@ -10,6 +10,7 @@ import {
   servicesConfig,
   circuitBreakerConfig,
   loggingConfig,
+  throttlerConfig,
 } from './config';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth';
@@ -36,6 +37,7 @@ import {
         servicesConfig,
         circuitBreakerConfig,
         loggingConfig,
+        throttlerConfig,
       ],
       envFilePath: '.env',
     }),

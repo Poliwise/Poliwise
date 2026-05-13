@@ -20,6 +20,7 @@ public class MetadataSuggestionConfig {
         return WebClient.builder()
                 .baseUrl(properties.getIngestion().getApiUrl())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader("X-Internal-API-Key", properties.getIngestion().getInternalApiKey())
                 .build();
     }
 

@@ -36,49 +36,10 @@ public class DocumentMetadataController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<DocumentMetadataResponse> get(@PathVariable UUID id) {
-        DocumentMetadataResponse response = metadataService.getById(id);
-        return ResponseEntity.ok(response);
-    }
-
     @GetMapping("/document/{documentId}")
     public ResponseEntity<DocumentMetadataResponse> getByDocumentId(@PathVariable UUID documentId) {
         DocumentMetadataResponse response = metadataService.getByDocumentId(documentId);
         return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<DocumentMetadataResponse> update(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateDocumentMetadataRequest request) {
-        UUID updatedBy = SecurityUtils.getCurrentUserId();
-        DocumentMetadataResponse response = metadataService.update(id, request, updatedBy);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/{id}/publish")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<DocumentMetadataResponse> publish(@PathVariable UUID id) {
-        UUID publishedBy = SecurityUtils.getCurrentUserId();
-        DocumentMetadataResponse response = metadataService.publish(id, publishedBy);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/{id}/archive")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<DocumentMetadataResponse> archive(@PathVariable UUID id) {
-        UUID archivedBy = SecurityUtils.getCurrentUserId();
-        DocumentMetadataResponse response = metadataService.archive(id, archivedBy);
-        return ResponseEntity.ok(response);
-    }
-
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        metadataService.softDelete(id);
-        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/status/{status}")
@@ -114,6 +75,45 @@ public class DocumentMetadataController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteRule(@PathVariable UUID ruleId) {
         accessRuleService.delete(ruleId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<DocumentMetadataResponse> get(@PathVariable UUID id) {
+        DocumentMetadataResponse response = metadataService.getById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentMetadataResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateDocumentMetadataRequest request) {
+        UUID updatedBy = SecurityUtils.getCurrentUserId();
+        DocumentMetadataResponse response = metadataService.update(id, request, updatedBy);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/publish")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentMetadataResponse> publish(@PathVariable UUID id) {
+        UUID publishedBy = SecurityUtils.getCurrentUserId();
+        DocumentMetadataResponse response = metadataService.publish(id, publishedBy);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentMetadataResponse> archive(@PathVariable UUID id) {
+        UUID archivedBy = SecurityUtils.getCurrentUserId();
+        DocumentMetadataResponse response = metadataService.archive(id, archivedBy);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        metadataService.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 }

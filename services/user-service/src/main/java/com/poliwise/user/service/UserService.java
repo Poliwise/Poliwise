@@ -72,7 +72,7 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
         return new UserStatusResponse(
                 user.getId(),
-                user.getAccountStatus(),
+                user.getStatus(),
                 user.getRole(),
                 user.isActive(),
                 null
@@ -153,12 +153,12 @@ public class UserService {
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        AccountStatus previousStatus = user.getAccountStatus();
+        AccountStatus previousStatus = user.getStatus();
         AccountStatus newStatus = request.newStatus();
 
         validateStatusTransition(previousStatus, newStatus);
 
-        user.setAccountStatus(newStatus);
+        user.setStatus(newStatus);
 
         if (request.newRole() != null) {
             user.setRole(request.newRole());
@@ -198,13 +198,13 @@ public class UserService {
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        if (user.getAccountStatus() == AccountStatus.REVOKED) {
+        if (user.getStatus() == AccountStatus.REVOKED) {
             throw new IllegalArgumentException("User already revoked: " + userId);
         }
 
         user.setUsername("deleted_" + user.getId());
         user.setEmail("deleted_" + user.getId() + "@anonymized.local");
-        user.setAccountStatus(AccountStatus.REVOKED);
+        user.setStatus(AccountStatus.REVOKED);
 
         if (user.getProfile() != null) {
             UserProfile profile = user.getProfile();
@@ -236,10 +236,10 @@ public class UserService {
         User user = userRepository.findDetailedById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        if (user.getAccountStatus() == AccountStatus.DEACTIVATED) {
+        if (user.getStatus() == AccountStatus.DEACTIVATED) {
             throw new UserDeactivatedException("Account is deactivated");
         }
-        if (user.getAccountStatus() == AccountStatus.REVOKED) {
+        if (user.getStatus() == AccountStatus.REVOKED) {
             throw new UserDeactivatedException("Account is revoked");
         }
         return user;
@@ -278,7 +278,8 @@ public class UserService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole(),
-                user.getAccountStatus(),
+                user.getStatus(),
+                user.getDepartment() != null ? user.getDepartment().getId() : null,
                 user.getDepartment() != null
                         ? new UserResponse.DepartmentInfo(
                                 user.getDepartment().getId(),

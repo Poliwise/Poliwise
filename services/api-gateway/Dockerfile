@@ -1,28 +1,28 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-RUN npm install -g pnpm
 COPY package*.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm run build
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
-RUN npm install -g pnpm
-COPY package*.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+COPY --chown=node:node package*.json pnpm-lock.yaml ./
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --frozen-lockfile --prod
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder --chown=node:node /app/dist ./dist
 
 ENV NODE_ENV=production
 ENV PORT=3000
+
+USER node
 
 EXPOSE 3000
 

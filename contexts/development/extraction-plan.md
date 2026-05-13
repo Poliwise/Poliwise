@@ -131,7 +131,7 @@ When implementing SQLAlchemy models, queries, or inserts, **always refer to thes
 
 - **[Knowledge Schema (`contexts/database/tables/knowledge.md`)](file:///c:/Users/Tien/university/TTCS/do_an_cuoi_ky/Poliwise/contexts/database/tables/knowledge.md)**
   - `knowledge.documents` (Written globally by Phase 1, updated tracking in Phase 2)
-  - `knowledge.document_versions` (Phase 1 establishes it; Phase 2 updates text/metrics)
+  - `knowledge.document_versions` (Phase 1 establishes it; Phase 2 adds `file_checksum`, `content_hash`, `similarity_to_previous`)
   - `knowledge.chunks` (Phase 2 inserts massive chunking/embedding data)
   - `knowledge.processing_jobs` (Phase 1 creates; Phase 2 updates percent/logs)
 - **[Metadata Schema (`contexts/database/tables/metadata.md`)](file:///c:/Users/Tien/university/TTCS/do_an_cuoi_ky/Poliwise/contexts/database/tables/metadata.md)**
@@ -171,8 +171,8 @@ MINIO_SECRET_KEY=minioadmin
 MINIO_SECURE=false
 
 # LitServe
-LITSERVE_EMBEDDING_URL=http://localhost:8001
-LITSERVE_RERANKER_URL=http://localhost:8002
+EMBEDDING_URL=http://localhost:8001
+RERANKER_URL=http://localhost:8002
 
 # LLM API (Groq for Metadata Suggestion)
 GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -188,6 +188,11 @@ CHUNKING_DEFAULT_STRATEGY=parent_child
 OCR_FALLBACK_MIN_TEXT_LENGTH=50
 OCR_FALLBACK_MIN_IMAGE_COUNT=1
 OCR_LANGUAGE=eng
+
+# Redundancy Detection
+SIMILARITY_THRESHOLD=0.90
+SIMILARITY_THRESHOLD_DIGITAL=0.98
+SIMILARITY_THRESHOLD_OCR=0.90
 ```
 
 ---
@@ -775,6 +780,139 @@ Test full pipeline with:
 - [ ] Markdown extractor parses Hugo frontmatter → metadata JSONB
 - [ ] PDF extractor uses PyMuPDF with OCR fallback
 - [ ] MinerU extractor NOT a core dependency — opt-in plugin for future
+
+### Phase 2b: Redundancy Detection (Hybrid Two-Layer)
+
+The ingestion pipeline includes hybrid redundancy detection to handle both digital and OCR'd documents.
+
+#### Detection Flow
+
+```
+Upload File
+    │
+    ▼
+Layer 1: Compute file_checksum (SHA256)
+         │
+         ▼ query
+    ┌─────────────┐ No match ──▶ Layer 2
+    │ file_exists?│
+    └─────────────┘
+         │ match found
+         ▼
+    Link to existing version
+    Skip ingestion, update reference
+```
+
+```
+Layer 2: On new file (no file hash match)
+         │
+         ▼
+    Extract text
+         │
+         ▼ query content_hash
+    ┌──────────────────────┐ Match ──▶ Reject Ingestion (Duplicate Content)
+    │ existing content?    │
+    └──────────────────────┘
+         │ No match
+         ▼
+    Embed text & query cosine_similarity
+         │
+    ┌──────────────────────┐ Similarity > threshold ──▶ Warn/Review
+    │ existing embeddings? │
+    └──────────────────────┘
+         │ No match
+         ▼
+    Full ingestion pipeline
+```
+
+#### Layer 1: Exact Duplicate (file_checksum)
+
+```python
+import hashlib
+
+async def compute_file_checksum(file_bytes: bytes) -> str:
+    return hashlib.sha256(file_bytes).hexdigest()
+
+async def check_exact_duplicate(session, file_checksum: str) -> Optional[UUID]:
+    result = await session.execute(text("""
+        SELECT id FROM knowledge.document_versions
+        WHERE file_checksum = :checksum
+        ORDER BY created_at DESC LIMIT 1
+    """), {"checksum": file_checksum})
+    return result.scalar_one_or_none()
+```
+
+#### Layer 2: Exact Content Duplicate (content_hash)
+
+Handles cases where the same text is extracted from different file formats (e.g., a `.docx` file converted to `.pdf`). We hash the cleaned, extracted text using SHA256.
+
+```python
+async def compute_content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+async def check_content_duplicate(session, content_hash: str) -> list[UUID]:
+    result = await session.execute(text("""
+        SELECT id FROM knowledge.document_versions
+        WHERE content_hash = :hash
+        LIMIT 5
+    """), {"hash": content_hash})
+    return result.scalars().all()
+```
+
+#### Layer 3: Near-Duplicate (Semantic Fingerprint)
+
+To optimize resource usage, we do NOT embed the entire document for Layer 3. Instead, we generate a **Semantic Fingerprint** by embedding only the first 4000 characters of the extracted text. This is sufficient to identify the document's identity and detect minor revisions or similar documents without the overhead of full-document vectorization.
+
+```python
+async def check_near_duplicate(
+    session,
+    fingerprint_embedding: list[float],
+    threshold: float = 0.90
+) -> list[dict]:
+    # Query semantic similarity against existing fingerprints
+    result = await session.execute(text("""
+        SELECT d.id, d.title,
+               (1 - (cv.embedding_vector <=> :embedding::vector)) as similarity
+        FROM knowledge.document_versions cv
+        JOIN knowledge.documents d ON d.id = cv.document_id
+        WHERE cv.embedding_vector <=> :embedding::vector < :threshold
+        ORDER BY similarity DESC
+        LIMIT 5
+    """), {"embedding": fingerprint_embedding, "threshold": 1 - threshold})
+    return result.fetchall()
+```
+
+#### Configuration
+
+| Parameter | Default | Description |
+|------------|---------|-------------|
+| `SIMILARITY_THRESHOLD` | 0.90 | General threshold for near-duplicate |
+| `SIMILARITY_THRESHOLD_DIGITAL` | 0.98 | Strict match for digital docs |
+| `SIMILARITY_THRESHOLD_OCR` | 0.90 | Allow OCR variation |
+
+#### Schema Additions
+
+```sql
+ALTER TABLE knowledge.document_versions
+ADD COLUMN IF NOT EXISTS file_checksum VARCHAR(64),
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64),
+ADD COLUMN IF NOT EXISTS similarity_to_previous FLOAT;
+
+CREATE INDEX idx_versions_file_checksum ON knowledge.document_versions(file_checksum);
+CREATE INDEX idx_documents_content_hash ON knowledge.document_versions(content_hash);
+```
+
+#### Redundancy Detection Checklist
+
+- [ ] Compute `file_checksum` (SHA256) from raw file bytes before extraction
+- [ ] Query existing versions by `file_checksum` → if match, link to existing and skip ingestion
+- [ ] Store `file_checksum` in version record after successful ingestion
+- [ ] Compute `content_hash` (SHA256 of extracted text) for digital docs
+- [ ] Query by `content_hash` for exact content match → if match, reject ingestion (Duplicate Content - prevents RAG pollution)
+- [ ] Configurable similarity thresholds per content type
+- [ ] Embedding similarity query via HNSW distance operator (`<=>`)
+- [ ] Publish `document.duplicate.detected` event when similarity > threshold for admin review
+- [ ] Deduplication API: `GET /api/v1/duplicates?document_id={id}` to list similar docs
 
 ### GitLab Handbook Batch Ingestion (deterministic, no Phase 1)
 - [ ] Extract `domain` from file path (`content/handbook/<domain>/...`)

@@ -8,7 +8,7 @@ import java.util.Arrays;
 public enum EmbeddingModel {
 
     TEXT_EMBEDDING_3_SMALL("TEXT_EMBEDDING_3_SMALL"), TEXT_EMBEDDING_3_LARGE(
-            "TEXT_EMBEDDING_3_LARGE"), MULTILINGUAL_E5_LARGE("MULTILINGUAL_E5_LARGE");
+            "TEXT_EMBEDDING_3_LARGE"), MULTILINGUAL_E5_LARGE("MULTILINGUAL_E5_LARGE"), BGE_M3("BGE_M3");
 
     private final String value;
 

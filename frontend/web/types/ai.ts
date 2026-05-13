@@ -1,4 +1,38 @@
 // AI Question Types
+
+export interface Source {
+  documentId: string;
+  documentTitle: string;
+  chunkId?: string;
+  page?: number;
+  excerpt: string;
+  similarity?: number;
+}
+
+export interface SourceDocument {
+  documentId: string;
+  documentName: string;
+  relevanceScore: number;
+  excerpt: string;
+}
+
+export interface ChatRequest {
+  message: string;
+  conversationId?: string;
+  context?: {
+    documentIds?: string[];
+    categoryIds?: string[];
+  };
+}
+
+export interface ChatResponse {
+  answer: string;
+  conversationId: string;
+  message: Message;
+  conversation: Conversation;
+  sources?: SourceDocument[];
+}
+
 export interface QuestionRequest {
   question: string;
   conversationId?: string;
@@ -13,23 +47,21 @@ export interface QuestionResponse {
   suggestedQuestions?: string[];
 }
 
-export interface Source {
-  documentId: string;
-  documentTitle: string;
-  chunkId?: string;
-  page?: number;
-  excerpt: string;
-  similarity?: number;
-}
-
 export interface Conversation {
   id: string;
   userId: string;
-  question: string;
-  answer: string;
-  sources: Source[];
-  feedback?: Feedback;
+  title: string;
+  messageCount: number;
+  lastMessageAt?: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationListResponse {
+  conversations: Conversation[];
+  page: number;
+  size: number;
+  total: number;
 }
 
 export interface Feedback {
@@ -48,8 +80,24 @@ export interface Message {
   conversationId: string;
   role: 'USER' | 'ASSISTANT';
   content: string;
-  sources?: Source[];
+  sources?: SourceDocument[];
+  modelUsed?: string;
+  tokensPrompt?: number;
+  tokensCompletion?: number;
+  tokensTotal?: number;
+  latencyMs?: number;
+  confidence?: ConfidenceLevel;
+  hasSources: boolean;
+  isStreaming?: boolean;
+  streamingCompleted?: boolean;
   createdAt: string;
+}
+
+export enum ConfidenceLevel {
+  HIGH = 'HIGH',
+  MEDIUM = 'MEDIUM',
+  LOW = 'LOW',
+  UNKNOWN = 'UNKNOWN',
 }
 
 export interface ConversationHistory {
@@ -63,6 +111,14 @@ export interface Pagination {
   total: number;
   totalPages: number;
 }
+
+// Streaming event types
+export type StreamEvent =
+  | { type: 'conversationId'; conversationId: string }
+  | { type: 'sources'; sources: SourceDocument[] }
+  | { type: 'content'; content: string }
+  | { type: 'done' }
+  | { type: 'error'; error: string };
 
 // Unanswered Question
 export interface UnansweredQuestion {

@@ -13,7 +13,7 @@
 
 import { api } from '@/lib/api';
 import type {
-  Document,
+  Document as KnowledgeDocument,
   DocumentDetail,
   DocumentVersion,
   DocumentSearchParams,
@@ -283,8 +283,16 @@ export const documentService = {
   /**
    * Get all versions of a document
    */
+  async getDocumentContent(documentId: string, versionNumber: number): Promise<string> {
+    return await api.documents.getContent(documentId, versionNumber);
+  },
+
   async getVersions(documentId: string): Promise<DocumentVersion[]> {
     return await (api.documents.getVersions(documentId) as unknown) as DocumentVersion[];
+  },
+
+  async triggerProcess(documentId: string): Promise<void> {
+    await api.documents.triggerProcess(documentId);
   },
 
   // ============ Audit Logs ============
@@ -327,7 +335,7 @@ export const documentService = {
   /**
    * Search documents by keyword (full-text search)
    */
-  async searchDocuments(keyword: string, limit = 20): Promise<Document[]> {
+  async searchDocuments(keyword: string, limit = 20): Promise<KnowledgeDocument[]> {
     const result = await api.documents.getAll({ keyword, limit });
     return result.data;
   },
@@ -527,15 +535,15 @@ export const tagService = {
   /**
    * Create new tag (ADMIN only)
    */
-  async createTag(data: { name: string; color?: string; icon?: string }): Promise<Tag> {
-    return await api.metadata.createTag({ name: data.name, color: data.color, icon: data.icon }) as Tag;
+  async createTag(data: { name: string; color?: string }): Promise<Tag> {
+    return await api.metadata.createTag({ name: data.name, color: data.color }) as Tag;
   },
 
   /**
    * Update tag (ADMIN only)
    */
-  async updateTag(id: string, data: { name?: string; color?: string; icon?: string }): Promise<Tag> {
-    return await api.metadata.updateTag(id, { name: data.name, color: data.color, icon: data.icon }) as Tag;
+  async updateTag(id: string, data: { name?: string; color?: string }): Promise<Tag> {
+    return await api.metadata.updateTag(id, { name: data.name, color: data.color }) as Tag;
   },
 
   /**

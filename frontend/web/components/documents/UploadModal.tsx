@@ -15,6 +15,7 @@ import {
   documentService,
   categoryService,
 } from '@/services/document.service';
+import { api } from '@/lib/api';
 import type {
   DocumentUploadResponse,
   Category,
@@ -86,10 +87,14 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
       'text/plain',
       'image/png',
       'image/jpeg',
+      'text/markdown',
+      'text/x-markdown',
     ];
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'png', 'jpg', 'jpeg', 'md'];
 
-    if (!allowedTypes.includes(selectedFile.type)) {
-      setError('Loại file không được hỗ trợ. Vui lòng chọn PDF, Word, Excel, Text, hoặc hình ảnh.');
+    if (!allowedTypes.includes(selectedFile.type) && !allowedExtensions.includes(ext || '')) {
+      setError('Loại file không được hỗ trợ. Vui lòng chọn PDF, Word, Excel, Text, Markdown, hoặc hình ảnh.');
       return;
     }
 
@@ -141,7 +146,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
     setError(null);
 
     try {
-      await documentService.confirmMetadata(uploadedDocument.id, {
+await documentService.confirmMetadata(uploadedDocument.id, {
         title: formData.title,
         description: formData.description,
         categorySlug: formData.categorySlug,
@@ -149,10 +154,18 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
         language: formData.language,
         isPolicy: formData.isPolicy,
       });
-      
-      setStep(4);
-    } catch (err: any) {
-      setError(err.message || 'Xác nhận thất bại. Vui lòng thử lại.');
+
+      try {
+        await api.documents.triggerProcess(uploadedDocument.id);
+      } catch (processErr) {
+        console.warn('Failed to trigger processing, document saved as READY:', processErr);
+      }
+
+setStep(4);
+      onSuccess();
+} catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } }; message?: string };
+      setError(axiosError.response?.data?.detail || axiosError.message || 'Có lỗi xảy ra khi xác nhận metadata.');
     } finally {
       setConfirming(false);
     }
@@ -200,6 +213,8 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
         return '📊';
       case 'txt':
         return '📃';
+      case 'md':
+        return '📋';
       case 'png':
       case 'jpg':
       case 'jpeg':
@@ -287,10 +302,10 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
                     type="file"
                     className="hidden"
                     onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.md"
                   />
                   <p className="mt-4 text-sm text-gray-500">
-                    PDF, Word, Excel, Text, hoặc hình ảnh (tối đa 100MB)
+                    PDF, Word, Excel, Text, Markdown, hoặc hình ảnh (tối đa 100MB)
                   </p>
                 </div>
                 {error && (

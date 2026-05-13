@@ -6,7 +6,7 @@ import com.poliwise.auth.enums.UserRole;
 import java.util.UUID;
 
 public record AuthUserView(
-        @JsonProperty("userId") UUID id,
+        UUID id,
         String username,
         String email,
         UserRole role,

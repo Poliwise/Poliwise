@@ -74,7 +74,7 @@ export class ProxyService {
         baseUrl:
           this.configService.get<string>('services.aiQa') ||
           'http://localhost:8086',
-        timeout: 30000,
+        timeout: 120000, // longer for LLM generation and streaming
       },
       [ServiceName.INGESTION]: {
         name: 'ingestion-service',
@@ -312,6 +312,7 @@ export class ProxyService {
       'trailers',
       'transfer-encoding',
       'upgrade',
+      'content-length',
     ];
 
     for (const [key, value] of Object.entries(request.headers)) {

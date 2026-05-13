@@ -249,6 +249,7 @@ export enum FileType {
   PNG = 'PNG',
   JPG = 'JPG',
   JPEG = 'JPEG',
+  MD = 'MD',
   UNKNOWN = 'UNKNOWN',
 }
 

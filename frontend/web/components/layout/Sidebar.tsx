@@ -58,17 +58,11 @@ const NAV_ITEMS: NavItem[] = [
 
 const ADMIN_ITEMS: NavItem[] = [
   {
-    label: 'Quản lý tài liệu',
-    href: '/admin/documents',
-    icon: <FileText size={20} />,
-    roles: [UserRole.ADMIN],
-    dividerBefore: true,
-  },
-  {
     label: 'Quản lý người dùng',
     href: '/admin/users',
     icon: <Users size={20} />,
     roles: [UserRole.ADMIN],
+    dividerBefore: true,
   },
   {
     label: 'Phòng ban',

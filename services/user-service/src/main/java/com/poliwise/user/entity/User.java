@@ -52,7 +52,7 @@ public class User {
 
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false)
-    private AccountStatus accountStatus;
+    private AccountStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", foreignKey = @ForeignKey(name = "fk_users_department"))
@@ -75,7 +75,7 @@ public class User {
         OffsetDateTime now = OffsetDateTime.now();
         if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
-        if (accountStatus == null) accountStatus = AccountStatus.ACTIVE;
+        if (status == null) status = AccountStatus.ACTIVE;
     }
 
     @PreUpdate
@@ -83,14 +83,14 @@ public class User {
         updatedAt = OffsetDateTime.now();
     }
 
-    public boolean isActive() { return accountStatus == AccountStatus.ACTIVE; }
+    public boolean isActive() { return status == AccountStatus.ACTIVE; }
 
     // Explicit accessors (Lombok processor does not generate them in this JDK 23 environment)
     public UUID           getId()           { return id; }
     public String         getUsername()     { return username; }
     public String         getEmail()       { return email; }
     public UserRole       getRole()        { return role; }
-    public AccountStatus  getAccountStatus(){ return accountStatus; }
+    public AccountStatus  getStatus(){ return status; }
     public Department      getDepartment()  { return department; }
     public UserProfile    getProfile()     { return profile; }
     public OffsetDateTime getCreatedAt()   { return createdAt; }
@@ -100,7 +100,7 @@ public class User {
     public void setUsername(String v)                 { this.username = v; }
     public void setEmail(String v)                  { this.email = v; }
     public void setRole(UserRole v)                  { this.role = v; }
-    public void setAccountStatus(AccountStatus v)   { this.accountStatus = v; }
+    public void setStatus(AccountStatus v)   { this.status = v; }
     public void setDepartment(Department v)          { this.department = v; }
     public void setProfile(UserProfile v)            { this.profile = v; }
     public void setCreatedAt(OffsetDateTime v)       { this.createdAt = v; }
@@ -114,7 +114,7 @@ public class User {
         private String username;
         private String email;
         private UserRole role;
-        private AccountStatus accountStatus;
+        private AccountStatus status;
         private Department department;
         private UserProfile profile;
         private OffsetDateTime createdAt;
@@ -124,7 +124,7 @@ public class User {
         public UserBuilder username(String v)          { this.username = v; return this; }
         public UserBuilder email(String v)            { this.email = v; return this; }
         public UserBuilder role(UserRole v)           { this.role = v; return this; }
-        public UserBuilder accountStatus(AccountStatus v) { this.accountStatus = v; return this; }
+        public UserBuilder status(AccountStatus v) { this.status = v; return this; }
         public UserBuilder department(Department v)   { this.department = v; return this; }
         public UserBuilder profile(UserProfile v)     { this.profile = v; return this; }
         public UserBuilder createdAt(OffsetDateTime v) { this.createdAt = v; return this; }
@@ -133,7 +133,7 @@ public class User {
         public User build() {
             User u = new User();
             u.setId(id); u.setUsername(username); u.setEmail(email); u.setRole(role);
-            u.setAccountStatus(accountStatus); u.setDepartment(department); u.setProfile(profile);
+            u.setStatus(status); u.setDepartment(department); u.setProfile(profile);
             u.setCreatedAt(createdAt); u.setUpdatedAt(updatedAt);
             return u;
         }
