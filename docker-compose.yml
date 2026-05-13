@@ -10,9 +10,7 @@ services:
       POSTGRES_DB: poliwise
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/init-db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./docs/supbase_sql:/docker-entrypoint-initdb.d/supbase_sql:ro
-      - ./docs/supbase_sql_update_v1:/docker-entrypoint-initdb.d/supbase_sql_update_v1:ro
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -85,6 +83,20 @@ services:
     networks:
       - poliwise
 
+  redis:
+    image: redis:7-alpine
+    container_name: poliwise-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - poliwise
+
   # ============================================================
   # Microservices
   # ============================================================
@@ -117,8 +129,10 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      EMAIL_USER: ${EMAIL_USER:-xuanvietle20050228@gmail.com}
+      EMAIL_USERNAME: ${EMAIL_USERNAME:-xuanvietle20050228@gmail.com}
       EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-mjhclmhmzwxhowpi}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
@@ -206,7 +220,9 @@ services:
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       INGESTION_SERVICE_URL: http://ingestion-service:8088
+      KNOWLEDGE_INGESTION_INTERNAL_API_KEY: ${INTERNAL_API_KEY:-secret-key-for-internal-services}
       METADATA_SERVICE_URL: http://metadata-service:8084
+      KNOWLEDGE_INGESTION_SUGGESTION_TIMEOUT_SECONDS: 30
       JAVA_OPTS: "-Xmx512m -Xms256m"
     ports:
       - "8083:8083"
@@ -334,6 +350,7 @@ services:
       HOST: 0.0.0.0
       PORT: 8088
       LOG_LEVEL: info
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-secret-key-for-internal-services}
       DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:-poliwise_secure_password}@postgres:5432/poliwise
       DATABASE_SCHEMA: knowledge
       RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:-poliwise_secure_password}@rabbitmq:5672
@@ -342,8 +359,8 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_SECURE: "false"
-      LITSERVE_EMBEDDING_URL: ${LITSERVE_EMBEDDING_URL:-http://host.docker.internal:8001}
-      LITSERVE_RERANKER_URL: ${LITSERVE_RERANKER_URL:-http://host.docker.internal:8002}
+      EMBEDDING_URL: http://bge-m3-embedding:80
+      RERANKER_URL: ${RERANKER_URL:-http://host.docker.internal:8002}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
     ports:
@@ -355,8 +372,94 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      bge-m3-embedding:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8088/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      - poliwise
+
+  # ============================================================
+  # AI Embedding Model (BGE-M3 via HuggingFace TEI)
+  # ============================================================
+
+  bge-m3-embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
+    container_name: poliwise-bge-m3
+    restart: unless-stopped
+    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 16384 --max-client-batch-size 32 --payload-limit 10485760
+    volumes:
+      - ./data/hf_cache:/data
+    ports:
+      - "8001:80"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
+      interval: 30s
+      timeout: 30s
+      retries: 10
+      start_period: 600s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 2G
+    networks:
+      - poliwise
+
+  # ============================================================
+  # AI Q&A Service (FastAPI)
+  # ============================================================
+
+  ai-qa-service:
+    build:
+      context: ./services/ai-qa-service
+      dockerfile: Dockerfile
+    container_name: poliwise-ai-qa-service
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8086
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:-poliwise_secure_password}@postgres:5432/poliwise
+      DATABASE_SCHEMA: conversation
+      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:-poliwise_secure_password}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: poliwise.events
+      EMBEDDING_URL: http://bge-m3-embedding:80
+      RERANKER_URL: ${RERANKER_URL:-http://host.docker.internal:8002}
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      LLM_API_KEY: ${GROQ_API_KEY}
+      LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen3-8b}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY}
+      GATEWAY_MODEL: ${GATEWAY_MODEL:-gemini-1.5-flash}
+      GATEWAY_ENABLED: ${GATEWAY_ENABLED:-true}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      bge-m3-embedding:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8086/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -398,7 +501,7 @@ services:
       THROTTLE_LIMIT_USER: 100
       THROTTLE_LIMIT_MANAGER: 200
       THROTTLE_LIMIT_ADMIN: 500
-      THROTTLE_LIMIT_PUBLIC: 20
+      THROTTLE_LIMIT_PUBLIC: 200
       CIRCUIT_BREAKER_TIMEOUT: 30000
       CIRCUIT_BREAKER_VOLUME_THRESHOLD: 10
       LOG_LEVEL: info
@@ -470,3 +573,4 @@ volumes:
   postgres_data:
   rabbitmq_data:
   minio_data:
+  redis_data:
