@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.document_version import DocumentVersion
+from src.models.document import Document
 
 
 class VersionRepository:
@@ -72,18 +73,32 @@ class VersionRepository:
             await self.session.commit()
 
     async def find_by_file_checksum(self, file_checksum: str) -> Optional[DocumentVersion]:
-        """Find version by file checksum for exact duplicate detection."""
+        """Find version by file checksum for exact duplicate detection.
+        Excludes versions from deleted documents.
+        """
         result = await self.session.execute(
-            select(DocumentVersion).where(
+            select(DocumentVersion)
+            .join(Document, DocumentVersion.document_id == Document.id)
+            .where(
                 DocumentVersion.file_checksum == file_checksum,
-            ).order_by(DocumentVersion.created_at.desc()).limit(1)
+                Document.deleted_at == None
+            )
+            .order_by(DocumentVersion.created_at.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
 
     async def find_by_content_hash(self, content_hash: str, exclude_version_id: UUID = None) -> list[DocumentVersion]:
-        """Find versions with same content hash (for deduplication)."""
-        query = select(DocumentVersion).where(
-            DocumentVersion.content_hash == content_hash,
+        """Find versions with same content hash (for deduplication).
+        Excludes versions from deleted documents.
+        """
+        query = (
+            select(DocumentVersion)
+            .join(Document, DocumentVersion.document_id == Document.id)
+            .where(
+                DocumentVersion.content_hash == content_hash,
+                Document.deleted_at == None
+            )
         )
         if exclude_version_id:
             query = query.where(DocumentVersion.id != exclude_version_id)
@@ -98,22 +113,26 @@ class VersionRepository:
     ) -> list[tuple[DocumentVersion, float]]:
         """Find versions with high semantic similarity using vector distance.
         The embedding should be a 'Semantic Fingerprint' (typically from the first 4000 chars).
+        Excludes versions from deleted documents.
         """
         # pgvector uses <=> for cosine distance (1 - similarity)
         # So similarity = 1 - (embedding_vector <=> :embedding)
         # We want similarity > threshold  =>  distance < 1 - threshold
         distance_threshold = 1.0 - threshold
         
-        from sqlalchemy import text
-        # Using raw SQL for direct access to pgvector operators if needed, 
-        # but SQLAlchemy with pgvector supports .distance_compare or <=>
-        # For clarity with the plan, we use the distance operator
-        query = select(
-            DocumentVersion,
-            DocumentVersion.fingerprint_embedding.cosine_distance(embedding).label("distance")
-        ).where(
-            DocumentVersion.fingerprint_embedding.cosine_distance(embedding) < distance_threshold
-        ).order_by("distance").limit(limit)
+        query = (
+            select(
+                DocumentVersion,
+                DocumentVersion.fingerprint_embedding.cosine_distance(embedding).label("distance")
+            )
+            .join(Document, DocumentVersion.document_id == Document.id)
+            .where(
+                DocumentVersion.fingerprint_embedding.cosine_distance(embedding) < distance_threshold,
+                Document.deleted_at == None
+            )
+            .order_by("distance")
+            .limit(limit)
+        )
         
         result = await self.session.execute(query)
         return [(row[0], 1.0 - float(row[1])) for row in result.all()]

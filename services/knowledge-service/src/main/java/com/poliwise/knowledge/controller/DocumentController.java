@@ -5,7 +5,6 @@ import com.poliwise.knowledge.entity.Document;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
-import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.service.DocumentManagementService;
 import com.poliwise.knowledge.service.MetadataContextService;
 import com.poliwise.knowledge.service.MetadataSuggestionService;
@@ -418,13 +417,11 @@ public class DocumentController {
     }
 
     private UUID getCurrentUserId(HttpServletRequest request) {
-        try {
-            String userId = (String) request.getAttribute("userId");
-            if (userId != null && !userId.isBlank()) {
-                return UUID.fromString(userId);
-            }
-        } catch (Exception ignored) {}
-        return UUID.randomUUID();
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth instanceof com.poliwise.knowledge.security.JwtAuthenticationToken jwtToken) {
+            return jwtToken.getUserId();
+        }
+        throw new org.springframework.security.access.AccessDeniedException("User not authenticated");
     }
 
     /**

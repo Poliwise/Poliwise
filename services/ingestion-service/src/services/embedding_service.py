@@ -24,7 +24,7 @@ from src.config.settings import settings
 
 logger = structlog.get_logger()
 
-EMBEDDING_MODEL_NAME = "bge-m3"
+EMBEDDING_MODEL_NAME = "BGE_M3"
 EMBEDDING_DIMENSION = 1024
 
 
@@ -129,7 +129,7 @@ class EmbeddingService:
                     "text_length": len(texts[idx]),
                     "embedding_model": EMBEDDING_MODEL_NAME,
                     "embedding_dimension": EMBEDDING_DIMENSION,
-                    "embedding_vector": str(emb),  # pgvector accepts str repr
+                    "embedding_vector": emb,  # Keep as list[float] for proper vector type
                 })
             await cache_repo.save_batch(new_entries)
 

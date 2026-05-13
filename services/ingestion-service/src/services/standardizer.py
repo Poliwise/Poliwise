@@ -49,7 +49,7 @@ class DocumentPolicyStandardizer:
                 if current_section["text"]:
                     sections.append(current_section.copy())
 
-                heading_text = heading_match[0].group(2) if heading_match[0].groups() else line.strip()
+                heading_text = heading_match[0].group(2) if len(heading_match[0].groups()) >= 2 else line.strip()
                 current_section = {
                     "title": heading_text,
                     "level": heading_match[1],

@@ -82,8 +82,11 @@ public class KnowledgeProperties {
 
     public static class Ingestion {
         private String apiUrl = "http://localhost:8088";
+        private String internalApiKey;
         private int suggestionTimeoutSeconds = 30;
 
+        public String getInternalApiKey() { return internalApiKey; }
+        public void setInternalApiKey(String internalApiKey) { this.internalApiKey = internalApiKey; }
         public String getApiUrl() { return apiUrl; }
         public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
         public int getSuggestionTimeoutSeconds() { return suggestionTimeoutSeconds; }

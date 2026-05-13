@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public record UserStatusResponse(
         UUID userId,
-        AccountStatus accountStatus,
+        AccountStatus status,
         UserRole role,
         boolean isActive,
         OffsetDateTime deletedAt

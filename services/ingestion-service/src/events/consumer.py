@@ -18,6 +18,7 @@ async def on_ingestion_requested(message: IncomingMessage) -> None:
             job_id = payload.get("payload", {}).get("job_id")
             document_id = payload.get("payload", {}).get("document_id")
             version_id = payload.get("payload", {}).get("document_version_id")
+            document_version = payload.get("payload", {}).get("document_version")
             file_key = payload.get("payload", {}).get("file_key")
             bucket_name = payload.get("payload", {}).get("bucket_name", "poliwise-documents")
             metadata = payload.get("payload", {}).get("metadata", {})
@@ -27,6 +28,7 @@ async def on_ingestion_requested(message: IncomingMessage) -> None:
                 job_id=job_id,
                 document_id=document_id,
                 version_id=version_id,
+                document_version=document_version,
             )
 
             from uuid import UUID
@@ -35,6 +37,7 @@ async def on_ingestion_requested(message: IncomingMessage) -> None:
             result = await pipeline.process(
                 document_id=UUID(document_id),
                 version_id=UUID(version_id),
+                document_version=int(document_version),
                 job_id=UUID(job_id),
                 bucket_name=bucket_name,
                 file_key=file_key,

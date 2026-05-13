@@ -8,6 +8,8 @@ to suggest category, title, description, tags, language, and policy flag.
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 import structlog
+from src.api.dependencies import get_api_key
+from fastapi import Depends
 
 from src.services.minio_service import minio_service
 from src.services.preview_extractor import extract_preview
@@ -71,6 +73,7 @@ class ErrorResponse(BaseModel):
         "and uses Groq LLM to suggest metadata fields. Called synchronously "
         "by knowledge-service during file upload (< 5s expected)."
     ),
+    dependencies=[Depends(get_api_key)],
 )
 async def suggest_metadata(request: MetadataSuggestRequest):
     """Generate AI metadata suggestions for an uploaded document."""

@@ -26,7 +26,7 @@ public class UserSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             if (excludeDeleted != null && excludeDeleted) {
-                predicates.add(cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE));
+                predicates.add(cb.equal(root.get("status"), AccountStatus.ACTIVE));
             }
 
             if (StringUtils.hasText(keyword)) {
@@ -43,7 +43,7 @@ public class UserSpecification {
             }
 
             if (status != null) {
-                predicates.add(cb.equal(root.get("accountStatus"), status));
+                predicates.add(cb.equal(root.get("status"), status));
             }
 
             if (departmentId != null) {
@@ -55,10 +55,10 @@ public class UserSpecification {
     }
 
     public static Specification<User> deletedOnly() {
-        return (root, query, cb) -> cb.equal(root.get("accountStatus"), AccountStatus.REVOKED);
+        return (root, query, cb) -> cb.equal(root.get("status"), AccountStatus.REVOKED);
     }
 
     public static Specification<User> activeOnly() {
-        return (root, query, cb) -> cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE);
+        return (root, query, cb) -> cb.equal(root.get("status"), AccountStatus.ACTIVE);
     }
 }

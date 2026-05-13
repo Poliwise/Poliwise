@@ -5,14 +5,16 @@ export interface User {
   email: string;
   role: UserRole;
   status: AccountStatus;
-  department: string | null;
-  departmentName?: string;
+  departmentId: string | null;
+  department?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   fullName?: string;
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
-  /** @deprecated Use 'id' instead — kept for compatibility with persisted auth-storage */
-  userId?: string;
 }
 
 export enum UserRole {
@@ -139,7 +141,7 @@ export interface UserDetail {
   email: string;
   fullName?: string;
   role: string;
-  status: string;
+  status: AccountStatus;
   departmentId?: string;
   createdAt: string;
   updatedAt: string;
@@ -156,7 +158,7 @@ export interface UserProfile {
   email: string;
   fullName?: string;
   role: string;
-  status: string;
+  status: AccountStatus;
   departmentId?: string | null;
   departmentName?: string | null;
   createdAt: string;

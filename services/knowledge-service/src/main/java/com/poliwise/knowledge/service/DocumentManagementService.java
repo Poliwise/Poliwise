@@ -559,7 +559,9 @@ public class DocumentManagementService {
         if (versions.isEmpty()) {
             throw new IllegalStateException("No versions found for document: " + documentId);
         }
-        UUID latestVersionId = versions.get(0).getId();
+        DocumentVersion latestVersion = versions.get(0);
+        UUID latestVersionId = latestVersion.getId();
+        Integer versionNumber = latestVersion.getVersionNumber();
 
         // Generate a new job ID for tracking
         UUID jobId = UUID.randomUUID();
@@ -569,6 +571,7 @@ public class DocumentManagementService {
         payload.put("job_id", jobId.toString());
         payload.put("document_id", documentId.toString());
         payload.put("document_version_id", latestVersionId.toString());
+        payload.put("document_version", versionNumber);
         payload.put("file_key", document.getFileKey());
         payload.put("bucket_name", document.getBucketName());
         

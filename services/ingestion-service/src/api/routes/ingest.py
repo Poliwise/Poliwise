@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.session import get_session
 from src.services.pipeline import pipeline
 from src.db.repositories.job_repo import JobRepository
+from src.api.dependencies import get_api_key
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -16,6 +17,7 @@ class IngestRequest(BaseModel):
     """Request payload for manual ingestion."""
     document_id: UUID
     document_version_id: UUID
+    document_version: int
     file_key: str
     bucket_name: str
     job_id: UUID
@@ -37,7 +39,7 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str] = None
 
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(get_api_key)])
 async def ingest_document(
     request: IngestRequest,
     background_tasks: BackgroundTasks,
@@ -53,6 +55,7 @@ async def ingest_document(
         pipeline.process,
         document_id=request.document_id,
         version_id=request.document_version_id,
+        document_version=request.document_version,
         job_id=request.job_id,
         bucket_name=request.bucket_name,
         file_key=request.file_key,
@@ -66,7 +69,7 @@ async def ingest_document(
     )
 
 
-@router.get("/ingest/{job_id}/status", response_model=JobStatusResponse)
+@router.get("/ingest/{job_id}/status", response_model=JobStatusResponse, dependencies=[Depends(get_api_key)])
 async def get_ingestion_status(
     job_id: UUID,
     session: AsyncSession = Depends(get_session),

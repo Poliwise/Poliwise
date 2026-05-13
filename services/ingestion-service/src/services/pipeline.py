@@ -33,6 +33,7 @@ class IngestionPipeline:
         self,
         document_id: UUID,
         version_id: UUID,
+        document_version: int,
         job_id: UUID,
         bucket_name: str,
         file_key: str,
@@ -48,6 +49,11 @@ class IngestionPipeline:
         )
 
         try:
+            # --- 0. VALIDATION ---
+            ALLOWED_BUCKETS = ["poliwise-documents"]
+            if bucket_name not in ALLOWED_BUCKETS:
+                raise ValueError(f"Unauthorized bucket access: {bucket_name}")
+
             # --- 1. DOWNLOAD & LAYER 1 DEDUPLICATION ---
             await processing_job_service.update_progress(job_id, 10, "Layer 1: Checking file checksum")
 
@@ -89,6 +95,7 @@ class IngestionPipeline:
             chunk_metadata = {
                 "document_id": document_id,
                 "version_id": version_id,
+                "document_version": document_version,
                 "allowed_roles": metadata.get("allowed_roles"),
                 "allowed_departments": metadata.get("allowed_departments"),
                 "allowed_users": metadata.get("allowed_users"),
@@ -106,7 +113,7 @@ class IngestionPipeline:
                 
                 for i, emb in enumerate(embeddings):
                     chunks[i].embedding_vector = emb
-                    chunks[i].embedding_model = "bge-m3"
+                    chunks[i].embedding_model = "BGE_M3"
                     chunks[i].embedding_dimension = 1024
 
                 # --- 6. PERSISTENCE ---

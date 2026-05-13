@@ -4,30 +4,36 @@ FROM eclipse-temurin:17-jdk-alpine AS builder
 WORKDIR /app
 
 COPY pom.xml ./
+COPY .mvn .mvn
+COPY mvnw ./
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
+
+RUN ./mvnw dependency:go-offline -B
+
 COPY src ./src
 
-RUN apk add --no-cache maven && \
-    touch .env && \
-    export MAVEN_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED" && \
-    mvn dependency:go-offline -B && \
-    mvn package -DskipTests -B && \
+RUN touch .env && \
+    ./mvnw package -DskipTests -B && \
     mv target/*.jar app.jar
 
 # Production stage
 FROM eclipse-temurin:17-jre-alpine
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl \
+    && addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-COPY --from=builder /app/app.jar app.jar
+COPY --from=builder --chown=appuser:appgroup /app/app.jar app.jar
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseContainerSupport"
 ENV SPRING_PROFILES_ACTIVE=prod
+
+USER appuser
 
 EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8081/actuator/health || exit 1
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
