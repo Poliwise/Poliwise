@@ -16,45 +16,77 @@ class ChunkRepository:
         if not chunks:
             return
 
+        import json
         values = []
         for c in chunks:
+            # Convert embedding_vector to string representation for pgvector in raw SQL
+            emb_vector = c.embedding_vector
+            if isinstance(emb_vector, list):
+                emb_vector = str(emb_vector)
+            elif isinstance(emb_vector, str) and not emb_vector.startswith('['):
+                # If it's a string but doesn't look like a PG vector, try to fix it
+                try:
+                    import ast
+                    parsed = ast.literal_eval(emb_vector)
+                    if isinstance(parsed, list):
+                        emb_vector = str(parsed)
+                except:
+                    pass
+
+            # Convert metadata to JSON string as asyncpg + text() doesn't auto-encode dicts
+            meta = c.metadata
+            if isinstance(meta, dict):
+                meta = json.dumps(meta)
+
+            # Ensure UUIDs are actual UUID objects for the driver
+            def to_uuid(v):
+                if v is None: return None
+                if isinstance(v, UUID): return v
+                try: return UUID(str(v))
+                except: return None
+
+            def to_uuid_list(l):
+                if not l: return []
+                return [to_uuid(x) for x in l if x]
+
             values.append({
-                "id": c.id if hasattr(c, 'id') else None,
-                "document_id": c.document_id,
-                "document_version_id": c.document_version_id,
-                "chunk_type": c.chunk_type,
-                "parent_chunk_id": c.parent_chunk_id,
-                "content": c.content,
+                "document_id": to_uuid(c.document_id),
+                "document_version_id": to_uuid(c.document_version_id),
+                "document_version": int(c.document_version) if c.document_version is not None else 0,
+                "chunk_type": str(c.chunk_type),
+                "parent_chunk_id": to_uuid(c.parent_chunk_id),
+                "content": str(c.content),
+                "content_length": len(c.content) if c.content else 0,
                 "section_title": c.section_title,
                 "section_level": c.section_level,
-                "section_path": c.section_path,
-                "chunk_index": c.chunk_index,
+                "section_path": c.section_path if c.section_path is not None else [],
+                "chunk_index": int(c.chunk_index),
                 "start_char_index": c.start_char_index,
                 "end_char_index": c.end_char_index,
                 "token_count": c.token_count,
-                "embedding_vector": c.embedding_vector,
+                "embedding_vector": emb_vector,
                 "embedding_model": c.embedding_model,
                 "embedding_dimension": c.embedding_dimension,
-                "allowed_roles": c.allowed_roles,
-                "allowed_departments": c.allowed_departments,
-                "allowed_users": c.allowed_users,
-                "access_level": c.access_level,
+                "allowed_roles": c.allowed_roles if c.allowed_roles is not None else [],
+                "allowed_departments": to_uuid_list(c.allowed_departments),
+                "allowed_users": to_uuid_list(c.allowed_users),
+                "access_level": str(c.access_level),
                 "is_latest": True,
-                "metadata": c.metadata,
+                "metadata": meta,
             })
 
         # Use raw SQL for bulk insert with ON CONFLICT
         await self.session.execute(text("""
             INSERT INTO knowledge.chunks (
-                document_id, document_version_id, chunk_type, parent_chunk_id,
-                content, section_title, section_level, section_path,
+                document_id, document_version_id, document_version, chunk_type, parent_chunk_id,
+                content, content_length, section_title, section_level, section_path,
                 chunk_index, start_char_index, end_char_index, token_count,
                 embedding_vector, embedding_model, embedding_dimension,
                 allowed_roles, allowed_departments, allowed_users, access_level,
                 is_latest, metadata
             ) VALUES (
-                :document_id, :document_version_id, :chunk_type, :parent_chunk_id,
-                :content, :section_title, :section_level, :section_path,
+                :document_id, :document_version_id, :document_version, :chunk_type, :parent_chunk_id,
+                :content, :content_length, :section_title, :section_level, :section_path,
                 :chunk_index, :start_char_index, :end_char_index, :token_count,
                 :embedding_vector, :embedding_model, :embedding_dimension,
                 :allowed_roles, :allowed_departments, :allowed_users, :access_level,

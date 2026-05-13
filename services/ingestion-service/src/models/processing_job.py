@@ -21,6 +21,7 @@ class ProcessingJob(Base):
     success = Column(Boolean, nullable=True)
     error_message = Column(Text, nullable=True)
     error_details = Column(JSONB, nullable=True)
+    error_details = Column(JSONB, nullable=True)
     retry_count = Column(Integer, default=0)
     max_retries = Column(Integer, default=3)
     output_metrics = Column(JSONB, nullable=True)

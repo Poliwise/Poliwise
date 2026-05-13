@@ -28,6 +28,7 @@ class Chunk:
     """Represents a chunk ready for embedding."""
     document_id: UUID
     document_version_id: UUID
+    document_version: int
     chunk_type: str  # "parent" or "child"
     content: str
     section_title: Optional[str] = None

@@ -331,6 +331,20 @@ export const documentService = {
     const result = await api.documents.getAll({ keyword, limit });
     return result.data;
   },
+
+  /**
+   * Get extracted text content of a document
+   */
+  async getDocumentContent(documentId: string, version?: number): Promise<string> {
+    return await api.documents.getContent(documentId, version);
+  },
+
+  /**
+   * Trigger document processing (parsing, chunking, embedding)
+   */
+  async triggerProcess(documentId: string): Promise<void> {
+    await api.documents.triggerProcess(documentId);
+  },
 };
 
 // ============ Category Management ============

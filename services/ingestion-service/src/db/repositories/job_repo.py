@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select, update
+from sqlalchemy import select, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.processing_job import ProcessingJob
 
@@ -31,7 +31,7 @@ class JobRepository:
         output_metrics: Optional[str] = None,
     ) -> None:
         """Update job status and related fields."""
-        values = {"status": status}
+        values = {}
         if progress_percent is not None:
             values["progress_percent"] = progress_percent
         if error_message is not None:
@@ -42,7 +42,10 @@ class JobRepository:
             values["output_metrics"] = output_metrics
 
         await self.session.execute(
-            update(ProcessingJob).where(ProcessingJob.id == job_id).values(**values)
+            update(ProcessingJob)
+            .where(ProcessingJob.id == job_id)
+            .values(**values)
+            .values(status=text("CAST(:status AS knowledge.processing_status)").bindparams(status=status))
         )
 
     async def mark_completed(self, job_id: UUID, output_metrics: Optional[str] = None) -> None:

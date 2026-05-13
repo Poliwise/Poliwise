@@ -266,6 +266,7 @@ export enum ProcessingStatus {
   READY = 'READY',
   FAILED = 'FAILED',
   CANCELLED = 'CANCELLED',
+  DUPLICATE = 'DUPLICATE',
 }
 
 export enum DocumentStatus {
@@ -338,6 +339,7 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   READY: { label: 'Sẵn sàng', color: '#22c55e' },
   FAILED: { label: 'Thất bại', color: '#ef4444' },
   CANCELLED: { label: 'Đã hủy', color: '#6b7280' },
+  DUPLICATE: { label: 'Trùng lặp', color: '#ef4444' },
   DRAFT: { label: 'Nháp', color: '#6b7280' },
   PUBLISHED: { label: 'Đã xuất bản', color: '#22c55e' },
   ARCHIVED: { label: 'Đã lưu trữ', color: '#f59e0b' },

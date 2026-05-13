@@ -1,8 +1,9 @@
 from typing import Optional
 from uuid import UUID
-from sqlalchemy import select, update
+from sqlalchemy import select, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.document import Document
+from src.models.document_version import DocumentVersion
 
 
 class DocumentRepository:
@@ -19,15 +20,26 @@ class DocumentRepository:
         return result.scalar_one_or_none()
 
     async def update_extracted_text(
-        self, document_id: UUID, extracted_text: str, page_count: int, word_count: int
+        self, version_id: UUID, extracted_text: str, page_count: int, word_count: int
     ) -> None:
-        """Update document with extracted text and metadata."""
+        """Update document version with extracted text and metadata."""
+        await self.session.execute(
+            update(DocumentVersion)
+            .where(DocumentVersion.id == version_id)
+            .values(
+                extracted_text=extracted_text,
+            )
+        )
+        # Also update Document with counts if needed, but for now just text
+        # Wait, if we want to update page_count/word_count on Document too:
+        # (Document model doesn't have them yet, so we'll skip for now)
+        pass
+
+    async def update_status(self, document_id: UUID, status: str) -> None:
+        """Update document processing status."""
         await self.session.execute(
             update(Document)
             .where(Document.id == document_id)
-            .values(
-                extracted_text=extracted_text,
-                page_count=page_count,
-                word_count=word_count,
-            )
+            .values(status=text("CAST(:status AS knowledge.processing_status)").bindparams(status=status))
         )
+        await self.session.commit()

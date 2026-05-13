@@ -13,7 +13,8 @@ class Chunk(Base):
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id = Column(PG_UUID(as_uuid=True), nullable=False)
-    document_version_id = Column(PG_UUID(as_uuid=True), nullable=False)
+    document_version_id = Column(PG_UUID(as_uuid=True), nullable=True)
+    document_version = Column(Integer, nullable=False)
     chunk_type = Column(String, nullable=False)  # "parent" or "child"
     parent_chunk_id = Column(PG_UUID(as_uuid=True), nullable=True)
     content = Column(Text, nullable=False)
@@ -22,6 +23,7 @@ class Chunk(Base):
     section_title = Column(String, nullable=True)
     section_level = Column(Integer, nullable=True)
     section_path = Column(ARRAY(String), nullable=True)
+    bucket_name = Column(String(100), nullable=True)
     chunk_index = Column(Integer, nullable=False)
     start_char_index = Column(Integer, nullable=True)
     end_char_index = Column(Integer, nullable=True)
