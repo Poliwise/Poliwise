@@ -325,6 +325,18 @@ public class DocumentManagementService {
         };
     }
 
+    public String getExtractedText(UUID documentId, Integer versionNumber) {
+        if (versionNumber != null) {
+            DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
+                    .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
+            return version.getExtractedText() != null ? version.getExtractedText() : "";
+        } else {
+            Document document = documentRepository.findById(documentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+            return document.getExtractedText() != null ? document.getExtractedText() : "";
+        }
+    }
+
     // ========== Audit Logs ==========
 
     public Page<DocumentAuditLogResponse> getAuditLogs(UUID documentId, UUID actorId, String action,

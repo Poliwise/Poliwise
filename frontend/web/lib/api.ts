@@ -545,12 +545,9 @@ class ApiClient {
       const raw = coercePaginated<User>(res.data, 'data').data[0] ?? (res.data as unknown as User);
       return {
         ...raw,
-        department: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as { id: string }).id
-          : (raw.department as string | null),
-        departmentName: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as { name: string }).name
-          : undefined,
+        departmentId: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as any).id
+          : (raw.departmentId || null),
       };
     },
 
@@ -559,12 +556,9 @@ class ApiClient {
       const raw = coercePaginated<User>(res.data, 'data').data[0] ?? (res.data as unknown as User);
       return {
         ...raw,
-        department: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as { id: string }).id
-          : (raw.department as string | null),
-        departmentName: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as { name: string }).name
-          : undefined,
+        departmentId: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as any).id
+          : (raw.departmentId || null),
       };
     },
 
@@ -592,12 +586,9 @@ class ApiClient {
       const rawUsers: User[] = coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [];
       const users: User[] = rawUsers.map((u) => ({
         ...u,
-        department: typeof u.department === 'object' && u.department !== null
-          ? (u.department as { id: string }).id
-          : (u.department as string | null),
-        departmentName: typeof u.department === 'object' && u.department !== null
-          ? (u.department as { name: string }).name
-          : undefined,
+        departmentId: typeof u.department === 'object' && u.department !== null
+          ? (u.department as any).id
+          : (u.departmentId || null),
       }));
       return {
         data: users,
@@ -887,6 +878,14 @@ class ApiClient {
         };
       }>(`/api/v1/documents/compare?doc1=${doc1Id}&doc2=${doc2Id}`);
       return res.data!.data!;
+    },
+
+    getContent: async (documentId: string, version?: number): Promise<string> => {
+      const res = await this.client.get<string>(
+        `/api/v1/documents/${documentId}/content`,
+        { params: { version } }
+      );
+      return res.data;
     },
   };
 
@@ -1589,12 +1588,9 @@ class ApiClient {
       const rawUsers: User[] = coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [];
       const users: User[] = rawUsers.map((u) => ({
         ...u,
-        department: typeof u.department === 'object' && u.department !== null
-          ? (u.department as { id: string }).id
-          : (u.department as string | null),
-        departmentName: typeof u.department === 'object' && u.department !== null
-          ? (u.department as { name: string }).name
-          : undefined,
+        departmentId: typeof u.department === 'object' && u.department !== null
+          ? (u.department as any).id
+          : (u.departmentId || null),
       }));
       return {
         data: users,
@@ -1608,12 +1604,9 @@ class ApiClient {
         ?? (res.data as unknown as User);
       return {
         ...raw,
-        department: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as { id: string }).id
-          : (raw.department as string | null),
-        departmentName: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as { name: string }).name
-          : undefined,
+        departmentId: typeof raw.department === 'object' && raw.department !== null
+          ? (raw.department as any).id
+          : (raw.departmentId || null),
       };
     },
   };

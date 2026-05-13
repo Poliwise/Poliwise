@@ -25,11 +25,11 @@ interface UploadModalProps {
   onClose: () => void;
   onSuccess: () => void;
   categories: Category[];
-  initialDocument?: DocumentUploadResponse;
+  initialDocument?: DocumentUploadResponse | any;
 }
 
 export function UploadModal({ onClose, onSuccess, categories, initialDocument }: UploadModalProps) {
-  const [step, setStep] = useState(initialDocument ? 2 : 1);
+  const [step, setStep] = useState(initialDocument ? 3 : 1);
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -39,12 +39,12 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
 
   // Metadata form state
   const [formData, setFormData] = useState({
-    title: (initialDocument as any)?.title || initialDocument?.suggestedTitle || '',
-    description: (initialDocument as any)?.description || initialDocument?.suggestedDescription || '',
-    categorySlug: (initialDocument as any)?.categoryId || initialDocument?.suggestedCategorySlug || '',
-    tags: (initialDocument as any)?.tags || initialDocument?.suggestedTags || [] as string[],
+    title: initialDocument?.title || initialDocument?.suggestedTitle || initialDocument?.originalFilename?.replace(/\.[^/.]+$/, '') || '',
+    description: initialDocument?.description || initialDocument?.suggestedDescription || '',
+    categorySlug: initialDocument?.categorySlug || initialDocument?.suggestedCategorySlug || '',
+    tags: initialDocument?.tags || initialDocument?.suggestedTags || [] as string[],
     language: initialDocument?.language || initialDocument?.suggestedLanguage || 'vi',
-    isPolicy: (initialDocument as any)?.isPolicy || initialDocument?.suggestedIsPolicy || false,
+    isPolicy: initialDocument?.isPolicy || initialDocument?.suggestedIsPolicy || false,
   });
   const [tagInput, setTagInput] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -478,13 +478,16 @@ setStep(4);
                 )}
 
                 <div className="flex justify-between pt-4">
-                  <button
-                    onClick={() => setStep(2)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Quay lại
-                  </button>
+                  {!initialDocument && (
+                    <button
+                      onClick={() => setStep(2)}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Quay lại
+                    </button>
+                  )}
+                  {initialDocument && <div />}
                   <button
                     onClick={handleConfirm}
                     disabled={confirming || !formData.title.trim()}

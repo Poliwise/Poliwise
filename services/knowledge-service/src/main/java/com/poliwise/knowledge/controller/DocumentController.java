@@ -241,6 +241,16 @@ public class DocumentController {
                 .body(stream);
     }
 
+    // ===== 7b. Get Extracted Text Content =====
+    @GetMapping("/{documentId}/content")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<String> getDocumentContent(
+            @PathVariable UUID documentId,
+            @RequestParam(required = false) Integer version) {
+        String content = documentManagementService.getExtractedText(documentId, version);
+        return ResponseEntity.ok(content);
+    }
+
     // ===== 8. Cancel Upload (STAGING only) =====
     @DeleteMapping("/{documentId}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
