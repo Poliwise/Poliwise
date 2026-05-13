@@ -8,6 +8,7 @@ from .retrieval import RetrievalChunk
 class GenerationResult(BaseModel):
     content: str
     model_used: str
+    model_name_actual: Optional[str] = None
     tokens_prompt: int
     tokens_completion: int
     tokens_total: int

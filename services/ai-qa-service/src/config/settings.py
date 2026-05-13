@@ -26,17 +26,31 @@ class Settings(BaseSettings):
     embedding_url: str = "http://bge-m3-embedding:80"
     reranker_url: Optional[str] = "http://reranker:8002"
 
-    llm_provider: str = "groq"
-    llm_api_key: Optional[str] = None
-    local_model_name: str = "qwen3-8b"
-    groq_model_name: str = "llama-3.3-70b-versatile"
-    llm_base_url: str = "https://api.groq.com/openai/v1"
-    llm_max_tokens: int = 1024
-    llm_temperature: float = 0.3
+    # Layer 1 & 2 - Groq
+    groq_api_key: str = Field(..., description="Groq API Key for pipeline layers")
+    layer1_model: str = "meta-llama/llama-prompt-guard-2-86m"
+    layer1_fail_open: bool = True
+    layer2_model: str = "llama-3.1-8b-instant"
+    layer2_max_tokens_classify: int = 10
+    layer2_max_tokens_respond: int = 256
 
-    gateway_api_key: Optional[str] = None
-    gateway_model: str = "gemini-1.5-flash"
-    gateway_enabled: bool = True
+    # Layer 3 - Remote APIs
+    openrouter_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    default_model_id: str = "local/qwen3-8b"
+    model_rate_limit_cooldown_minutes: int = 5
+    
+    # Layer 3 - Local LLM
+    local_llm_base_url: str = "http://host.docker.internal:8080/v1"
+    local_llm_model_name: str = "qwen3-8b"
+    
+    # Title Generation
+    title_generation_enabled: bool = True
+    title_default_patterns: str = "New Conversation,"
+
+    # Context Isolation
+    context_layer3_only: bool = True
+    max_layer3_context_pairs: int = 5
 
     retrieval_limit: int = 10
     rerank_limit: int = 5
