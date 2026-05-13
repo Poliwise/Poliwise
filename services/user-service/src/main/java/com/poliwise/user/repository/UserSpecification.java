@@ -4,9 +4,6 @@ import com.poliwise.user.entity.User;
 import com.poliwise.user.enums.AccountStatus;
 import com.poliwise.user.enums.UserRole;
 import jakarta.persistence.criteria.Predicate;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -29,7 +26,7 @@ public class UserSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             if (excludeDeleted != null && excludeDeleted) {
-                predicates.add(cb.isNull(root.get("deletedAt")));
+                predicates.add(cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE));
             }
 
             if (StringUtils.hasText(keyword)) {
@@ -58,13 +55,10 @@ public class UserSpecification {
     }
 
     public static Specification<User> deletedOnly() {
-        return (root, query, cb) -> cb.isNotNull(root.get("deletedAt"));
+        return (root, query, cb) -> cb.equal(root.get("accountStatus"), AccountStatus.REVOKED);
     }
 
     public static Specification<User> activeOnly() {
-        return (root, query, cb) -> cb.and(
-                cb.isNull(root.get("deletedAt")),
-                cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE)
-        );
+        return (root, query, cb) -> cb.equal(root.get("accountStatus"), AccountStatus.ACTIVE);
     }
 }

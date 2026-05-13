@@ -185,7 +185,12 @@ export class ProxyService {
         `Response from ${context.url}: status=${response.status}, ` +
         `auth-received=${response.headers['authorization'] || 'none'}`,
       );
-      return { _proxied: true, data: response.data, statusCode: response.status };
+      return {
+        _proxied: true,
+        data: response.data,
+        statusCode: response.status,
+        headers: this.extractProxyHeaders(response.headers as Record<string, string>),
+      };
     } catch (error) {
       const axiosError = error as AxiosError;
       this.logger.error(`Service call failed: ${axiosError.message}`, axiosError.stack);
@@ -265,7 +270,12 @@ export class ProxyService {
     };
 
     return from(this.axiosInstance.request(config)).pipe(
-      map((response) => ({ _proxied: true, data: response.data, statusCode: response.status })),
+      map((response) => ({
+        _proxied: true,
+        data: response.data,
+        statusCode: response.status,
+        headers: this.extractProxyHeaders(response.headers as Record<string, string>),
+      })),
       catchError((error: AxiosError) => {
         const traceId = context.headers[TRACE_ID_HEADER] || undefined;
         if (
@@ -307,7 +317,10 @@ export class ProxyService {
 
     for (const [key, value] of Object.entries(request.headers)) {
       if (!hopByHopHeaders.includes(key.toLowerCase()) && value) {
-        headers[key] = Array.isArray(value) ? value[0] : value;
+        const normalized = Array.isArray(value) ? value[0] : value;
+        if (normalized && normalized !== 'undefined') {
+          headers[key] = normalized;
+        }
       }
     }
 
@@ -324,6 +337,32 @@ export class ProxyService {
     }
 
     return headers;
+  }
+
+  /**
+   * Extract and normalize response headers from downstream service to forward to client.
+   * Only forwards headers that are safe/proxy-relevant; skips hop-by-hop headers.
+   */
+  private extractProxyHeaders(
+    downstreamHeaders: Record<string, string>,
+  ): Record<string, string> {
+    const hopByHopHeaders = [
+      'transfer-encoding',
+      'connection',
+      'keep-alive',
+      'proxy-authenticate',
+      'proxy-authorization',
+      'te',
+      'trailers',
+      'upgrade',
+    ];
+    const forwarded: Record<string, string> = {};
+    for (const [key, value] of Object.entries(downstreamHeaders)) {
+      if (!hopByHopHeaders.includes(key.toLowerCase()) && value !== undefined) {
+        forwarded[key] = Array.isArray(value) ? value[0] : value;
+      }
+    }
+    return forwarded;
   }
 
   getServiceHealth(service: ServiceName): Promise<boolean> {

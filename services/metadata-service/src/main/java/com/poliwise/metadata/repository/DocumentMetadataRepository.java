@@ -23,6 +23,8 @@ public interface DocumentMetadataRepository extends JpaRepository<DocumentMetada
 
         Optional<DocumentMetadata> findByDocumentId(UUID documentId);
 
+        Optional<DocumentMetadata> findByDocumentIdAndDeletedAtIsNull(UUID documentId);
+
         Page<DocumentMetadata> findByStatusInAndDeletedAtIsNullOrderByUpdatedAtDesc(
                         Collection<DocumentStatus> statuses, Pageable pageable);
 
@@ -39,8 +41,11 @@ public interface DocumentMetadataRepository extends JpaRepository<DocumentMetada
         List<DocumentMetadata> findExpiredDocuments(@Param("date") LocalDate date);
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
-        @Query("select dm from DocumentMetadata dm where dm.id = :id")
+        @Query("select dm from DocumentMetadata dm where dm.id = :id and dm.deletedAt is null")
         Optional<DocumentMetadata> findByIdForUpdate(@Param("id") UUID id);
+
+        @Query("select dm from DocumentMetadata dm where dm.id = :id and dm.deletedAt is null")
+        Optional<DocumentMetadata> findByIdAndDeletedAtIsNull(@Param("id") UUID id);
 
         List<DocumentMetadata> findByStatus(DocumentStatus status);
 

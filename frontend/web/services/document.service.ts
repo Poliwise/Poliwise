@@ -205,7 +205,13 @@ export const documentService = {
    * Download document as blob
    */
   async downloadDocument(documentId: string, filename: string): Promise<void> {
-    const blob = await api.documents.download(documentId);
+    const token = localStorage.getItem('accessToken');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/documents/${documentId}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    const blob = await res.blob();
     const url = window.URL.createObjectURL(new Blob([blob]));
     const link = document.createElement('a');
     link.href = url;
@@ -260,6 +266,7 @@ export const documentService = {
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
     const blob = await res.blob();
     const url = window.URL.createObjectURL(new Blob([blob]));
     const link = document.createElement('a');
@@ -545,6 +552,22 @@ export const tagService = {
 
 export const accessRuleService = {
   /**
+   * Get all access rules (for admin dashboard)
+   */
+  async getAllRules(): Promise<AccessRule[]> {
+    const res = await api.metadata.getAllAccessRules();
+    return res as AccessRule[];
+  },
+
+  /**
+   * Get access rules by document ID (uses metadata lookup)
+   */
+  async getRulesByDocumentId(documentId: string): Promise<AccessRule[]> {
+    const res = await api.metadata.getAccessRulesByDocumentId(documentId);
+    return res as AccessRule[];
+  },
+
+  /**
    * Get access rules for a document metadata
    */
   async getRules(metadataId: string): Promise<AccessRule[]> {
@@ -553,11 +576,37 @@ export const accessRuleService = {
   },
 
   /**
-   * Add access rule to document (ADMIN only)
+   * Add access rule to document (ADMIN only) - uses documentId
    */
-  async addRule(metadataId: string, rule: CreateAccessRuleRequest): Promise<AccessRule> {
-    const result = await api.metadata.createAccessRule({ documentMetadataId: metadataId, ...rule });
+  async addRule(documentId: string, rule: CreateAccessRuleRequest): Promise<AccessRule> {
+    const result = await api.metadata.createAccessRule({ documentId, ...rule });
     return result as AccessRule;
+  },
+
+  /**
+   * Update an existing access rule (ADMIN only)
+   */
+  async updateRule(ruleId: string, rule: {
+    targetType: 'ROLE' | 'DEPARTMENT' | 'USER';
+    targetRole?: string;
+    targetDepartmentId?: string;
+    targetUserId?: string;
+    permission: 'VIEW' | 'DENY';
+  }): Promise<AccessRule> {
+    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/access-rules/${ruleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      body: JSON.stringify(rule),
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Update failed' }));
+      throw new Error(error.message || `Update failed with status ${res.status}`);
+    }
+    const data = await res.json();
+    return (data.data || data) as AccessRule;
   },
 
   /**
@@ -565,6 +614,42 @@ export const accessRuleService = {
    */
   async deleteRule(ruleId: string): Promise<void> {
     await api.metadata.deleteAccessRule(ruleId);
+  },
+
+  /**
+   * Simulate access — preview who in the company has access to a document (ADMIN only)
+   */
+  async simulateAccess(documentId: string): Promise<{
+    documentId: string;
+    metadataId: string;
+    totalCompanyUsers: number;
+    usersWithAccess: number;
+    usersWithoutAccess: number;
+    grantedUsers: Array<{
+      userId: string;
+      username: string;
+      fullName: string | null;
+      role: string | null;
+      departmentId: string;
+      departmentName: string;
+      hasAccess: boolean;
+      reason: string;
+      simulatedAt: string;
+    }>;
+    deniedUsers: Array<{
+      userId: string;
+      username: string;
+      fullName: string | null;
+      role: string | null;
+      departmentId: string;
+      departmentName: string;
+      hasAccess: boolean;
+      reason: string;
+      simulatedAt: string;
+    }>;
+    simulatedAt: string;
+  }> {
+    return await api.metadata.simulateAccess(documentId);
   },
 };
 

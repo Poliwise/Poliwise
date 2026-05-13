@@ -147,7 +147,7 @@ public class DepartmentService {
      */
     @Transactional(readOnly = true)
     public List<DepartmentResponse> getActiveDepartments() {
-        return departmentRepository.findByParentIsNullAndIsActiveTrueOrderByNameAsc().stream()
+        return departmentRepository.findByIsActiveTrueOrderByNameAsc().stream()
                 .map(d -> toResponse(d, getUserCount(d.getId())))
                 .toList();
     }

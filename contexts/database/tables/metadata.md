@@ -215,11 +215,14 @@ CHECK (permission IN ('VIEW', 'DENY'));
 
 - **Permission Resolution Priority** (when checking access):
   1. `DENY` rules for specific user/role/department override all
-  2. `VIEW` rules for specific user/role/department grant access
+  2. `VIEW` rules for specific user/role/department grant access (OR algorithm — any matching VIEW grants access)
   3. `metadata.document_metadata.access_level` fallback:
      - `PUBLIC` → all authenticated users
      - `DEPARTMENT_ONLY` → only users in `department_id`
+     - `RESTRICTED` → only ADMIN (default on new upload)
   4. Default: DENY
+
+- **Default on Upload**: New documents start with no access rules and `accessLevel = RESTRICTED`. Only ADMIN can access until rules are added.
 
 - **Flattening**: During ingestion, `ingestion-service` reads these rules and flattens them into `knowledge.chunks.allowed_roles`, `allowed_departments`, `allowed_users` arrays for fast AI search. See `contexts/authorization/dual-strategy.md`.
 
@@ -253,7 +256,7 @@ CREATE TYPE document_status AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
 ### access_level
 
 ```sql
-CREATE TYPE access_level AS ENUM ('PUBLIC', 'DEPARTMENT_ONLY');
+CREATE TYPE access_level AS ENUM ('PUBLIC', 'DEPARTMENT_ONLY', 'RESTRICTED');
 ```
 
 ### rule_target_type

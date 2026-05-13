@@ -1,7 +1,4 @@
 services:
-  # ============================================================
-  # Infrastructure
-  # ============================================================
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -252,6 +249,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
       POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       POLIWISE_JWT_ISSUER: poliwise-auth-service
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
@@ -263,6 +261,8 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      user-service:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8084/actuator/health" ]

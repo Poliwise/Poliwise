@@ -1,6 +1,8 @@
 package com.poliwise.metadata.repository;
 
 import com.poliwise.metadata.entity.DocumentAccessRule;
+import com.poliwise.metadata.enums.RulePermission;
+import com.poliwise.metadata.enums.RuleTargetType;
 import com.poliwise.metadata.enums.UserRole;
 import java.util.List;
 import java.util.UUID;
@@ -14,8 +16,8 @@ public interface DocumentAccessRuleRepository extends JpaRepository<DocumentAcce
 
         List<DocumentAccessRule> findByDocumentMetadataId(UUID documentMetadataId);
 
-        List<DocumentAccessRule> findByDocumentMetadataIdAndTargetRole(UUID documentMetadataId,
-                        UserRole targetRole);
+        List<DocumentAccessRule> findByDocumentMetadataIdAndTargetType(UUID documentMetadataId,
+                        RuleTargetType targetType);
 
         List<DocumentAccessRule> findByDocumentMetadataIdAndTargetDepartmentId(
                         UUID documentMetadataId, UUID targetDepartmentId);
@@ -24,4 +26,13 @@ public interface DocumentAccessRuleRepository extends JpaRepository<DocumentAcce
                         UUID targetUserId);
 
         long deleteByDocumentMetadataId(UUID documentMetadataId);
+
+        boolean existsByDocumentMetadataIdAndTargetTypeAndTargetRole(
+                        UUID documentMetadataId, RuleTargetType targetType, UserRole targetRole);
+
+        boolean existsByDocumentMetadataIdAndTargetTypeAndTargetDepartmentId(
+                        UUID documentMetadataId, RuleTargetType targetType, UUID targetDepartmentId);
+
+        boolean existsByDocumentMetadataIdAndTargetTypeAndTargetUserId(
+                        UUID documentMetadataId, RuleTargetType targetType, UUID targetUserId);
 }

@@ -1,7 +1,9 @@
 package com.poliwise.metadata.controller;
 
 import com.poliwise.metadata.dto.AccessRuleResponse;
+import com.poliwise.metadata.dto.AccessRuleSimulationResult;
 import com.poliwise.metadata.dto.CreateAccessRuleRequest;
+import com.poliwise.metadata.dto.UpdateAccessRuleRequest;
 import com.poliwise.metadata.security.SecurityUtils;
 import com.poliwise.metadata.service.AccessRuleService;
 import jakarta.validation.Valid;
@@ -25,7 +27,6 @@ public class AccessRuleController {
 
     /**
      * Get access rules by metadata ID.
-     * Frontend calls: GET /api/v1/access-rules?metadataId=...
      */
     @GetMapping
     public ResponseEntity<List<AccessRuleResponse>> getByMetadataId(
@@ -53,8 +54,21 @@ public class AccessRuleController {
             @Valid @RequestBody CreateAccessRuleRequest request) {
         UUID createdBy = SecurityUtils.getCurrentUserId();
         AccessRuleResponse response = accessRuleService.create(
-                request.metadataId(), request, createdBy);
+                request.documentId(), request, createdBy);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Update an existing access rule.
+     */
+    @PutMapping("/{ruleId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AccessRuleResponse> update(
+            @PathVariable UUID ruleId,
+            @Valid @RequestBody UpdateAccessRuleRequest request) {
+        UUID updatedBy = SecurityUtils.getCurrentUserId();
+        AccessRuleResponse response = accessRuleService.update(ruleId, request, updatedBy);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -65,5 +79,26 @@ public class AccessRuleController {
     public ResponseEntity<Void> delete(@PathVariable UUID ruleId) {
         accessRuleService.delete(ruleId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Get access rules by document ID (via metadata lookup).
+     */
+    @GetMapping("/by-document/{documentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AccessRuleResponse>> getByDocumentId(@PathVariable UUID documentId) {
+        List<AccessRuleResponse> rules = accessRuleService.getByDocumentId(documentId);
+        return ResponseEntity.ok(rules);
+    }
+
+    /**
+     * Simulate and preview who in the company has access to a document.
+     * Shows all users grouped by access (granted/denied) with reasons.
+     */
+    @GetMapping("/simulation/by-document/{documentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AccessRuleSimulationResult> simulateByDocumentId(@PathVariable UUID documentId) {
+        AccessRuleSimulationResult result = accessRuleService.simulateAccess(documentId);
+        return ResponseEntity.ok(result);
     }
 }

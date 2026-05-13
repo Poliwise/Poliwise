@@ -142,8 +142,8 @@ GET    /api/v1/users/{id}/login-history
 
 **user-service** (`:8082`):
 ```
-# User profile endpoints
-GET    /api/v1/users/me              # Get own profile
+# User profile endpoints (all authenticated users)
+GET    /api/v1/users/me              # Get own full profile (extended fields: fullName, phone, position, bio, etc.)
 PUT    /api/v1/users/me              # Update own profile
 PATCH  /api/v1/users/me/department   # Change own department
 GET    /api/v1/users/me/status       # Get account status
@@ -176,12 +176,36 @@ DELETE /api/v1/documents/{id}
 
 **metadata-service** (`:8084`):
 ```
-GET    /api/v1/metadata/categories
-GET    /api/v1/metadata/tags
-GET    /api/v1/metadata/documents/{id}
-PUT    /api/v1/metadata/documents/{id}
-POST   /api/v1/metadata/access-rules
-GET    /api/v1/metadata/documents/{id}/access
+# Categories (public read)
+GET    /api/v1/categories/active           # Public
+GET    /api/v1/categories/active/tree      # Authenticated
+GET    /api/v1/categories/active/children  # Authenticated
+
+# Categories admin CRUD (ADMIN only)
+ALL    /api/v1/categories                  # CRUD operations
+ALL    /api/v1/categories/*path
+
+# Tags (public read)
+GET    /api/v1/tags                        # Authenticated
+GET    /api/v1/tags/popular               # Authenticated
+GET    /api/v1/tags/search                # Authenticated
+
+# Tags admin CRUD (ADMIN only)
+ALL    /api/v1/tags                        # CRUD operations
+ALL    /api/v1/tags/*path
+
+# Document metadata (ADMIN only)
+ALL    /api/v1/metadata                   # CRUD operations
+ALL    /api/v1/metadata/*path
+
+# Access Rules (ADMIN only for create/update/delete)
+GET     /api/v1/access-rules?metadataId=   # Get rules by metadata ID
+GET     /api/v1/access-rules/all           # Get all rules
+POST    /api/v1/access-rules               # Create rule
+PUT     /api/v1/access-rules/{ruleId}      # Update rule
+DELETE  /api/v1/access-rules/{ruleId}      # Delete rule
+GET     /api/v1/access-rules/by-document/{documentId}  # Get rules by document ID
+GET     /api/v1/access-rules/simulation/by-document/{documentId}  # Simulate access (preview who has access)
 ```
 
 **feedback-service** (`:8085`):
@@ -308,24 +332,34 @@ All routes defined in `services/api-gateway/src/proxy/proxy.controller.ts`:
 
 ```typescript
 const routes: ProxyRoute[] = [
-  // Auth (handled by auth module internally)
+  // Auth (handled by auth-proxy.controller.ts internally)
   { path: '/api/v1/auth/login', method: 'POST', target: AUTH_SERVICE_URL, guards: [], roles: [] },
-  
-  // User service
+
+  // User "me" — self-service profile (routes to user-service for extended profile data)
   { path: '/api/v1/users/me', method: 'GET', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
-  { path: '/api/v1/users', method: 'GET', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['MANAGER', 'ADMIN'] },
-  
+  { path: '/api/v1/users/me', method: 'PUT', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
+  { path: '/api/v1/users/me/status', method: 'GET', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
+  { path: '/api/v1/users/me/department', method: 'PATCH', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
+
+  // User management (routes to auth-service — ADMIN only)
+  { path: '/api/v1/users', method: 'ALL', target: AUTH_SERVICE_URL, guards: [JwtAuthGuard], roles: ['ADMIN'] },
+  { path: '/api/v1/users/*path', method: 'ALL', target: AUTH_SERVICE_URL, guards: [JwtAuthGuard], roles: ['ADMIN'] },
+
+  // Department management (routes to user-service — ADMIN only)
+  { path: '/api/v1/departments', method: 'ALL', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['ADMIN'] },
+  { path: '/api/v1/departments/*path', method: 'ALL', target: USER_SERVICE_URL, guards: [JwtAuthGuard], roles: ['ADMIN'] },
+
   // Knowledge service
   { path: '/api/v1/documents', method: 'GET', target: KNOWLEDGE_SERVICE_URL, guards: [JwtAuthGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
   { path: '/api/v1/documents/upload', method: 'POST', target: KNOWLEDGE_SERVICE_URL, guards: [JwtAuthGuard], roles: ['ADMIN'] },
-  
+
   // AI service
   { path: '/api/v1/ai/chat', method: 'POST', target: AI_QA_SERVICE_URL, guards: [JwtAuthGuard, RolesGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
   { path: '/api/v1/ai/chat/stream', method: 'POST', target: AI_QA_SERVICE_URL, guards: [JwtAuthGuard, RolesGuard], roles: ['USER', 'MANAGER', 'ADMIN'] },
-  
-  // Analytics
+
+  // Analytics (Manager+)
   { path: '/api/v1/analytics/dashboard', method: 'GET', target: FEEDBACK_SERVICE_URL, guards: [JwtAuthGuard], roles: ['MANAGER', 'ADMIN'] },
-  
+
   // Public health check (no auth)
   { path: '/health', method: 'GET', target: API_GATEWAY_URL, guards: [], roles: [] },
 ];
@@ -431,6 +465,6 @@ services:
 
 ---
 
-**Last Updated**: 2026-04-08
+**Last Updated**: 2026-05-05
 **Maintained By**: Architecture Team
 **Critical**: Any changes to service boundaries require team-wide review.

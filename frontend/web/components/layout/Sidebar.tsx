@@ -83,12 +83,6 @@ const ADMIN_ITEMS: NavItem[] = [
     roles: [UserRole.ADMIN],
   },
   {
-    label: 'Quyền truy cập',
-    href: '/admin/access-rules',
-    icon: <Shield size={20} />,
-    roles: [UserRole.ADMIN],
-  },
-  {
     label: 'Nhật ký hệ thống',
     href: '/admin/audit-logs',
     icon: <ScrollText size={20} />,

@@ -56,38 +56,146 @@ export class ProxyController {
     );
   }
 
-  // ===== User Management Endpoints =====
+  // ===== User "me" endpoints (authenticated self-service — route to user-service for profile data) =====
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('users')
-  @Roles(UserRole.ADMIN)
-  handleUsersRoot(@Req() request: Request) {
-    return this.proxyService.forward(
-      ServiceName.AUTH,
-      request,
-      downstreamPath(request, '/api/v1/users'),
-    );
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('users/*path')
-  @Roles(UserRole.ADMIN)
-  handleUsers(@Req() request: Request) {
-    return this.proxyService.forward(
-      ServiceName.AUTH,
-      request,
-      downstreamPath(request, '/api/v1/users'),
-    );
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @All('users/me/*path')
+  @Get('users/me')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleUserMe(@Req() request: Request) {
-    const path = '/api/v1/auth/me' + request.path.replace('/api/v1/users/me', '');
+  handleUserMeGet(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('users/me')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMePut(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/me/status')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMeStatus(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me/status',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Patch('users/me/department')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleUserMeDepartment(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      '/api/v1/users/me/department',
+    );
+  }
+
+  // ===== User Management Endpoints =====
+
+  /** GET /users — list/search users → user-service (returns department info) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users')
+  @Roles(UserRole.ADMIN)
+  handleUsersList(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** POST /users — create user → auth-service (handles registration + credentials) */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('users')
+  @Roles(UserRole.ADMIN)
+  handleUsersCreate(@Req() request: Request) {
     return this.proxyService.forward(
       ServiceName.AUTH,
       request,
-      path || '/api/v1/auth/me',
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** GET /users/:id — get user detail → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/:id')
+  @Roles(UserRole.ADMIN)
+  handleUserGet(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** PUT /users/:id — update user → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('users/:id')
+  @Roles(UserRole.ADMIN)
+  handleUserUpdate(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** DELETE /users/:id — soft-delete user → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Delete('users/:id')
+  @Roles(UserRole.ADMIN)
+  handleUserDelete(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** PATCH /users/:id/status — change status → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Patch('users/:id/status')
+  @Roles(UserRole.ADMIN)
+  handleUserStatus(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** POST /users/bulk — bulk create → auth-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('users/bulk')
+  @Roles(UserRole.ADMIN)
+  handleUsersBulkCreate(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.AUTH,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** Get login history for a specific user — accessible by the user themselves */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('users/:userId/login-history')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleLoginHistory(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.AUTH,
+      request,
+      downstreamPath(request, '/api/v1/users'),
     );
   }
 
@@ -328,6 +436,19 @@ export class ProxyController {
       ServiceName.METADATA,
       request,
       '/api/v1/access-rules' + (relative === '/' ? '' : relative) + (request.url.includes('?') && !request.url.includes(relative) ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  // Simulation endpoint — check who has access to a document (ADMIN only)
+  @Get('access-rules/simulation/by-document/:documentId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  handleAccessRuleSimulation(@Req() request: Request) {
+    const documentId = (request.params as Record<string, string>).documentId;
+    return this.proxyService.forward(
+      ServiceName.METADATA,
+      request,
+      `/api/v1/access-rules/simulation/by-document/${documentId}`,
     );
   }
 

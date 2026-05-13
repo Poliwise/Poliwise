@@ -27,6 +27,7 @@ import {
   accessRuleService,
   categoryService,
 } from '@/services/document.service';
+import { AccessRuleModal } from '@/components/documents/AccessRuleModal';
 import type {
   Document,
   DocumentDetail,
@@ -45,7 +46,7 @@ import { useAuthStore, useIsAdmin, useIsManager } from '@/store/auth-store';
 import PreviewModal from '@/components/documents/PreviewModal';
 import { UploadModal } from '@/components/documents/UploadModal';
 
-type Tab = 'detail' | 'content' | 'versions' | 'access' | 'audit';
+type Tab = 'detail' | 'content' | 'versions' | 'access' | 'simulation' | 'audit';
 
 export default function DocumentDetailPage() {
   const router = useRouter();
@@ -57,7 +58,40 @@ export default function DocumentDetailPage() {
   // State
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [metadata, setMetadata] = useState<DocumentMetadata | null>(null);
+  const [metadataMissing, setMetadataMissing] = useState(false);
   const [accessRules, setAccessRules] = useState<AccessRule[]>([]);
+
+  // Simulation state
+  const [simulationData, setSimulationData] = useState<{
+    documentId: string;
+    metadataId: string;
+    totalCompanyUsers: number;
+    usersWithAccess: number;
+    usersWithoutAccess: number;
+    grantedUsers: Array<{
+      userId: string;
+      username: string;
+      fullName: string | null;
+      role: string | null;
+      departmentId: string;
+      departmentName: string;
+      hasAccess: boolean;
+      reason: string;
+    }>;
+    deniedUsers: Array<{
+      userId: string;
+      username: string;
+      fullName: string | null;
+      role: string | null;
+      departmentId: string;
+      departmentName: string;
+      hasAccess: boolean;
+      reason: string;
+    }>;
+  } | null>(null);
+  const [simulationLoading, setSimulationLoading] = useState(false);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
+
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
@@ -104,29 +138,23 @@ export default function DocumentDetailPage() {
       try {
         const meta = await documentMetadataService.getMetadataByDocumentId(documentId);
         setMetadata(meta);
+        setMetadataMissing(false);
       } catch (err: any) {
-        // Metadata may not exist if document was uploaded but not confirmed yet
-        if (err?.status === 404 || err?.statusCode === 404) {
+        const errStatus = err?.status || err?.statusCode || (err?.response?.status);
+        if (errStatus === 404) {
           console.log('No metadata found for document (upload not confirmed yet)');
+          setMetadataMissing(true);
         } else {
           console.error('Failed to load metadata:', err);
         }
       }
 
-      // Load access rules — use metadata ID if available, otherwise skip
-      // Access rules are associated with document_metadata, not document_versions
-      if (normalizedDoc.versions && normalizedDoc.versions.length > 0) {
-        try {
-          // Try to get metadata first to get the metadata ID for access rules
-          const meta = await documentMetadataService.getMetadataByDocumentId(documentId);
-          if (meta?.id) {
-            const rules = await accessRuleService.getRules(meta.id);
-            setAccessRules(rules);
-          }
-        } catch (err) {
-          // Access rules are optional, don't block the page
-          console.log('No access rules found');
-        }
+      // Load access rules by document ID
+      try {
+        const rules = await accessRuleService.getRulesByDocumentId(documentId);
+        setAccessRules(rules);
+      } catch (err) {
+        console.error('Failed to load access rules:', err);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load document');
@@ -159,11 +187,34 @@ export default function DocumentDetailPage() {
     }
   };
 
+  const loadSimulation = async () => {
+    setSimulationLoading(true);
+    setSimulationError(null);
+    try {
+      const result = await accessRuleService.simulateAccess(documentId);
+      setSimulationData({
+        ...result,
+        grantedUsers: result.grantedUsers.map(u => ({ ...u })),
+        deniedUsers: result.deniedUsers.map(u => ({ ...u })),
+      });
+    } catch (err: any) {
+      setSimulationError(err?.message || err?.response?.data?.message || 'Không thể mô phỏng quyền truy cập');
+    } finally {
+      setSimulationLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'audit') {
       loadAuditLogs();
     } else if (activeTab === 'content' && !extractedContent) {
       loadExtractedContent();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'simulation') {
+      loadSimulation();
     }
   }, [activeTab]);
 
@@ -282,6 +333,7 @@ export default function DocumentDetailPage() {
               { id: 'content', label: 'Nội dung', icon: FileText },
               { id: 'versions', label: 'Phiên bản', icon: History },
               { id: 'access', label: 'Phân quyền', icon: Shield },
+              { id: 'simulation', label: 'Mô phỏng', icon: Shield },
               { id: 'audit', label: 'Nhật ký', icon: Clock },
             ].map((tab) => (
               <button
@@ -568,11 +620,22 @@ export default function DocumentDetailPage() {
         {/* Access Tab */}
         {activeTab === 'access' && (
           <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">Quy tắc truy cập</h2>
+              {metadataMissing && (
+                <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                  Metadata chưa tồn tại
+                </span>
+              )}
             </div>
             <div className="p-6">
-              {accessRules.length > 0 ? (
+              {metadataMissing ? (
+                <div className="text-center text-gray-500 py-8">
+                  <Shield className="w-12 h-12 text-yellow-300 mx-auto mb-3" />
+                  <p className="font-medium text-yellow-700">Tài liệu chưa có metadata</p>
+                  <p className="text-sm mt-1">Metadata của tài liệu chưa được tạo. Vui lòng xác nhận metadata trước khi thiết lập quyền truy cập.</p>
+                </div>
+              ) : accessRules.length > 0 ? (
                 <div className="space-y-3">
                   {accessRules.map((rule) => (
                     <div key={rule.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -587,15 +650,45 @@ export default function DocumentDetailPage() {
                           <p className="text-xs text-gray-500">{rule.targetType}</p>
                         </div>
                       </div>
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          rule.permission === 'VIEW'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {rule.permission === 'VIEW' ? 'Cho phép' : 'Từ chối'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            rule.permission === 'VIEW'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {rule.permission === 'VIEW' ? 'Cho phép' : 'Từ chối'}
+                        </span>
+                        {isAdmin && (
+                          <>
+                            <AccessRuleModal
+                              documentId={documentId}
+                              editingRule={rule}
+                              onSuccess={async () => {
+                                const rules = await accessRuleService.getRulesByDocumentId(documentId);
+                                setAccessRules(rules);
+                              }}
+                            />
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Xóa quy tắc này?')) return;
+                                try {
+                                  await accessRuleService.deleteRule(rule.id);
+                                  const rules = await accessRuleService.getRulesByDocumentId(documentId);
+                                  setAccessRules(rules);
+                                } catch {
+                                  alert('Xóa thất bại');
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600"
+                              title="Xóa quy tắc"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -606,7 +699,179 @@ export default function DocumentDetailPage() {
                   <p className="text-sm">Tài liệu này có thể được truy cập công khai</p>
                 </div>
               )}
+              {isAdmin && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <AccessRuleModal
+                    documentId={documentId}
+                    onSuccess={async () => {
+                      // Reload both metadata (in case it was auto-created) and access rules
+                      try {
+                        const meta = await documentMetadataService.getMetadataByDocumentId(documentId);
+                        setMetadata(meta);
+                        setMetadataMissing(false);
+                      } catch (err: any) {
+                        const errStatus = err?.status || err?.statusCode || (err?.response?.status);
+                        if (errStatus === 404) {
+                          setMetadataMissing(true);
+                        }
+                      }
+                      const rules = await accessRuleService.getRulesByDocumentId(documentId);
+                      setAccessRules(rules);
+                    }}
+                  />
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* Simulation Tab */}
+        {activeTab === 'simulation' && (
+          <div className="space-y-6">
+            {/* Summary Cards */}
+            {simulationData && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+                  <p className="text-sm text-gray-500">Tổng nhân viên</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">{simulationData.totalCompanyUsers}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+                  <p className="text-sm text-gray-500">Được phép truy cập</p>
+                  <p className="text-3xl font-bold text-green-600 mt-1">{simulationData.usersWithAccess}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+                  <p className="text-sm text-gray-500">Không được phép</p>
+                  <p className="text-3xl font-bold text-red-500 mt-1">{simulationData.usersWithoutAccess}</p>
+                </div>
+              </div>
+            )}
+
+            {simulationLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 flex flex-col items-center">
+                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
+                <p className="text-gray-500">Đang mô phỏng quyền truy cập...</p>
+              </div>
+            ) : simulationError ? (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-start p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-red-800">Lỗi mô phỏng</p>
+                    <p className="text-sm text-red-600 mt-1">{simulationError}</p>
+                  </div>
+                </div>
+              </div>
+            ) : simulationData ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Granted Users */}
+                <div className="bg-white rounded-lg shadow">
+                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                      <span className="w-3 h-3 rounded-full bg-green-500 mr-2" />
+                      Được phép truy cập ({simulationData.grantedUsers.length})
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                    {simulationData.grantedUsers.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500 text-sm">
+                        Không có ai được phép truy cập
+                      </div>
+                    ) : (
+                      simulationData.grantedUsers.map((user) => (
+                        <div key={user.userId} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 text-sm font-medium mr-3">
+                              {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {user.fullName || user.username}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {user.role && (
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-2 ${
+                                    user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                    user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {user.role}
+                                  </span>
+                                )}
+                                <span className="text-gray-400">•</span>
+                                <span className="ml-2">{user.departmentName}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                            {user.reason}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Denied Users */}
+                <div className="bg-white rounded-lg shadow">
+                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                      <span className="w-3 h-3 rounded-full bg-red-500 mr-2" />
+                      Không được phép ({simulationData.deniedUsers.length})
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                    {simulationData.deniedUsers.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500 text-sm">
+                        Tất cả đều được phép truy cập
+                      </div>
+                    ) : (
+                      simulationData.deniedUsers.map((user) => (
+                        <div key={user.userId} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-700 text-sm font-medium mr-3">
+                              {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {user.fullName || user.username}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {user.role && (
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-2 ${
+                                    user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                    user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {user.role}
+                                  </span>
+                                )}
+                                <span className="text-gray-400">•</span>
+                                <span className="ml-2">{user.departmentName}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                            {user.reason}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-12 flex flex-col items-center">
+                <Shield className="w-12 h-12 text-gray-300 mb-3" />
+                <p className="text-gray-500 mb-4">Nhấn nút bên dưới để xem ai có quyền truy cập tài liệu này</p>
+                <button
+                  onClick={loadSimulation}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Mô phỏng quyền truy cập
+                </button>
+              </div>
+            )}
           </div>
         )}
 
