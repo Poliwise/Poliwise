@@ -26,11 +26,13 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Shield,
 } from 'lucide-react';
 import {
   documentService,
   categoryService,
   tagService,
+  accessRuleService,
 } from '@/services/document.service';
 import type {
   Document,
@@ -55,19 +57,19 @@ export default function DocumentsPage() {
   const router = useRouter();
   const { user: authUser } = useAuthStore();
   const isAdmin = useIsAdmin();
-  
+
   // State
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  
+
   // Filters
   const [filters, setFilters] = useState<{
     fileType?: string;
@@ -75,17 +77,20 @@ export default function DocumentsPage() {
     categoryId?: string;
   }>({});
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // View mode
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
+
   // Categories and tags for filter dropdowns
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
-  
+
   // Upload modal
   const [showUploadModal, setShowUploadModal] = useState(false);
-  
+
+  // Access rules count per document (admin only)
+  const [accessRulesCount, setAccessRulesCount] = useState<Record<string, number>>({});
+
   // Actions menu
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
@@ -136,6 +141,20 @@ export default function DocumentsPage() {
       setDocuments(response.data || []);
       setTotalPages(response.totalPages);
       setTotal(response.total);
+
+      // Load access rules count for admin view
+      if (isAdmin && response.data && response.data.length > 0) {
+        const counts: Record<string, number> = {};
+        await Promise.all(response.data.map(async (doc) => {
+          try {
+            const rules = await accessRuleService.getRulesByDocumentId(doc.id);
+            counts[doc.id] = rules.length;
+          } catch {
+            counts[doc.id] = 0;
+          }
+        }));
+        setAccessRulesCount(counts);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load documents');
     } finally {
@@ -371,6 +390,7 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc.id}
                 document={doc}
+                accessRulesCount={isAdmin ? (accessRulesCount[doc.id] || 0) : 0}
                 onView={() => router.push(`/documents/${doc.id}`)}
                 onDownload={() => handleDownload(doc)}
                 onDelete={isAdmin ? () => handleDelete(doc) : undefined}
@@ -509,6 +529,7 @@ export default function DocumentsPage() {
 // Document Card Component
 function DocumentCard({
   document,
+  accessRulesCount,
   onView,
   onDownload,
   onDelete,
@@ -516,6 +537,7 @@ function DocumentCard({
   isActionOpen,
 }: {
   document: Document;
+  accessRulesCount?: number;
   onView: () => void;
   onDownload: () => void;
   onDelete?: () => void;
@@ -542,52 +564,63 @@ function DocumentCard({
               </div>
             </div>
           </div>
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAction();
-              }}
-              className="p-1 rounded hover:bg-gray-100"
-            >
-              <MoreVertical className="w-5 h-5 text-gray-400" />
-            </button>
-            {isActionOpen && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onView();
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  Xem chi tiết
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload();
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Tải xuống
-                </button>
-                {onDelete && (
+          <div className="flex items-center gap-2 ml-2">
+            {accessRulesCount !== undefined && accessRulesCount > 0 && (
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700"
+                title={`${accessRulesCount} quy tắc truy cập`}
+              >
+                <Shield className="w-3 h-3 mr-1" />
+                {accessRulesCount}
+              </span>
+            )}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction();
+                }}
+                className="p-1 rounded hover:bg-gray-100"
+              >
+                <MoreVertical className="w-5 h-5 text-gray-400" />
+              </button>
+              {isActionOpen && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete();
+                      onView();
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Xóa
+                    <Eye className="w-4 h-4 mr-2" />
+                    Xem chi tiết
                   </button>
-                )}
-              </div>
-            )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload();
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Tải xuống
+                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete();
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Xóa
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

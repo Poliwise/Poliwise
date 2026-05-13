@@ -2,6 +2,8 @@ package com.poliwise.metadata.dto;
 
 import com.poliwise.metadata.enums.AccessLevel;
 import com.poliwise.metadata.enums.DocumentStatus;
+import com.poliwise.metadata.enums.RulePermission;
+import com.poliwise.metadata.enums.RuleTargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,10 +26,10 @@ public record CreateDocumentMetadataRequest(
         List<AccessRuleDto> accessRules
 ) {
     public record AccessRuleDto(
-            String targetType,
+            RuleTargetType targetType,
             String targetRole,
             UUID targetDepartmentId,
             UUID targetUserId,
-            String permission
+            RulePermission permission
     ) {}
 }

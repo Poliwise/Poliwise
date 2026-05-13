@@ -12,6 +12,8 @@ import com.poliwise.metadata.entity.DocumentMetadata;
 import com.poliwise.metadata.entity.DocumentTag;
 import com.poliwise.metadata.entity.Tag;
 import com.poliwise.metadata.enums.DocumentStatus;
+import com.poliwise.metadata.enums.RulePermission;
+import com.poliwise.metadata.enums.RuleTargetType;
 import com.poliwise.metadata.event.MetadataEventPublisher;
 import com.poliwise.metadata.exception.ResourceNotFoundException;
 import com.poliwise.metadata.repository.*;
@@ -125,7 +127,7 @@ public class DocumentMetadataService {
     }
 
     public DocumentMetadataResponse getByDocumentId(UUID documentId) {
-        DocumentMetadata metadata = metadataRepository.findByDocumentId(documentId)
+        DocumentMetadata metadata = metadataRepository.findByDocumentIdAndDeletedAtIsNull(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document metadata not found for document: " + documentId));
         return toResponse(metadata);
     }
@@ -239,10 +241,14 @@ public class DocumentMetadataService {
                 .stream()
                 .map(rule -> new AccessRuleResponse(
                         rule.getId(), rule.getDocumentMetadataId(),
-                        rule.getTargetType(),
+                        rule.getTargetType() != null ? rule.getTargetType().name() : null,
                         rule.getTargetRole() != null ? rule.getTargetRole().name() : null,
-                        rule.getTargetDepartmentId(), rule.getTargetUserId(),
-                        rule.getPermission(), rule.getCreatedBy(), rule.getCreatedAt()))
+                        rule.getTargetDepartmentId(),
+                        null,
+                        rule.getTargetUserId(),
+                        null,
+                        rule.getPermission() != null ? rule.getPermission().name() : null,
+                        rule.getCreatedBy(), rule.getCreatedAt()))
                 .toList();
 
         return DocumentMetadataResponse.from(

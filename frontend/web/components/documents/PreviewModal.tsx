@@ -27,8 +27,9 @@ export default function PreviewModal({
   const [scale, setScale] = React.useState(100);
   const fetchControllerRef = React.useRef<AbortController | null>(null);
 
-  const isPdf = fileType?.toUpperCase() === 'PDF';
-  const isWord = ['DOCX', 'DOC'].includes(fileType?.toUpperCase() ?? '');
+  const normalizedFileType = typeof fileType === 'string' ? fileType.toUpperCase() : (fileType ?? 'UNKNOWN');
+  const isPdf = normalizedFileType === 'PDF';
+  const isWord = ['DOCX', 'DOC'].includes(normalizedFileType);
 
   const cleanup = React.useCallback(() => {
     if (fetchControllerRef.current) {

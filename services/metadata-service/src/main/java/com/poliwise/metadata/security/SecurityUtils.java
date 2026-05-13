@@ -41,4 +41,17 @@ public final class SecurityUtils {
         }
         return null;
     }
+
+    public static String getCurrentToken() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth instanceof JwtAuthenticationToken jwt) {
+            return jwt.getCredentials().toString();
+        }
+        return null;
+    }
+
+    public static String getCurrentUserIdStr() {
+        UUID id = getCurrentUserId();
+        return id != null ? id.toString() : null;
+    }
 }

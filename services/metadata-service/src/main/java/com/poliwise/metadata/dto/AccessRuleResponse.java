@@ -9,7 +9,9 @@ public record AccessRuleResponse(
         String targetType,
         String targetRole,
         UUID targetDepartmentId,
+        String targetDepartmentName,
         UUID targetUserId,
+        String targetUserName,
         String permission,
         UUID createdBy,
         OffsetDateTime createdAt
