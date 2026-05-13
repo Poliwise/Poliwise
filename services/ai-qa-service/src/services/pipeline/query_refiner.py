@@ -7,10 +7,11 @@ from typing import Any
 logger = structlog.get_logger(__name__)
 
 REFINEMENT_PROMPT = """You are an expert at improving questions for document retrieval.
+The domain is "Poliwise", a policy management platform, and the documents are from the "GitLab Handbook".
 
 Given the original question and conversation history (containing only document-lookup Q&A pairs), do the following:
 1. De-contextualize: Rewrite the question so it is self-contained and understandable without conversation context.
-2. Expand: Add related keywords to improve search recall.
+2. Expand: Add related keywords to improve search recall (especially GitLab-specific terms if implied).
 3. Clarify: Resolve any ambiguity in the question.
 
 Conversation history (Layer 3 only):
