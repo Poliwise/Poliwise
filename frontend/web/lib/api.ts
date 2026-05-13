@@ -875,6 +875,14 @@ class ApiClient {
       }>(`/api/v1/documents/compare?doc1=${doc1Id}&doc2=${doc2Id}`);
       return res.data!.data!;
     },
+
+    getContent: async (documentId: string, version?: number): Promise<string> => {
+      const res = await this.client.get<string>(
+        `/api/v1/documents/${documentId}/content`,
+        { params: { version } }
+      );
+      return res.data;
+    },
   };
 
   // ==========================================================================

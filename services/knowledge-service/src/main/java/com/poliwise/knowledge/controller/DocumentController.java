@@ -2,18 +2,15 @@ package com.poliwise.knowledge.controller;
 
 import com.poliwise.knowledge.dto.*;
 import com.poliwise.knowledge.entity.Document;
-import com.poliwise.knowledge.entity.DocumentVersion;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
-import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.service.DocumentManagementService;
 import com.poliwise.knowledge.service.MetadataContextService;
 import com.poliwise.knowledge.service.MetadataSuggestionService;
 import com.poliwise.knowledge.service.PolicyComparisonService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -252,6 +249,16 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .contentLength(version.fileSizeBytes() != null ? version.fileSizeBytes() : 0)
                 .body(stream);
+    }
+
+    // ===== 7b. Get Extracted Text Content =====
+    @GetMapping("/{documentId}/content")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<String> getDocumentContent(
+            @PathVariable UUID documentId,
+            @RequestParam(required = false) Integer version) {
+        String content = documentManagementService.getExtractedText(documentId, version);
+        return ResponseEntity.ok(content);
     }
 
     // ===== 8. Cancel Upload (STAGING only) =====
