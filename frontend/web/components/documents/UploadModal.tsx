@@ -24,25 +24,26 @@ interface UploadModalProps {
   onClose: () => void;
   onSuccess: () => void;
   categories: Category[];
+  initialDocument?: DocumentUploadResponse | any;
 }
 
-export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps) {
-  const [step, setStep] = useState(1);
+export function UploadModal({ onClose, onSuccess, categories, initialDocument }: UploadModalProps) {
+  const [step, setStep] = useState(initialDocument ? 3 : 1);
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedDocument, setUploadedDocument] = useState<DocumentUploadResponse | null>(null);
+  const [uploadedDocument, setUploadedDocument] = useState<DocumentUploadResponse | null>(initialDocument || null);
   const [error, setError] = useState<string | null>(null);
 
   // Metadata form state
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    categorySlug: '',
-    tags: [] as string[],
-    language: 'vi',
-    isPolicy: false,
+    title: initialDocument?.title || initialDocument?.suggestedTitle || initialDocument?.originalFilename?.replace(/\.[^/.]+$/, '') || '',
+    description: initialDocument?.description || initialDocument?.suggestedDescription || '',
+    categorySlug: initialDocument?.categorySlug || initialDocument?.suggestedCategorySlug || '',
+    tags: initialDocument?.tags || initialDocument?.suggestedTags || [] as string[],
+    language: initialDocument?.language || initialDocument?.suggestedLanguage || 'vi',
+    isPolicy: initialDocument?.isPolicy || initialDocument?.suggestedIsPolicy || false,
   });
   const [tagInput, setTagInput] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -170,7 +171,7 @@ export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps
   const handleRemoveTag = (tag: string) => {
     setFormData({
       ...formData,
-      tags: formData.tags.filter((t) => t !== tag),
+      tags: formData.tags.filter((t: string) => t !== tag),
     });
   };
 
@@ -408,7 +409,7 @@ export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {formData.tags.map((tag) => (
+                    {formData.tags.map((tag: string) => (
                       <span
                         key={tag}
                         className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800"
@@ -462,13 +463,16 @@ export function UploadModal({ onClose, onSuccess, categories }: UploadModalProps
                 )}
 
                 <div className="flex justify-between pt-4">
-                  <button
-                    onClick={() => setStep(2)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Quay lại
-                  </button>
+                  {!initialDocument && (
+                    <button
+                      onClick={() => setStep(2)}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Quay lại
+                    </button>
+                  )}
+                  {initialDocument && <div />}
                   <button
                     onClick={handleConfirm}
                     disabled={confirming || !formData.title.trim()}
