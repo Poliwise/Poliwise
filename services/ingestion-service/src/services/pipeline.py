@@ -1,0 +1,206 @@
+"""Ingestion pipeline - coordinates all processing steps."""
+
+import hashlib
+import structlog
+from uuid import UUID
+
+from src.services.minio_service import minio_service
+from src.services.extractors.orchestrator import orchestrator
+from src.services.standardizer import DocumentPolicyStandardizer
+from src.services.chunker import ParentChildChunker
+from src.services.embedding_service import embedding_service
+from src.services.processing_job_service import processing_job_service
+from src.services.deduplicator import deduplicator
+from src.db.repositories.chunk_repo import ChunkRepository
+from src.db.repositories.version_repo import VersionRepository
+from src.db.repositories.document_repo import DocumentRepository
+from src.db.repositories.job_repo import JobRepository
+from src.db.session import async_session
+from src.models.extraction import Chunk
+from src.models.document import Document
+
+logger = structlog.get_logger()
+
+
+class IngestionPipeline:
+    """Coordinates the full document ingestion pipeline."""
+
+    def __init__(self):
+        self.standardizer = DocumentPolicyStandardizer()
+        self.chunker = ParentChildChunker()
+
+    async def process(
+        self,
+        document_id: UUID,
+        version_id: UUID,
+        document_version: int,
+        job_id: UUID,
+        bucket_name: str,
+        file_key: str,
+        metadata: dict,
+    ) -> dict:
+        """Run the full ingestion pipeline."""
+        logger.info(
+            "pipeline_started",
+            document_id=document_id,
+            version_id=version_id,
+            job_id=job_id,
+            file_key=file_key,
+        )
+
+        try:
+            # --- 0. VALIDATION ---
+            ALLOWED_BUCKETS = ["poliwise-documents"]
+            if bucket_name not in ALLOWED_BUCKETS:
+                raise ValueError(f"Unauthorized bucket access: {bucket_name}")
+
+            # --- 1. DOWNLOAD & LAYER 1 DEDUPLICATION ---
+            await processing_job_service.update_progress(job_id, 10, "Layer 1: Checking file checksum")
+
+            file_bytes = await minio_service.download_file(bucket_name, file_key)
+            
+            # Layer 1: Exact File Checksum
+            dup_file = await deduplicator.check_file_duplicate(file_bytes)
+            if dup_file.is_duplicate:
+                return await self._handle_duplicate(job_id, document_id, version_id, dup_file)
+
+            file_checksum = hashlib.sha256(file_bytes).hexdigest()
+
+            # --- 2. EXTRACTION & LAYER 2 DEDUPLICATION ---
+            await processing_job_service.update_progress(job_id, 30, "Extracting text content")
+
+            extracted = await orchestrator.extract(file_bytes, file_key, document_id, version_id)
+            
+            # Layer 2: Exact Content Hash
+            dup_content = await deduplicator.check_content_duplicate(extracted.text)
+            if dup_content.is_duplicate:
+                return await self._handle_duplicate(job_id, document_id, version_id, dup_content)
+
+            content_hash = hashlib.sha256(extracted.text.encode("utf-8")).hexdigest()
+
+            # --- 3. LAYER 3 SEMANTIC DEDUPLICATION (FINGERPRINT) ---
+            await processing_job_service.update_progress(job_id, 60, "Layer 3: Checking semantic similarity")
+            
+            # Layer 3: Near-duplicate detection (Semantic Fingerprint)
+            dup_semantic = await deduplicator.check_semantic_duplicate(extracted.text, threshold=0.98)
+            if dup_semantic.is_duplicate:
+                return await self._handle_duplicate(job_id, document_id, version_id, dup_semantic)
+            
+            # --- 4. STANDARDIZATION & CHUNKING ---
+            await processing_job_service.update_progress(job_id, 70, "Standardizing text and chunking")
+            
+            structured = self.standardizer.normalize(extracted.text)
+            
+            # Prepare metadata for chunker
+            chunk_metadata = {
+                "document_id": document_id,
+                "version_id": version_id,
+                "document_version": document_version,
+                "allowed_roles": metadata.get("allowed_roles"),
+                "allowed_departments": metadata.get("allowed_departments"),
+                "allowed_users": metadata.get("allowed_users"),
+                "access_level": metadata.get("access_level", "PUBLIC"),
+            }
+            
+            chunks = self.chunker.chunk(structured, chunk_metadata)
+
+            # --- 5. EMBEDDING ---
+            await processing_job_service.update_progress(job_id, 80, "Generating embeddings (BGE-M3)")
+            
+            async with async_session() as session:
+                chunk_contents = [c.content for c in chunks]
+                embeddings = await embedding_service.embed_batch_cached(chunk_contents, session)
+                
+                for i, emb in enumerate(embeddings):
+                    chunks[i].embedding_vector = emb
+                    chunks[i].embedding_model = "BGE_M3"
+                    chunks[i].embedding_dimension = 1024
+
+                # --- 6. PERSISTENCE ---
+                await processing_job_service.update_progress(job_id, 90, "Saving results to database")
+
+                # Save Version Metadata (checksums)
+                ver_repo = VersionRepository(session)
+                await ver_repo.update_version(
+                    version_id,
+                    file_checksum=file_checksum,
+                    content_hash=content_hash,
+                )
+
+                # Save Extracted Text to DocumentVersion
+                doc_repo = DocumentRepository(session)
+                await doc_repo.update_extracted_text(
+                    version_id,
+                    extracted_text=extracted.text,
+                    page_count=extracted.page_count,
+                    word_count=len(extracted.text.split())
+                )
+                
+                # Bulk Insert Chunks
+                chunk_repo = ChunkRepository(session)
+                # First mark old chunks as not latest
+                await chunk_repo.mark_not_latest(document_id)
+                await chunk_repo.bulk_insert(chunks)
+                
+                # Update Document status to READY
+                await doc_repo.update_status(document_id, "READY")
+                await session.commit()
+
+            # --- 5. COMPLETE JOB ---
+            await processing_job_service.complete_job(job_id, True, {
+                "page_count": extracted.page_count,
+                "method": "extraction_success",
+                "semantic_similarity": dup_semantic.similarity if dup_semantic.is_duplicate else None,
+                "deduplication_passed": True
+            })
+
+            return {
+                "status": "completed", 
+                "document_id": str(document_id),
+                "version_id": str(version_id)
+            }
+
+        except Exception as e:
+            logger.error("pipeline_failed", error=str(e), exc_info=True)
+            # Update status to FAILED
+            try:
+                async with async_session() as session:
+                    doc_repo = DocumentRepository(session)
+                    await doc_repo.update_status(document_id, "FAILED")
+                    
+                    job_repo = JobRepository(session)
+                    if job_id:
+                        await job_repo.mark_failed(job_id, str(e))
+            except Exception as inner_e:
+                logger.error(f"Failed to record failure state: {inner_e}")
+            
+            return {"status": "FAILED", "error": str(e)}
+
+    async def _handle_duplicate(self, job_id: UUID, document_id: UUID, version_id: UUID, result) -> dict:
+        """Helper to handle duplicate detection hits."""
+        logger.info(
+            "deduplication_hit",
+            method=result.method,
+            duplicate_of=str(result.existing_version_id),
+        )
+        
+        async with async_session() as session:
+            doc_repo = DocumentRepository(session)
+            await doc_repo.update_status(document_id, "DUPLICATE")
+
+        await processing_job_service.complete_job(job_id, True, {
+            "duplicate_of": str(result.existing_version_id),
+            "method": result.method,
+            "similarity": result.similarity,
+            "skipped": True,
+        })
+        
+        return {
+            "status": "skipped",
+            "reason": "duplicate",
+            "method": result.method,
+            "existing_version": str(result.existing_version_id),
+        }
+
+
+pipeline = IngestionPipeline()

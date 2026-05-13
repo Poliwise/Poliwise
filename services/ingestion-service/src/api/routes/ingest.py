@@ -1,17 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.session import get_session
+from src.services.pipeline import pipeline
+from src.db.repositories.job_repo import JobRepository
+from src.api.dependencies import get_api_key
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 class IngestRequest(BaseModel):
     """Request payload for manual ingestion."""
     document_id: UUID
     document_version_id: UUID
+    document_version: int
     file_key: str
     bucket_name: str
     job_id: UUID
@@ -33,42 +39,53 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str] = None
 
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(get_api_key)])
 async def ingest_document(
     request: IngestRequest,
-    session: AsyncSession = Depends(get_session),
+    background_tasks: BackgroundTasks,
 ):
     """
     Manually trigger ingestion for a document.
-    This endpoint can be used for testing or manual ingestion.
+    Runs in the background task to not block the request.
     """
-    # TODO: Implement actual ingestion logic
-    # 1. Validate request
-    # 2. Download file from MinIO
-    # 3. Extract text
-    # 4. Process chunks
-    # 5. Embed and save to DB
+    logger.info("manual_ingest_requested", job_id=str(request.job_id))
+    
+    # Start the pipeline in background
+    background_tasks.add_task(
+        pipeline.process,
+        document_id=request.document_id,
+        version_id=request.document_version_id,
+        document_version=request.document_version,
+        job_id=request.job_id,
+        bucket_name=request.bucket_name,
+        file_key=request.file_key,
+        metadata=request.metadata or {}
+    )
 
     return IngestResponse(
         job_id=request.job_id,
-        status="queued",
-        message="Ingestion job queued successfully",
+        status="processing",
+        message="Ingestion job started in background",
     )
 
 
-@router.get("/ingest/{job_id}/status", response_model=JobStatusResponse)
+@router.get("/ingest/{job_id}/status", response_model=JobStatusResponse, dependencies=[Depends(get_api_key)])
 async def get_ingestion_status(
     job_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Get status of an ingestion job.
+    Get current status and progress of an ingestion job.
     """
-    # TODO: Query job status from database
-    # For now, return a placeholder
+    repo = JobRepository(session)
+    job = await repo.get_by_id(job_id)
+    
+    if not job:
+        raise HTTPException(status_status=404, detail="Job not found")
+        
     return JobStatusResponse(
-        job_id=job_id,
-        status="pending",
-        progress_percent=None,
-        error_message=None,
+        job_id=job.id,
+        status=job.status,
+        progress_percent=job.progress_percent,
+        error_message=job.error_message
     )
