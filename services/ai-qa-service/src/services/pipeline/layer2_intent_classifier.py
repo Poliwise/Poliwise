@@ -4,27 +4,61 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier. Analyze the following question and assign it to exactly one of two categories:
+INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for an AI policy assistant.
+Your task: Classify the user query as [SIMPLE] or [COMPLEX].
 
-[SIMPLE]: Questions that do not require searching specialized documents. Includes:
-  - Greetings and small talk (hello, how are you, thank you...)
-  - Simple calculations (2+2, basic percentage math...)
-  - Common general knowledge questions unrelated to internal documents
-  - Requests to explain basic concepts that need no specialized context
-  - Questions any ordinary person could answer immediately
+[SIMPLE]: Questions that DO NOT require searching internal documents.
+If an ordinary person without special knowledge could answer confidently, it is SIMPLE.
+Examples:
+- "Hello, how are you?" -> SIMPLE
+- "What is 2 + 2?" -> SIMPLE
+- "Thank you, goodbye!" -> SIMPLE
+- "Who is the CEO of this company?" -> SIMPLE (general knowledge)
+- "I hate you, you are bad" -> SIMPLE (emotional feedback, any person can respond)
+- "Tôi ghét bạn" -> SIMPLE (venting, no document needed)
+- "What's the weather today?" -> SIMPLE
+- "What are you? Who made you?" -> SIMPLE (bot meta-talk)
+- "Thanks, bye!" -> SIMPLE (closing talk)
+- "How does it work?" -> SIMPLE (too vague, no document needed)
+- "Can you help me?" -> SIMPLE (generic help)
+- "How do I do this?" -> SIMPLE (no context)
+- "oki thanks bye nhé" -> SIMPLE (viet-english closing)
+- "hello bạn, help me với vấn đề này" -> SIMPLE (viet-english greeting)
 
-[COMPLEX]: Questions that require looking up documents, policies, regulations, or internal data. Includes:
-  - Questions about specific policies, procedures, or regulations
-  - Questions about internal documentation
-  - Questions requiring analysis, comparison, or synthesis
-  - Any question that needs a document source to answer accurately
+[COMPLEX]: Questions that REQUIRE searching internal documents/policies.
+If you would need to look up a document/policy to answer correctly, it is COMPLEX.
+Examples:
+- "What is our company's remote work policy?" -> COMPLEX
+- "How many vacation days am I entitled to?" -> COMPLEX
+- "What are the expense reimbursement procedures?" -> COMPLEX
+- "What are the security requirements for passwords?" -> COMPLEX
+- "How do I request time off?" -> COMPLEX
+- "What is the dress code?" -> COMPLEX (company-specific)
+- "Can I work from home?" -> COMPLEX (requires company policy)
+- "How many sick days do I have?" -> COMPLEX (requires HR policy)
+- "What is the travel policy?" -> COMPLEX (company rules)
+- "What is the policy?" -> COMPLEX (explicit policy keyword)
+- "Tell me about GitLab" -> COMPLEX (company-specific)
+- "What are the rules?" -> COMPLEX (likely company rules)
+- "What benefits do I get?" -> COMPLEX (benefits = likely company)
+- "Who is the CEO of our company?" -> COMPLEX (company-specific CEO)
 
-Question: {query}
+Note: Users may mix Vietnamese and English in the same sentence.
+- "policy về remote work như thế nào?" -> COMPLEX
+- "check timesheet ở đâu?" -> COMPLEX
+- "có WFH policy không?" -> COMPLEX
+- "cách submit expense report thế nào?" -> COMPLEX
+- "có bao nhiêu ngày phép per year?" -> COMPLEX
 
-Recent conversation history (if any):
+Rule: If an ordinary person without special knowledge could answer confidently -> SIMPLE.
+If you would need to look up a document/policy to answer correctly -> COMPLEX.
+
+User Query: {query}
+
+Recent conversation:
 {recent_history}
 
-Return exactly one label: [SIMPLE] or [COMPLEX]"""
+Return ONLY one word: [SIMPLE] or [COMPLEX]"""
 
 class IntentResult(BaseModel):
     intent: str
@@ -69,8 +103,14 @@ class IntentClassifierService:
             label_text = response.choices[0].message.content.strip().upper()
             intent = "COMPLEX" if "COMPLEX" in label_text else "SIMPLE"
 
+            logger.info(">>> LAYER 2 DEBUG:", 
+                        input=query[:50], 
+                        groq_raw_response=label_text, 
+                        final_intent=intent,
+                        latency_ms=latency_ms)
+
             return IntentResult(intent=intent, raw_label=label_text, latency_ms=latency_ms)
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
-            logger.error(f"Layer 2 intent classifier failed: {e}. Defaulting to COMPLEX.")
-            return IntentResult(intent="COMPLEX", raw_label="ERROR", latency_ms=latency_ms)
+            logger.error(f"Layer 2 intent classifier failed: {e}. Defaulting to COMPLEX (fail-safe to avoid missing policy questions).")
+            return IntentResult(intent="COMPLEX", raw_label="ERROR_FAILSAFE", latency_ms=latency_ms)
