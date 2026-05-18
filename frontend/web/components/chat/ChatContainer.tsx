@@ -5,12 +5,13 @@ import { Menu, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useAuthStore } from '@/store';
 import { api } from '@/lib/api';
-import type { Message, SourceDocument, FeedbackType, Conversation } from '@/types';
+import type { Message, SourceDocument, FeedbackType, Conversation, ModelInfo } from '@/types';
 
 import { ChatSidebar } from './ChatSidebar';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
+import { ModelSelector } from './ModelSelector';
 
 interface ChatContainerProps {
   initialConversationId?: string;
@@ -24,8 +25,23 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState('default');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    api.ai.getModels().then(setModels).catch(() => {});
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('selected-model-id') : null;
+    if (saved) setSelectedModelId(saved);
+  }, []);
+
+  const handleModelChange = (id: string) => {
+    setSelectedModelId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selected-model-id', id);
+    }
+  };
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,13 +106,20 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
     abortControllerRef.current = new AbortController();
 
     try {
-      const stream = api.ai.askStream({ question: text.trim(), conversationId: selectedConversationId }, abortControllerRef.current.signal);
+      const stream = api.ai.askStream({
+        question: text.trim(),
+        conversationId: selectedConversationId,
+        modelId: selectedModelId,
+      }, abortControllerRef.current.signal);
       const reader = stream.getReader();
 
       let fullContent = '';
       let conversationId: string | null = null;
       let sources: SourceDocument[] = [];
       let assistantMessageId = `temp-assistant-${Date.now()}`;
+      let modelUsed = selectedModelId === 'default'
+        ? (models.find(m => m.isDefault)?.id || 'default')
+        : selectedModelId;
 
       const assistantMsg: Message = {
         id: assistantMessageId,
@@ -106,6 +129,8 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
         sources: [],
         hasSources: false,
         isStreaming: true,
+        streamingCompleted: false,
+        modelUsed,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -138,7 +163,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMessageId
-                  ? { ...m, content: fullContent, sources, isStreaming: false }
+                  ? { ...m, content: fullContent, sources, isStreaming: false, streamingCompleted: true }
                   : m
               )
             );
@@ -148,7 +173,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMessageId
-                  ? { ...m, content: 'Xin lỗi, đã xảy ra lỗi. Vui lòng thử lại.', isStreaming: false }
+                  ? { ...m, content: 'Xin lỗi, đã xảy ra lỗi. Vui lòng thử lại.', isStreaming: false, streamingCompleted: true }
                   : m
               )
             );
@@ -254,6 +279,14 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
           isLoading={isLoading}
           disabled={!user}
           placeholder={user ? 'Nhập câu hỏi của bạn...' : 'Vui lòng đăng nhập để sử dụng...'}
+          modelSelector={
+            <ModelSelector
+              models={models}
+              value={selectedModelId}
+              onChange={handleModelChange}
+              disabled={isLoading}
+            />
+          }
         />
       </div>
     </div>

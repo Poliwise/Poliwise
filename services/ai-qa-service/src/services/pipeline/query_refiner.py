@@ -8,20 +8,21 @@ logger = structlog.get_logger(__name__)
 
 REFINEMENT_PROMPT = """You are an expert at improving questions for document retrieval.
 The domain is "Poliwise", a policy management platform, and the documents are from the "GitLab Handbook".
+All documents are in English.
 
-Given the original question and conversation history (containing only document-lookup Q&A pairs), do the following:
-1. De-contextualize: Rewrite the question so it is self-contained and understandable without conversation context.
-2. Expand: Add related keywords to improve search recall (especially GitLab-specific terms if implied).
-3. Clarify: Resolve any ambiguity in the question.
+Given the original question and conversation history, do the following:
+1. TRANSLATE: If the question is NOT in English, translate it to English. Be accurate - do not change the meaning.
+2. De-contextualize: Rewrite the question so it is self-contained without conversation context.
+3. Expand: Add related keywords to improve search recall.
 
 Conversation history (Layer 3 only):
 {layer3_history}
 
 Original question: {original_query}
 
-Return JSON:
+Return JSON ONLY:
 {{
-  "refined_query": "the improved question",
+  "refined_query": "the translated and improved question in English",
   "search_keywords": ["keyword1", "keyword2"],
   "filters_hint": {{"date_range": null, "category": null}}
 }}"""
@@ -62,6 +63,12 @@ class QueryRefiner:
             original_query=original_query
         )
 
+        logger.info("query_refiner_input",
+            original_query=original_query,
+            has_history=bool(layer3_history),
+            history_length=len(layer3_history)
+        )
+
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -72,17 +79,37 @@ class QueryRefiner:
             )
             latency_ms = int((time.time() - start_time) * 1000)
 
-            data = json.loads(response.choices[0].message.content)
+            raw_response = response.choices[0].message.content
+            logger.info("query_refiner_raw_response",
+                raw_response=raw_response,
+                latency_ms=latency_ms
+            )
+
+            data = json.loads(raw_response)
+            refined = data.get("refined_query", original_query)
+            keywords = data.get("search_keywords", [])
+
+            logger.info("query_refiner_output",
+                original=original_query,
+                refined=refined,
+                keywords=keywords,
+                latency_ms=latency_ms
+            )
+
             return RefinedQuery(
                 original=original_query,
-                refined=data.get("refined_query", original_query),
-                keywords=data.get("search_keywords", []),
+                refined=refined,
+                keywords=keywords,
                 filters_hint=data.get("filters_hint", {}),
                 latency_ms=latency_ms
             )
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
-            logger.error(f"Query Refinement failed: {e}. Falling back to original query.")
+            logger.error("query_refiner_failed",
+                error=str(e),
+                original_query=original_query,
+                latency_ms=latency_ms
+            )
             return RefinedQuery(
                 original=original_query,
                 refined=original_query,

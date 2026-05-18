@@ -446,9 +446,6 @@ services:
       LLM_API_KEY: ${GROQ_API_KEY}
       LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen3-8b}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
-      GATEWAY_API_KEY: ${GATEWAY_API_KEY}
-      GATEWAY_MODEL: ${GATEWAY_MODEL:-gemini-1.5-flash}
-      GATEWAY_ENABLED: ${GATEWAY_ENABLED:-true}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       GROQ_API_KEY: ${GROQ_API_KEY}

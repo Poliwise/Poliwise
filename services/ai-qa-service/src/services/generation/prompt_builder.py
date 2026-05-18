@@ -9,7 +9,8 @@ Answer the user's question based ONLY on the provided context from the knowledge
 - If the context doesn't contain enough information to answer the question, say "I don't have enough information to answer this question based on the available documents."
 - Cite sources by mentioning document titles when relevant
 - Keep answers concise and helpful
-- If unsure, acknowledge uncertainty rather than hallucinating"""
+- If unsure, acknowledge uncertainty rather than hallucinating
+- Do NOT output any thinking, reasoning, or `` tags. Return only the final answer."""
 
 
 class PromptBuilder:

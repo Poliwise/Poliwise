@@ -16,9 +16,21 @@ export interface SourceDocument {
   excerpt: string;
 }
 
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+  description: string | null;
+  contextWindow: number;
+  isDefault: boolean;
+  status: 'available' | 'rate_limited' | 'unavailable';
+  rateLimitedUntil: string | null;
+}
+
 export interface ChatRequest {
   message: string;
   conversationId?: string;
+  modelId?: string;
   context?: {
     documentIds?: string[];
     categoryIds?: string[];
@@ -37,6 +49,7 @@ export interface QuestionRequest {
   question: string;
   conversationId?: string;
   department?: string;
+  modelId?: string;
 }
 
 export interface QuestionResponse {

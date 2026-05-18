@@ -15,7 +15,7 @@ class MessageResponse(BaseModel):
     conversation_id: UUID
     role: str
     content: str
-    sources: Optional[dict] = None
+    sources: Optional[list] = None
     model_used: Optional[str] = None
     tokens_prompt: Optional[int] = None
     tokens_completion: Optional[int] = None

@@ -45,6 +45,8 @@ class HybridSearchService:
         filters: Optional[RetrievalFilters] = None,
         limit: int = 10
     ) -> List[RetrievalChunk]:
+        logger.info("hybrid_search_start", query=query, limit=limit)
+
         query_embedding = await self.embedding_service.embed_query(query)
 
         vector_results = await self.chunk_repo.vector_search(
@@ -56,6 +58,12 @@ class HybridSearchService:
             limit=limit * 2
         )
 
+        logger.info("hybrid_search_vector_results",
+            query=query,
+            count=len(vector_results),
+            top_docs=[{"doc": c.document_name, "score": c.similarity_score} for c in vector_results[:5]]
+        )
+
         bm25_results = await self.chunk_repo.bm25_search(
             query=query,
             user_id=user_id,
@@ -65,26 +73,44 @@ class HybridSearchService:
             limit=limit * 2
         )
 
-        fused = self._reciprocal_rank_fusion(vector_results, bm25_results, k=60)
+        logger.info("hybrid_search_bm25_results",
+            query=query,
+            count=len(bm25_results),
+            top_docs=[{"doc": c.document_name, "score": c.similarity_score} for c in bm25_results[:5]]
+        )
 
-        return fused[:limit]
+        fused = self._reciprocal_rank_fusion(vector_results, bm25_results, k=60, alpha=0.7, beta=0.3)
+
+        filtered = [c for c in fused if c.similarity_score >= settings.similarity_threshold]
+
+        logger.info("hybrid_search_final",
+            query=query,
+            before_filter=len(fused),
+            after_filter=len(filtered),
+            threshold=settings.similarity_threshold,
+            top_docs=[{"doc": c.document_name, "score": c.similarity_score, "excerpt": c.content[:100]} for c in filtered[:5]]
+        )
+
+        return filtered[:limit]
 
     def _reciprocal_rank_fusion(
         self,
         results_a: List[RetrievalChunk],
         results_b: List[RetrievalChunk],
-        k: int = 60
+        k: int = 60,
+        alpha: float = 0.7,
+        beta: float = 0.3
     ) -> List[RetrievalChunk]:
         scores = {}
 
         for rank, chunk in enumerate(results_a):
             key = str(chunk.id)
-            scores[key] = scores.get(key, 0) + 1.0 / (k + rank + 1)
+            scores[key] = scores.get(key, 0) + alpha * (1.0 / (k + rank + 1))
             chunk._source = "vector"
 
         for rank, chunk in enumerate(results_b):
             key = str(chunk.id)
-            scores[key] = scores.get(key, 0) + 1.0 / (k + rank + 1)
+            scores[key] = scores.get(key, 0) + beta * (1.0 / (k + rank + 1))
             if key not in {str(c.id) for c in results_a}:
                 chunk._source = "bm25"
 

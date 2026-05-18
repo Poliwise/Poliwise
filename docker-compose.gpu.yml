@@ -1,0 +1,26 @@
+# GPU override for BGE-M3 embedding service
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+
+services:
+  bge-m3-embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.6
+    command: >
+      --model-id BAAI/bge-m3
+      --pooling cls
+      --max-batch-tokens 16384
+      --max-client-batch-size 32
+      --payload-limit 1048576
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+          memory: 4G
+        limits:
+          cpus: "2.0"
+          memory: 8G
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility

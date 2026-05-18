@@ -76,7 +76,22 @@ export function ChatMessage({
               : 'bg-muted text-foreground rounded-tl-sm'
           )}
         >
-          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {message.content}
+            {message.isStreaming && !message.streamingCompleted && (
+              <>
+                {message.content.length === 0 ? (
+                  <span className="inline-flex gap-1 ml-1 align-middle">
+                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '-0.3s' }}></span>
+                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '-0.15s' }}></span>
+                    <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"></span>
+                  </span>
+                ) : (
+                  <span className="inline-block w-0.5 h-4 bg-foreground ml-0.5 animate-pulse align-middle"></span>
+                )}
+              </>
+            )}
+          </p>
         </div>
 
         {!isUser && message.sources && message.sources.length > 0 && (
@@ -123,6 +138,11 @@ export function ChatMessage({
                 </span>
               )}
             </span>
+            {message.modelUsed && (
+              <span className="text-xs text-muted-foreground/60 ml-2">
+                · {message.modelUsed}
+              </span>
+            )}
           </div>
         )}
 

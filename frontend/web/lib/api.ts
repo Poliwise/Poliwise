@@ -35,6 +35,7 @@ import type {
   UnansweredQuestion,
   DashboardStats,
   AnalyticsOverview,
+  ModelInfo,
   // Department types
   Department,
   DepartmentTreeNode,
@@ -913,7 +914,7 @@ class ApiClient {
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : '',
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, modelId: data.modelId || 'default' }),
             signal,
           });
 
@@ -965,6 +966,19 @@ class ApiClient {
         },
       });
       return stream;
+    },
+
+    getModels: async (): Promise<ModelInfo[]> => {
+      const res = await this.client.get<unknown>('/api/v1/ai/models');
+      const root = res.data as Record<string, unknown> | null;
+      if (root && 'data' in root && typeof root.data === 'object' && root.data !== null) {
+        const data = root.data as { models?: ModelInfo[] };
+        return data.models ?? [];
+      }
+      if (root && 'models' in root && Array.isArray(root.models)) {
+        return root.models as ModelInfo[];
+      }
+      return [];
     },
 
     getConversations: async (params?: {

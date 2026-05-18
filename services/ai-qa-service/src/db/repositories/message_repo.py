@@ -39,7 +39,7 @@ class MessageRepository:
                 conversation_id,
                 role,
                 content,
-                json.dumps(sources) if sources else None,
+                json.dumps(sources, default=str) if sources else None,
                 model_used,
                 tokens_prompt,
                 tokens_completion,
@@ -49,7 +49,10 @@ class MessageRepository:
                 has_sources,
                 datetime.utcnow()
             )
-            return MessageResponse(**dict(row))
+            row_dict = dict(row)
+            if row_dict.get('sources') and isinstance(row_dict['sources'], str):
+                row_dict['sources'] = json.loads(row_dict['sources'])
+            return MessageResponse(**row_dict)
         finally:
             await release_connection(conn)
 
@@ -72,7 +75,13 @@ class MessageRepository:
                    LIMIT $3""",
                 conversation_id, user_id, limit
             )
-            return [MessageResponse(**dict(row)) for row in rows]
+            results = []
+            for row in rows:
+                row_dict = dict(row)
+                if row_dict.get('sources') and isinstance(row_dict['sources'], str):
+                    row_dict['sources'] = json.loads(row_dict['sources'])
+                results.append(MessageResponse(**row_dict))
+            return results
         finally:
             await release_connection(conn)
 
@@ -90,7 +99,10 @@ class MessageRepository:
             )
             if not row:
                 return None
-            return MessageResponse(**dict(row))
+            row_dict = dict(row)
+            if row_dict.get('sources') and isinstance(row_dict['sources'], str):
+                row_dict['sources'] = json.loads(row_dict['sources'])
+            return MessageResponse(**row_dict)
         finally:
             await release_connection(conn)
 
