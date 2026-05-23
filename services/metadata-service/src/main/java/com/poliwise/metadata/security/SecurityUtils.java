@@ -15,7 +15,7 @@ public final class SecurityUtils {
         if (auth instanceof JwtAuthenticationToken jwt) {
             return jwt.getUserId();
         }
-        return null;
+        throw new IllegalStateException("No authenticated user context available");
     }
 
     public static String getCurrentUsername() {
@@ -23,7 +23,7 @@ public final class SecurityUtils {
         if (auth instanceof JwtAuthenticationToken jwt) {
             return jwt.getUsername();
         }
-        return null;
+        throw new IllegalStateException("No authenticated user context available");
     }
 
     public static UUID getCurrentDepartmentId() {
@@ -31,7 +31,7 @@ public final class SecurityUtils {
         if (auth instanceof JwtAuthenticationToken jwt) {
             return jwt.getDepartment();
         }
-        return null;
+        throw new IllegalStateException("No authenticated user context available");
     }
 
     public static UserRole getCurrentUserRole() {
@@ -39,7 +39,7 @@ public final class SecurityUtils {
         if (auth instanceof JwtAuthenticationToken jwt) {
             return jwt.getRole();
         }
-        return null;
+        throw new IllegalStateException("No authenticated user context available");
     }
 
     public static String getCurrentToken() {
@@ -47,7 +47,7 @@ public final class SecurityUtils {
         if (auth instanceof JwtAuthenticationToken jwt) {
             return jwt.getCredentials().toString();
         }
-        return null;
+        throw new IllegalStateException("No authenticated user context available");
     }
 
     public static String getCurrentUserIdStr() {
