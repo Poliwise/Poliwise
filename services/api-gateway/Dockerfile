@@ -20,10 +20,10 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install -
 COPY --from=builder --chown=node:node /app/dist ./dist
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3001
 
 USER node
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["node", "dist/main"]

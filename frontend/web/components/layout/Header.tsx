@@ -15,6 +15,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useAuthStore, useIsManager } from '@/store';
+import { useLanguage } from '@/providers';
 import { api } from '@/lib/api';
 import { UserRole } from '@/types';
 import styles from './Header.module.css';
@@ -25,17 +26,18 @@ const ROLE_BADGE_CLASS: Record<UserRole, string> = {
   [UserRole.USER]: styles.roleUser,
 };
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  [UserRole.ADMIN]: 'Admin',
-  [UserRole.MANAGER]: 'Manager',
-  [UserRole.USER]: 'User',
-};
-
 export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  const { t } = useLanguage();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const isManager = useIsManager();
+
+  const ROLE_LABEL: Record<UserRole, string> = {
+    [UserRole.ADMIN]: t('role.admin.short'),
+    [UserRole.MANAGER]: t('role.manager.short'),
+    [UserRole.USER]: t('role.user.short'),
+  };
 
   const handleLogout = async () => {
     setShowUserMenu(false);
@@ -67,7 +69,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           className={`${styles.navLink} ${pathname === '/' ? styles.active : ''}`}
         >
           <MessageSquare size={18} />
-          <span>Hỏi đáp</span>
+          <span>{t('nav.ask')}</span>
         </Link>
 
         <Link
@@ -75,7 +77,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           className={`${styles.navLink} ${pathname === '/documents' ? styles.active : ''}`}
         >
           <BookOpen size={18} />
-          <span>Tài liệu</span>
+          <span>{t('nav.documents')}</span>
         </Link>
 
         {isManager && (
@@ -84,7 +86,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             className={`${styles.navLink} ${pathname === '/analytics' ? styles.active : ''}`}
           >
             <BarChart3 size={18} />
-            <span>Phân tích</span>
+            <span>{t('nav.analytics')}</span>
           </Link>
         )}
       </nav>
@@ -114,20 +116,20 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
               <div className={styles.dropdown}>
                 <Link href="/profile" className={styles.dropdownItem} onClick={() => setShowUserMenu(false)}>
                   <User size={16} />
-                  <span>Trang cá nhân</span>
+                  <span>{t('nav.profile')}</span>
                 </Link>
 
                 {user.role === UserRole.ADMIN && (
                   <Link href="/admin/settings" className={styles.dropdownItem} onClick={() => setShowUserMenu(false)}>
                     <Settings size={16} />
-                    <span>Cài đặt</span>
+                    <span>{t('nav.settings')}</span>
                   </Link>
                 )}
 
                 {user.role === UserRole.ADMIN && (
                   <Link href="/admin" className={styles.dropdownItem} onClick={() => setShowUserMenu(false)}>
                     <Shield size={16} />
-                    <span>Quản trị</span>
+                    <span>{t('nav.admin')}</span>
                   </Link>
                 )}
 
@@ -135,14 +137,14 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
                 <button onClick={handleLogout} className={styles.dropdownItem}>
                   <LogOut size={16} />
-                  <span>Đăng xuất</span>
+                  <span>{t('nav.logout')}</span>
                 </button>
               </div>
             )}
           </div>
         ) : (
           <Link href="/login" className={styles.loginButton}>
-            Đăng nhập
+            {t('nav.login')}
           </Link>
         )}
       </div>

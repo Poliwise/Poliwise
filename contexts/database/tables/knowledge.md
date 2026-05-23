@@ -28,6 +28,8 @@ owner: knowledge-service, ingestion-service
 
 - [knowledge.documents](#documents)
 - [knowledge.document_versions](#document-versions)
+- [knowledge.document_locks](#document-locks)
+- [knowledge.document_version_deletions](#document-version-deletions)
 - [knowledge.chunks](#chunks)
 - [knowledge.processing_jobs](#processing-jobs)
 - [knowledge.embedding_cache](#embedding-cache)
@@ -138,7 +140,7 @@ WHERE is_current = true;
   UPDATE knowledge.document_versions
   SET is_current = false
   WHERE document_id = :doc_id AND is_current = true;
-  
+
   INSERT INTO knowledge.document_versions (..., is_current = true, ...)
   ...
   ```
@@ -157,6 +159,74 @@ WHERE is_current = true;
 1. Compute `file_checksum` from MinIO download → if exists, link to existing version
 2. After extraction, compute `content_hash` → query for content matches
 3. Compare embedding with existing versions → store `similarity_to_previous`
+
+---
+
+## document_locks
+
+**Description**: Edit locks for OnlyOffice Document Server integration. One lock per document, records who is editing, which version was locked, and when the lock expires.
+
+**Primary Key**: `document_id` (UUID, FK to `knowledge.documents`)
+
+### Columns
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `document_id` | UUID | PRIMARY KEY, FK → `knowledge.documents(id)` ON DELETE CASCADE | Document being locked |
+| `locked_by` | UUID | NOT NULL | User who holds the lock |
+| `locked_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | When the lock was acquired |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | Lock auto-expires (30 minutes default) |
+| `lock_token` | UUID | NOT NULL, UNIQUE | Token returned to editor; must match on save callback |
+| `version_at_lock` | INT | NOT NULL | Document version at time of lock (for conflict detection) |
+| `locked_by_username` | VARCHAR(255) | NULLABLE | Username for UI display |
+
+### Indexes
+
+```sql
+CREATE INDEX idx_locks_expires ON knowledge.document_locks(expires_at);
+```
+
+### Notes
+
+- **One lock per document**: `PRIMARY KEY (document_id)` enforces this.
+- **Auto-expiry**: Stale locks can be cleaned up with: `DELETE FROM knowledge.document_locks WHERE expires_at < NOW()`
+- **Conflict Detection**: When OnlyOffice saves, if `documents.current_version > document_locks.version_at_lock`, a conflict is detected (someone else uploaded a newer version).
+- **Lock Token**: OnlyOffice must pass the correct `lock_token` in the save callback to verify ownership.
+
+---
+
+## document_version_deletions
+
+**Description**: Soft-delete archive for document versions. Allows recovery of accidentally deleted versions. Only ADMIN can delete versions.
+
+**Primary Key**: `id` (UUID)
+
+### Columns
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, NOT NULL | Archive entry ID |
+| `document_id` | UUID | NOT NULL, FK → `knowledge.documents(id)` ON DELETE CASCADE | Parent document |
+| `version_number` | INT | NOT NULL | Version number that was deleted |
+| `deleted_by` | UUID | NOT NULL | User who deleted |
+| `deleted_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | When deleted |
+| `file_key` | VARCHAR(500) | NULLABLE | MinIO key (for recovery) |
+| `file_size_bytes` | BIGINT | NULLABLE | File size (for recovery) |
+| `changelog` | TEXT | NULLABLE | Original changelog |
+| `extracted_text` | TEXT | NULLABLE | Original extracted text |
+
+### Constraints
+
+```sql
+CONSTRAINT uq_version_deletion UNIQUE (document_id, version_number)
+```
+
+### Notes
+
+- **Cannot delete last version**: Application must enforce that `current_version > 1` before deletion.
+- **Cannot delete latest version**: Must upload a new version first, then delete the old one.
+- **Immutable archive**: Once archived, records never change.
+- **Recovery**: In emergency, an ADMIN can recover by reading `file_key` and manually restoring the version record.
 
 ---
 

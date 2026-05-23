@@ -8,11 +8,17 @@ export interface CardProps {
   children: React.ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
-export function Card({ children, className, padding = 'md' }: CardProps) {
+export function Card({ children, className, padding = 'md', onClick, style }: CardProps) {
   return (
-    <div className={clsx(styles.card, styles[`padding-${padding}`], className)}>
+    <div
+      className={clsx(styles.card, styles[`padding-${padding}`], className)}
+      onClick={onClick}
+      style={style}
+    >
       {children}
     </div>
   );

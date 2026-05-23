@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Mail, ArrowLeft, CheckCircle, MessageSquare } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { api } from '@/lib/api';
+import { useLanguage } from '@/providers';
 import styles from './forgot-password.module.css';
 
 interface ForgotPasswordError {
@@ -15,6 +16,7 @@ interface ForgotPasswordError {
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ForgotPasswordError | null>(null);
@@ -42,7 +44,7 @@ export default function ForgotPasswordPage() {
       };
       const errorCode = axiosError.response?.data?.error?.code;
       const errorMessage = axiosError.response?.data?.error?.message;
-      const fallbackMessage = axiosError.message || 'Đã xảy ra lỗi không xác định.';
+      const fallbackMessage = axiosError.message || t('login.error.unknown');
 
       setError({
         code: errorCode || 'UNKNOWN',
@@ -59,15 +61,15 @@ export default function ForgotPasswordPage() {
         <div className={styles.header}>
           <Link href="/login" className={styles.backLink}>
             <ArrowLeft size={18} />
-            <span>Quay lại đăng nhập</span>
+            <span>{t('forgot.backToLogin')}</span>
           </Link>
 
           <div className={styles.logo}>
             <MessageSquare size={32} />
           </div>
-          <h1 className={styles.title}>Quên mật khẩu?</h1>
+          <h1 className={styles.title}>{t('forgot.title')}</h1>
           <p className={styles.subtitle}>
-            Không sao cả! Nhập email của bạn và chúng tôi sẽ gửi mật khẩu mới.
+            {t('forgot.subtitle')}
           </p>
         </div>
 
@@ -76,14 +78,14 @@ export default function ForgotPasswordPage() {
             <div className={styles.successIcon}>
               <CheckCircle size={48} />
             </div>
-            <h2 className={styles.successTitle}>Kiểm tra email của bạn!</h2>
+            <h2 className={styles.successTitle}>{t('forgot.success.title')}</h2>
             <p className={styles.successText}>
               {emailSent
-                ? 'Chúng tôi đã gửi mật khẩu mới đến email của bạn. Vui lòng kiểm tra hộp thư và đăng nhập với mật khẩu mới.'
-                : 'Nếu email tồn tại trong hệ thống, mật khẩu mới sẽ được gửi đến email của bạn.'}
+                ? t('forgot.success.text.sent')
+                : t('forgot.success.text.generic')}
             </p>
             <p className={styles.emailNote}>
-              Email: <strong>{email}</strong>
+              {t('forgot.success.email')} <strong>{email}</strong>
             </p>
             <div className={styles.successActions}>
               <Button
@@ -91,7 +93,7 @@ export default function ForgotPasswordPage() {
                 onClick={() => router.push('/login')}
                 fullWidth
               >
-                Quay lại đăng nhập
+                {t('forgot.success.back')}
               </Button>
             </div>
           </div>
@@ -104,11 +106,11 @@ export default function ForgotPasswordPage() {
             )}
 
             <Input
-              label="Email"
+              label={t('forgot.email')}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Nhập email của bạn"
+              placeholder={t('forgot.email.placeholder')}
               required
               autoComplete="email"
               leftIcon={<Mail size={18} />}
@@ -117,7 +119,7 @@ export default function ForgotPasswordPage() {
 
             <div className={styles.helpText}>
               <p>
-                Nhập email đã đăng ký với tài khoản của bạn. Chúng tôi sẽ gửi mật khẩu mới qua email.
+                {t('forgot.helpText')}
               </p>
             </div>
 
@@ -129,15 +131,15 @@ export default function ForgotPasswordPage() {
               loading={isLoading}
               disabled={isLoading || !email.trim()}
             >
-              {isLoading ? 'Đang xử lý...' : 'Gửi mật khẩu mới'}
+              {isLoading ? t('forgot.submitting') : t('forgot.submit')}
             </Button>
           </form>
         )}
 
         <p className={styles.footer}>
-          Nhớ mật khẩu rồi?{' '}
+          {t('forgot.rememberPassword')}{' '}
           <Link href="/login" className={styles.loginLink}>
-            Đăng nhập ngay
+            {t('forgot.loginNow')}
           </Link>
         </p>
       </div>

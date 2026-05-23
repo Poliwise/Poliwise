@@ -19,6 +19,9 @@ public class MinioConfig {
     @Value("${minio.endpoint:http://localhost:9000}")
     private String endpoint;
 
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String publicUrl;
+
     @Value("${minio.access-key:minioadmin}")
     private String accessKey;
 
@@ -37,6 +40,10 @@ public class MinioConfig {
 
         initBucket(client);
         return client;
+    }
+
+    public String getPublicUrl() {
+        return publicUrl;
     }
 
     private void initBucket(MinioClient client) {

@@ -35,6 +35,7 @@ import type {
   UnansweredQuestion,
   DashboardStats,
   AnalyticsOverview,
+  ApiMetricsResponse,
   // Department types
   Department,
   DepartmentTreeNode,
@@ -184,6 +185,31 @@ function coercePaginated<T>(
     data: Array.isArray(dataArr) ? dataArr : [],
     pagination: pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
   };
+}
+
+function coerceSingleObject<T>(
+  response: unknown,
+  dataKey: keyof Record<string, unknown>
+): T | null {
+  const root = response as Record<string, unknown> | null;
+  if (!root) return null;
+
+  // Already a plain object (no wrapping)
+  if (!('success' in root) && !('data' in root) && !('content' in root)) {
+    return root as unknown as T;
+  }
+
+  // ApiResponse wrapper: { success, data: {...} }
+  const wrapped = (dataKey in root ? root[dataKey] : root) as Record<string, unknown> | undefined;
+  if (wrapped && typeof wrapped === 'object' && !Array.isArray(wrapped)) {
+    return wrapped as unknown as T;
+  }
+
+  // Fallback: try direct
+  if (wrapped) return wrapped as unknown as T;
+  if (root) return root as unknown as T;
+
+  return null;
 }
 
 // ============================================================================
@@ -1073,12 +1099,12 @@ class ApiClient {
   analytics = {
     getDashboard: async (): Promise<DashboardStats> => {
       const res = await this.client.get<ApiResponse<DashboardStats>>('/api/v1/analytics/dashboard');
-      return coercePaginated<DashboardStats>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      return coerceSingleObject<DashboardStats>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data!;
     },
 
     getOverview: async (): Promise<AnalyticsOverview> => {
       const res = await this.client.get<ApiResponse<AnalyticsOverview>>('/api/v1/analytics/overview');
-      return coercePaginated<AnalyticsOverview>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      return coerceSingleObject<AnalyticsOverview>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data!;
     },
 
     getTrends: async (days = 30): Promise<{
@@ -1306,6 +1332,20 @@ class ApiClient {
   // ==========================================================================
   // Metadata (Categories, Tags, Access Rules)
   // ==========================================================================
+  metrics = {
+    getApiHealth: async (days = 7): Promise<ApiMetricsResponse> => {
+      const res = await this.client.get<ApiResponse<ApiMetricsResponse>>(
+        '/health/api-metrics',
+        { params: { days } }
+      );
+      const root = res.data as unknown as Record<string, unknown>;
+      if ('data' in root && root.data && typeof root.data === 'object') {
+        return root.data as ApiMetricsResponse;
+      }
+      return root as unknown as ApiMetricsResponse;
+    },
+  };
+
   metadata = {
     // — Categories
     getCategories: async (): Promise<{

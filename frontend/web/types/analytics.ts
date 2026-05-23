@@ -96,3 +96,43 @@ export enum ExportStatus {
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
 }
+
+// API Health Metrics Types
+export interface ApiEndpointMetrics {
+  path: string;
+  total: number;
+  success: number;
+  failure: number;
+  avgResponseTime: number;
+  recentErrors: Array<{
+    timestamp: string;
+    method: string;
+    statusCode: number;
+    path: string;
+  }>;
+}
+
+export interface ApiServiceHealth {
+  service: string;
+  status: 'up' | 'down' | 'unknown';
+  responseTime?: number;
+}
+
+export interface ApiOverallMetrics {
+  totalRequests: number;
+  totalErrors: number;
+  successRate: number;
+}
+
+export interface ApiDailyErrorCount {
+  date: string;
+  errors: number;
+}
+
+export interface ApiMetricsResponse {
+  timestamp: string;
+  overall: ApiOverallMetrics;
+  endpoints: ApiEndpointMetrics[];
+  dailyErrors: ApiDailyErrorCount[];
+  services: ApiServiceHealth[];
+}

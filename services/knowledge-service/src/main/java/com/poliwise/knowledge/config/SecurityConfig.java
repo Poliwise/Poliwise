@@ -1,6 +1,7 @@
 package com.poliwise.knowledge.config;
 
 import com.poliwise.knowledge.security.JwtAuthenticationFilter;
+import com.poliwise.knowledge.security.OnlyOfficeCallbackFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,9 +24,13 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OnlyOfficeCallbackFilter onlyOfficeCallbackFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            OnlyOfficeCallbackFilter onlyOfficeCallbackFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.onlyOfficeCallbackFilter = onlyOfficeCallbackFilter;
     }
 
     @Bean
@@ -37,9 +42,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // OnlyOffice Document Server may use HEAD or GET when downloading files.
+                        // Match both HTTP methods to avoid 403 on pre-flight checks.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/file").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/v1/documents/*/file").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(onlyOfficeCallbackFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 

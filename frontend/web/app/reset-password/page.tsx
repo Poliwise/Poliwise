@@ -5,11 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, MessageSquare, CheckCircle } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
+import { useLanguage } from '@/providers';
 import styles from './reset-password.module.css';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const { t } = useLanguage();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,9 +28,9 @@ function ResetPasswordForm() {
   }, [token]);
 
   const validate = (): string | null => {
-    if (!password) return 'Mật khẩu không được để trống.';
-    if (password.length < 8) return 'Mật khẩu phải có ít nhất 8 ký tự.';
-    if (password !== confirmPassword) return 'Mật khẩu xác nhận không khớp.';
+    if (!password) return 'Password is required.';
+    if (password.length < 8) return t('reset.password.placeholder');
+    if (password !== confirmPassword) return t('validation.passwordMismatch');
     return null;
   };
 
@@ -62,7 +64,7 @@ function ResetPasswordForm() {
       setError(
         axiosError.response?.data?.error?.message ||
         axiosError.message ||
-        'Đã xảy ra lỗi khi đặt lại mật khẩu. Liên kết có thể đã hết hạn.'
+        t('reset.success.message')
       );
     } finally {
       setIsLoading(false);
@@ -81,13 +83,12 @@ function ResetPasswordForm() {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <h1 className={styles.errorTitle}>Liên kết không hợp lệ</h1>
+            <h1 className={styles.errorTitle}>{t('reset.invalid.title')}</h1>
             <p className={styles.errorMessage}>
-              Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.
-              Vui lòng yêu cầu liên kết mới.
+              {t('reset.invalid.message')}
             </p>
             <Link href="/forgot-password" className={styles.requestLink}>
-              Yêu cầu liên kết mới
+              {t('reset.requestLink')}
             </Link>
           </div>
         </div>
@@ -107,12 +108,12 @@ function ResetPasswordForm() {
             <div className={styles.successIcon}>
               <CheckCircle size={40} />
             </div>
-            <h1 className={styles.successTitle}>Đặt lại mật khẩu thành công</h1>
+            <h1 className={styles.successTitle}>{t('reset.success.title')}</h1>
             <p className={styles.successMessage}>
-              Mật khẩu của bạn đã được thay đổi. Bây giờ bạn có thể đăng nhập với mật khẩu mới.
+              {t('reset.success.message')}
             </p>
             <Link href="/login" className={styles.loginLink}>
-              Đăng nhập ngay
+              {t('reset.success.loginNow')}
             </Link>
           </div>
         </div>
@@ -131,15 +132,15 @@ function ResetPasswordForm() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-          <span>Quay lại đăng nhập</span>
+          <span>{t('reset.backToLogin')}</span>
         </Link>
 
         <div className={styles.header}>
           <div className={styles.logo}>
             <MessageSquare size={28} />
           </div>
-          <h1 className={styles.title}>Đặt lại mật khẩu</h1>
-          <p className={styles.subtitle}>Nhập mật khẩu mới cho tài khoản của bạn.</p>
+          <h1 className={styles.title}>{t('reset.title')}</h1>
+          <p className={styles.subtitle}>{t('reset.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -150,11 +151,11 @@ function ResetPasswordForm() {
           )}
 
           <Input
-            label="Mật khẩu mới"
+            label={t('reset.password')}
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Ít nhất 8 ký tự"
+            placeholder={t('reset.password.placeholder')}
             required
             autoComplete="new-password"
             rightIcon={
@@ -162,7 +163,7 @@ function ResetPasswordForm() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className={styles.passwordToggle}
-                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPassword ? t('reset.hidePassword') : t('reset.showPassword')}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -170,14 +171,14 @@ function ResetPasswordForm() {
           />
 
           <Input
-            label="Xác nhận mật khẩu mới"
+            label={t('reset.confirm')}
             type={showPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Nhập lại mật khẩu mới"
+            placeholder={t('reset.confirm.placeholder')}
             required
             autoComplete="new-password"
-            error={confirmPassword && password !== confirmPassword ? 'Mật khẩu không khớp' : undefined}
+            error={confirmPassword && password !== confirmPassword ? t('validation.passwordMismatch') : undefined}
           />
 
           <Button
@@ -188,7 +189,7 @@ function ResetPasswordForm() {
             loading={isLoading}
             disabled={!password || !confirmPassword || password !== confirmPassword}
           >
-            {isLoading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
+            {isLoading ? t('reset.submitting') : t('reset.submit')}
           </Button>
         </form>
       </div>

@@ -24,6 +24,8 @@ import {
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
+import { Translator } from '@/lib/i18n';
+import { useLanguage } from '@/providers';
 import styles from './audit-logs.module.css';
 
 interface AuditLog {
@@ -42,25 +44,38 @@ interface AuditLog {
   status: 'SUCCESS' | 'FAILURE';
 }
 
-const ACTION_CONFIG: Partial<Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'destructive' | 'neutral' }>> = {
-  LOGIN: { label: 'Đăng nhập', variant: 'success' },
-  LOGOUT: { label: 'Đăng xuất', variant: 'neutral' },
-  LOGOUT_ALL: { label: 'Đăng xuất tất cả', variant: 'warning' },
-  CREATE: { label: 'Tạo mới', variant: 'info' },
-  UPDATE: { label: 'Cập nhật', variant: 'info' },
-  DELETE: { label: 'Xóa', variant: 'destructive' },
-  PASSWORD_CHANGE: { label: 'Đổi mật khẩu', variant: 'warning' },
-  ROLE_CHANGE: { label: 'Đổi vai trò', variant: 'warning' },
-  STATUS_CHANGE: { label: 'Đổi trạng thái', variant: 'warning' },
-  DOCUMENT_UPLOAD: { label: 'Tải tài liệu', variant: 'info' },
-  DOCUMENT_DELETE: { label: 'Xóa tài liệu', variant: 'destructive' },
-  REPORT_EXPORT: { label: 'Xuất báo cáo', variant: 'info' },
-  SETTINGS_CHANGE: { label: 'Thay đổi cài đặt', variant: 'warning' },
-};
+function getActionConfig(t: Translator) {
+  return {
+    LOGIN: { label: t('admin.audit.action.login'), variant: 'success' as const },
+    LOGOUT: { label: t('admin.audit.action.logout'), variant: 'neutral' as const },
+    LOGOUT_ALL: { label: t('admin.audit.action.logoutAll'), variant: 'warning' as const },
+    CREATE: { label: t('admin.audit.action.create'), variant: 'info' as const },
+    UPDATE: { label: t('admin.audit.action.update'), variant: 'info' as const },
+    DELETE: { label: t('admin.audit.action.delete'), variant: 'destructive' as const },
+    PASSWORD_CHANGE: { label: t('admin.audit.action.passwordChange'), variant: 'warning' as const },
+    ROLE_CHANGE: { label: t('admin.audit.action.roleChange'), variant: 'warning' as const },
+    STATUS_CHANGE: { label: t('admin.audit.action.statusChange'), variant: 'warning' as const },
+    DOCUMENT_UPLOAD: { label: t('admin.audit.action.docUpload'), variant: 'info' as const },
+    DOCUMENT_DELETE: { label: t('admin.audit.action.docDelete'), variant: 'destructive' as const },
+    REPORT_EXPORT: { label: t('admin.audit.action.reportExport'), variant: 'info' as const },
+    SETTINGS_CHANGE: { label: t('admin.audit.action.settingsChange'), variant: 'warning' as const },
+    ONLYOFFICE_LOCK_ACQUIRED: { label: 'Khóa chỉnh sửa', variant: 'info' as const },
+    ONLYOFFICE_LOCK_RELEASED: { label: 'Mở khóa chỉnh sửa', variant: 'neutral' as const },
+    ONLYOFFICE_LOCK_EXTENDED: { label: 'Gia hạn khóa chỉnh sửa', variant: 'neutral' as const },
+    ONLYOFFICE_LOCK_EXPIRED: { label: 'Khóa hết hạn', variant: 'warning' as const },
+    ONLYOFFICE_CONFLICT_DETECTED: { label: 'Phát hiện xung đột phiên bản', variant: 'warning' as const },
+    ONLYOFFICE_CONFLICT_RESOLVED: { label: 'Giải quyết xung đột', variant: 'info' as const },
+    ONLYOFFICE_SAVE_SUCCESS: { label: 'Lưu OnlyOffice thành công', variant: 'success' as const },
+    ONLYOFFICE_VERSION_DELETED: { label: 'Xóa phiên bản OnlyOffice', variant: 'destructive' as const },
+  };
+}
 
 export default function AuditLogsPage() {
   const router = useRouter();
   const isAdmin = useIsAdmin();
+  const { t } = useLanguage();
+  const ACTION_CONFIG = getActionConfig(t);
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,32 +85,32 @@ export default function AuditLogsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-  const loadLogs = useCallback(async () => {
+  const loadLogs = useCallback(async (currentPage: number, currentSearch: string, currentActionFilter: string) => {
     setLoading(true);
     setError(null);
     try {
       const response = await api.audit.search({
-        page,
+        page: currentPage,
         limit: 20,
-        action: actionFilter || undefined,
-        search: search || undefined,
+        action: currentActionFilter || undefined,
+        search: currentSearch || undefined,
       });
       setLogs(response.data as unknown as AuditLog[]);
       setTotalPages(response.pagination?.totalPages ?? 1);
     } catch {
-      setError('Không thể tải nhật ký hệ thống.');
+      setError(t('admin.audit.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [page, search, actionFilter]);
+  }, [t]);
 
   useEffect(() => {
     if (!isAdmin) {
       router.push('/');
       return;
     }
-    loadLogs();
-  }, [isAdmin, router, loadLogs]);
+    loadLogs(page, search, actionFilter);
+  }, [isAdmin, router, page, search, actionFilter, loadLogs]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -108,24 +123,30 @@ export default function AuditLogsPage() {
   };
 
   const actionOptions = [
-    { value: '', label: 'Tất cả hành động' },
-    { value: 'LOGIN', label: 'Đăng nhập' },
-    { value: 'LOGOUT', label: 'Đăng xuất' },
-    { value: 'CREATE', label: 'Tạo mới' },
-    { value: 'UPDATE', label: 'Cập nhật' },
-    { value: 'DELETE', label: 'Xóa' },
-    { value: 'PASSWORD_CHANGE', label: 'Đổi mật khẩu' },
-    { value: 'ROLE_CHANGE', label: 'Đổi vai trò' },
-    { value: 'STATUS_CHANGE', label: 'Đổi trạng thái' },
-    { value: 'DOCUMENT_UPLOAD', label: 'Tải tài liệu' },
-    { value: 'DOCUMENT_DELETE', label: 'Xóa tài liệu' },
-    { value: 'REPORT_EXPORT', label: 'Xuất báo cáo' },
+    { value: '', label: t('admin.audit.filter.allActions') },
+    { value: 'LOGIN', label: t('admin.audit.action.login') },
+    { value: 'LOGOUT', label: t('admin.audit.action.logout') },
+    { value: 'CREATE', label: t('admin.audit.action.create') },
+    { value: 'UPDATE', label: t('admin.audit.action.update') },
+    { value: 'DELETE', label: t('admin.audit.action.delete') },
+    { value: 'PASSWORD_CHANGE', label: t('admin.audit.action.passwordChange') },
+    { value: 'ROLE_CHANGE', label: t('admin.audit.action.roleChange') },
+    { value: 'STATUS_CHANGE', label: t('admin.audit.action.statusChange') },
+    { value: 'DOCUMENT_UPLOAD', label: t('admin.audit.action.docUpload') },
+    { value: 'DOCUMENT_DELETE', label: t('admin.audit.action.docDelete') },
+    { value: 'REPORT_EXPORT', label: t('admin.audit.action.reportExport') },
+    { value: 'ONLYOFFICE_LOCK_ACQUIRED', label: 'Khóa chỉnh sửa' },
+    { value: 'ONLYOFFICE_LOCK_RELEASED', label: 'Mở khóa chỉnh sửa' },
+    { value: 'ONLYOFFICE_CONFLICT_DETECTED', label: 'Phát hiện xung đột' },
+    { value: 'ONLYOFFICE_CONFLICT_RESOLVED', label: 'Giải quyết xung đột' },
+    { value: 'ONLYOFFICE_SAVE_SUCCESS', label: 'Lưu OnlyOffice thành công' },
+    { value: 'ONLYOFFICE_VERSION_DELETED', label: 'Xóa phiên bản OnlyOffice' },
   ];
 
   const columns: Column<AuditLog>[] = [
     {
       key: 'timestamp',
-      header: 'Thời gian',
+      header: t('admin.audit.table.time'),
       width: '10rem',
       render: (log) => (
         <span className={styles.timestamp}>
@@ -135,7 +156,7 @@ export default function AuditLogsPage() {
     },
     {
       key: 'userName',
-      header: 'Người dùng',
+      header: t('admin.audit.table.user'),
       render: (log) => (
         <div className={styles.userCell}>
           <User size={14} />
@@ -145,9 +166,9 @@ export default function AuditLogsPage() {
     },
     {
       key: 'action',
-      header: 'Hành động',
+      header: t('admin.audit.table.action'),
       render: (log) => {
-        const cfg = ACTION_CONFIG[log.action];
+        const cfg = ACTION_CONFIG[log.action as keyof typeof ACTION_CONFIG];
         return (
           <Badge variant={cfg?.variant ?? 'neutral'}>
             {cfg?.label ?? log.action}
@@ -157,7 +178,7 @@ export default function AuditLogsPage() {
     },
     {
       key: 'resourceName',
-      header: 'Tài nguyên',
+      header: t('admin.audit.table.resource'),
       render: (log) => (
         <span className={styles.resourceText}>
           {log.resourceName || log.resourceType || '-'}
@@ -166,16 +187,16 @@ export default function AuditLogsPage() {
     },
     {
       key: 'ipAddress',
-      header: 'IP',
+      header: t('admin.audit.table.ip'),
       render: (log) => <code className={styles.ip}>{log.ipAddress}</code>,
     },
     {
       key: 'status',
-      header: 'Kết quả',
+      header: t('admin.audit.table.result'),
       align: 'center',
       render: (log) => (
         <Badge variant={log.status === 'SUCCESS' ? 'success' : 'destructive'}>
-          {log.status === 'SUCCESS' ? 'Thành công' : 'Thất bại'}
+          {log.status === 'SUCCESS' ? t('admin.audit.result.success') : t('admin.audit.result.failure')}
         </Badge>
       ),
     },
@@ -197,15 +218,15 @@ export default function AuditLogsPage() {
     <MainLayout>
       <div className={styles.container}>
         <PageHeader
-          title="Nhật ký hệ thống"
-          description="Theo dõi các hoạt động của người dùng trong hệ thống."
+          title={t('admin.audit.title')}
+          description={t('admin.audit.subtitle')}
         />
 
         {error && <div className={styles.error}>{error}</div>}
 
         <div className={styles.filters}>
           <Input
-            placeholder="Tìm kiếm người dùng, tài nguyên..."
+            placeholder={t('admin.audit.search.placeholder')}
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             leftIcon={<Search size={16} />}
@@ -228,8 +249,8 @@ export default function AuditLogsPage() {
         ) : logs.length === 0 ? (
           <EmptyState
             icon={<ScrollText size={32} />}
-            title="Không có nhật ký"
-            description="Chưa có hoạt động nào được ghi lại."
+            title={t('admin.audit.empty.title')}
+            description={t('admin.audit.empty.description')}
           />
         ) : (
           <>
@@ -246,43 +267,43 @@ export default function AuditLogsPage() {
         <Modal
           open={!!selectedLog}
           onClose={() => setSelectedLog(null)}
-          title="Chi tiết nhật ký"
+          title={t('admin.audit.detail.title')}
           size="sm"
-          footer={<Button variant="secondary" onClick={() => setSelectedLog(null)}>Đóng</Button>}
+          footer={<Button variant="secondary" onClick={() => setSelectedLog(null)}>{t('admin.audit.close')}</Button>}
         >
           {selectedLog && (
             <div className={styles.detailGrid}>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>ID</span>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.id')}</span>
                 <code className={styles.detailValue}>{selectedLog.id}</code>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Người dùng</span>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.user')}</span>
                 <span className={styles.detailValue}>{selectedLog.userName} ({selectedLog.userEmail})</span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Hành động</span>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.action')}</span>
                 <span className={styles.detailValue}>{selectedLog.action}</span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Tài nguyên</span>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.resource')}</span>
                 <span className={styles.detailValue}>
                   {selectedLog.resourceType}{selectedLog.resourceId ? ` / ${selectedLog.resourceId}` : ''}
                 </span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>IP</span>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.ip')}</span>
                 <span className={styles.detailValue}>{selectedLog.ipAddress}</span>
               </div>
               {selectedLog.userAgent && (
                 <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>User Agent</span>
+                  <span className={styles.detailLabel}>{t('admin.audit.detail.userAgent')}</span>
                   <span className={styles.detailValue}>{selectedLog.userAgent}</span>
                 </div>
               )}
               {selectedLog.details && (
                 <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>Chi tiết</span>
+                  <span className={styles.detailLabel}>{t('admin.audit.detail.details')}</span>
                   <span className={styles.detailValue}>{selectedLog.details}</span>
                 </div>
               )}

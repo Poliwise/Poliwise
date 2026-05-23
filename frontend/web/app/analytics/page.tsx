@@ -9,6 +9,7 @@ import {
   Users,
   Download,
   TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   LineChart,
@@ -36,7 +37,9 @@ import {
 import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsManager } from '@/store';
-import type { DashboardStats, AnalyticsOverview } from '@/types';
+import { useLanguage } from '@/providers';
+import { ApiHealthCard, EndpointDetailsModal } from '@/components/api-health';
+import type { DashboardStats, AnalyticsOverview, ApiMetricsResponse } from '@/types';
 import styles from './analytics.module.css';
 
 type Period = 'today' | 'week' | 'month';
@@ -46,12 +49,17 @@ const PIE_COLORS = ['#4f46e5', '#22c55e', '#f59e0b', '#ef4444'];
 export default function AnalyticsPage() {
   const router = useRouter();
   const isManager = useIsManager();
+  const { t } = useLanguage();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>('today');
+
+  const [apiMetrics, setApiMetrics] = useState<ApiMetricsResponse | null>(null);
+  const [apiMetricsLoading, setApiMetricsLoading] = useState(true);
+  const [endpointModalOpen, setEndpointModalOpen] = useState(false);
 
   const [trends, setTrends] = useState<{
     date: string; questions: number; likes: number; dislikes: number;
@@ -63,14 +71,14 @@ export default function AnalyticsPage() {
     documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
   }[]>([]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (currentPeriod: Period) => {
     setLoading(true);
     setError(null);
     try {
       const [statsData, overviewData, trendsData, questionsData, docsData] = await Promise.all([
         api.analytics.getDashboard(),
         api.analytics.getOverview(),
-        api.analytics.getTrends(period === 'today' ? 1 : period === 'week' ? 7 : 30),
+        api.analytics.getTrends(currentPeriod === 'today' ? 1 : currentPeriod === 'week' ? 7 : 30),
         api.analytics.getTopQuestions(5),
         api.analytics.getTopDocuments(5),
       ]);
@@ -80,19 +88,33 @@ export default function AnalyticsPage() {
       setTopQuestions(questionsData);
       setTopDocuments(docsData);
     } catch {
-      setError('Không thể tải dữ liệu phân tích.');
+      setError(t('analytics.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [t]);
+
+  const loadApiMetrics = useCallback(async (currentPeriod: Period) => {
+    try {
+      const data = await api.metrics.getApiHealth(
+        currentPeriod === 'today' ? 1 : currentPeriod === 'week' ? 7 : 30
+      );
+      setApiMetrics(data);
+    } catch {
+      setApiMetrics(null);
+    } finally {
+      setApiMetricsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isManager) {
       router.push('/');
       return;
     }
-    loadData();
-  }, [isManager, loadData, router]);
+    loadData(period);
+    loadApiMetrics(period);
+  }, [isManager, period, loadData, loadApiMetrics, router]);
 
   const getStatValue = (key: keyof DashboardStats) => {
     if (!stats) return 0;
@@ -109,21 +131,21 @@ export default function AnalyticsPage() {
   const satisfactionRate = totalFeedback > 0 ? Math.round((likeCount / totalFeedback) * 100) : 0;
 
   const pieData = [
-    { name: 'Hữu ích', value: likeCount },
-    { name: 'Không hữu ích', value: dislikeCount },
+    { name: t('analytics.chart.useful'), value: likeCount },
+    { name: t('analytics.chart.notUseful'), value: dislikeCount },
   ].filter((d) => d.value > 0);
 
   const periodOptions = [
-    { value: 'today', label: 'Hôm nay' },
-    { value: 'week', label: 'Tuần này' },
-    { value: 'month', label: 'Tháng này' },
+    { value: 'today', label: t('analytics.period.today') },
+    { value: 'week', label: t('analytics.period.week') },
+    { value: 'month', label: t('analytics.period.month') },
   ];
 
   if (loading) {
     return (
       <MainLayout>
         <div className={styles.loading}>
-          <Spinner size="lg" label="Đang tải dữ liệu phân tích..." />
+          <Spinner size="lg" label={t('analytics.loading')} />
         </div>
       </MainLayout>
     );
@@ -135,9 +157,9 @@ export default function AnalyticsPage() {
         <div className={styles.container}>
           <EmptyState
             icon={<TrendingUp size={32} />}
-            title="Không thể tải dữ liệu"
-            description={error || 'Đã xảy ra lỗi khi tải dữ liệu phân tích.'}
-            action={<Button variant="secondary" onClick={loadData}>Thử lại</Button>}
+            title={t('analytics.empty')}
+            description={error || t('analytics.loadError')}
+            action={<Button variant="secondary" onClick={() => loadData(period)}>{t('analytics.retry')}</Button>}
           />
         </div>
       </MainLayout>
@@ -150,8 +172,8 @@ export default function AnalyticsPage() {
         {/* Header */}
         <div className={styles.header}>
           <div>
-            <h1 className={styles.title}>Báo cáo phân tích</h1>
-            <p className={styles.subtitle}>Theo dõi hoạt động và hiệu suất hệ thống</p>
+            <h1 className={styles.title}>{t('analytics.title')}</h1>
+            <p className={styles.subtitle}>{t('analytics.subtitle')}</p>
           </div>
           <div className={styles.actions}>
             <Select
@@ -167,7 +189,7 @@ export default function AnalyticsPage() {
               icon={<Download size={16} />}
               onClick={() => router.push('/analytics/reports')}
             >
-              Xuất báo cáo
+              {t('analytics.export')}
             </Button>
           </div>
         </div>
@@ -180,11 +202,11 @@ export default function AnalyticsPage() {
                 <MessageSquare size={22} />
               </div>
               <div className={styles.statContent}>
-                <span className={styles.statLabel}>Câu hỏi</span>
+                <span className={styles.statLabel}>{t('analytics.stat.questions')}</span>
                 <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
                 {stats.questionsThisWeek > 0 && (
                   <span className={styles.statMeta}>
-                    {stats.questionsThisMonth.toLocaleString()} tháng này
+                    {stats.questionsThisMonth.toLocaleString()} {t('analytics.stat.questionsMonth')}
                   </span>
                 )}
               </div>
@@ -197,10 +219,10 @@ export default function AnalyticsPage() {
                 <ThumbsUp size={22} />
               </div>
               <div className={styles.statContent}>
-                <span className={styles.statLabel}>Tỷ lệ hài lòng</span>
+                <span className={styles.statLabel}>{t('analytics.stat.satisfaction')}</span>
                 <span className={styles.statValue}>{satisfactionRate}%</span>
                 <span className={styles.statMeta}>
-                  {likeCount} hữu ích / {dislikeCount} không
+                  {likeCount} {t('analytics.chart.useful')} / {dislikeCount} {t('analytics.chart.notUseful')}
                 </span>
               </div>
             </div>
@@ -212,9 +234,9 @@ export default function AnalyticsPage() {
                 <FileText size={22} />
               </div>
               <div className={styles.statContent}>
-                <span className={styles.statLabel}>Tài liệu hoạt động</span>
+                <span className={styles.statLabel}>{t('analytics.stat.activeDocuments')}</span>
                 <span className={styles.statValue}>{stats.activeDocuments}</span>
-                <span className={styles.statMeta}>{stats.totalDocuments} tổng cộng</span>
+                <span className={styles.statMeta}>{stats.totalDocuments} {t('analytics.stat.totalDocuments')}</span>
               </div>
             </div>
           </Card>
@@ -225,12 +247,18 @@ export default function AnalyticsPage() {
                 <Users size={22} />
               </div>
               <div className={styles.statContent}>
-                <span className={styles.statLabel}>Người dùng hoạt động</span>
+                <span className={styles.statLabel}>{t('analytics.stat.activeUsers')}</span>
                 <span className={styles.statValue}>{stats.activeUsers}</span>
-                <span className={styles.statMeta}>{stats.totalUsers} tổng cộng</span>
+                <span className={styles.statMeta}>{stats.totalUsers} {t('analytics.stat.totalUsers')}</span>
               </div>
             </div>
           </Card>
+
+          <ApiHealthCard
+            metrics={apiMetrics}
+            loading={apiMetricsLoading}
+            onClick={() => setEndpointModalOpen(true)}
+          />
         </div>
 
         {/* Charts Row */}
@@ -238,7 +266,7 @@ export default function AnalyticsPage() {
           {/* Trends Chart */}
           <Card padding="md" className={styles.chartCard}>
             <CardHeader>
-              <CardTitle as="h3">Xu hướng câu hỏi</CardTitle>
+              <CardTitle as="h3">{t('analytics.chart.trends')}</CardTitle>
             </CardHeader>
             <CardContent>
               {trends.length > 0 ? (
@@ -263,15 +291,15 @@ export default function AnalyticsPage() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
-                    <Line type="monotone" dataKey="questions" stroke="#4f46e5" strokeWidth={2} name="Câu hỏi" dot={false} />
-                    <Line type="monotone" dataKey="likes" stroke="#22c55e" strokeWidth={2} name="Hữu ích" dot={false} />
-                    <Line type="monotone" dataKey="dislikes" stroke="#ef4444" strokeWidth={2} name="Không hữu ích" dot={false} />
+                    <Line type="monotone" dataKey="questions" stroke="#4f46e5" strokeWidth={2} name={t('analytics.chart.question')} dot={false} />
+                    <Line type="monotone" dataKey="likes" stroke="#22c55e" strokeWidth={2} name={t('analytics.chart.useful')} dot={false} />
+                    <Line type="monotone" dataKey="dislikes" stroke="#ef4444" strokeWidth={2} name={t('analytics.chart.notUseful')} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className={styles.chartEmpty}>
                   <TrendingUp size={32} />
-                  <span>Chưa có dữ liệu xu hướng</span>
+                  <span>{t('analytics.chart.empty')}</span>
                 </div>
               )}
             </CardContent>
@@ -280,7 +308,7 @@ export default function AnalyticsPage() {
           {/* Feedback Pie Chart */}
           <Card padding="md" className={styles.chartCard}>
             <CardHeader>
-              <CardTitle as="h3">Tỷ lệ phản hồi</CardTitle>
+              <CardTitle as="h3">{t('analytics.chart.feedback')}</CardTitle>
             </CardHeader>
             <CardContent>
               {pieData.length > 0 ? (
@@ -306,7 +334,7 @@ export default function AnalyticsPage() {
                         borderRadius: 'var(--radius)',
                         fontSize: '0.8125rem',
                       }}
-                      formatter={(value: any) => [`${value} phản hồi`, '']}
+                      formatter={(value: any) => [`${value} responses`, '']}
                     />
                     <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
                   </PieChart>
@@ -314,18 +342,63 @@ export default function AnalyticsPage() {
               ) : (
                 <div className={styles.chartEmpty}>
                   <ThumbsUp size={32} />
-                  <span>Chưa có phản hồi</span>
+                  <span>{t('analytics.chart.feedbackEmpty')}</span>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
+        {/* Error Trend Chart */}
+        {apiMetrics && apiMetrics.dailyErrors.length > 0 && (
+          <Card padding="md" className={styles.chartCard}>
+            <CardHeader>
+              <CardTitle as="h3">Xu hướng lỗi API theo ngày</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={apiMetrics.dailyErrors}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return `${d.getDate()}/${d.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '0.8125rem',
+                    }}
+                    formatter={(value: any) => [`${value} errors`, 'Errors']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="errors"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    name="Errors"
+                    dot={{ fill: '#ef4444', r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Top Questions + Documents */}
         <div className={styles.listsGrid}>
           <Card padding="md">
             <CardHeader>
-              <CardTitle as="h3">Câu hỏi phổ biến</CardTitle>
+              <CardTitle as="h3">{t('analytics.list.questions')}</CardTitle>
             </CardHeader>
             <CardContent>
               {topQuestions.length > 0 ? (
@@ -336,21 +409,21 @@ export default function AnalyticsPage() {
                       <div className={styles.topInfo}>
                         <span className={styles.topQuestion}>{q.question}</span>
                         <span className={styles.topMeta}>
-                          {q.askCount} lượt · {new Date(q.lastAskedAt).toLocaleDateString('vi-VN')}
+                          {q.askCount} · {new Date(q.lastAskedAt).toLocaleDateString('vi-VN')}
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className={styles.emptyText}>Chưa có dữ liệu câu hỏi phổ biến.</p>
+                <p className={styles.emptyText}>{t('analytics.list.questions.empty')}</p>
               )}
             </CardContent>
           </Card>
 
           <Card padding="md">
             <CardHeader>
-              <CardTitle as="h3">Tài liệu được trích dẫn nhiều</CardTitle>
+              <CardTitle as="h3">{t('analytics.list.documents')}</CardTitle>
             </CardHeader>
             <CardContent>
               {topDocuments.length > 0 ? (
@@ -361,19 +434,25 @@ export default function AnalyticsPage() {
                       <div className={styles.topInfo}>
                         <span className={styles.topQuestion}>{d.title}</span>
                         <span className={styles.topMeta}>
-                          {d.totalCitations} lượt trích dẫn
-                          {d.citationsLast7Days > 0 && ` · +${d.citationsLast7Days} tuần này`}
+                          {d.totalCitations} {t('analytics.list.citations')}
+                          {d.citationsLast7Days > 0 && ` · +${d.citationsLast7Days} ${t('analytics.list.citationsWeek')}`}
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className={styles.emptyText}>Chưa có dữ liệu tài liệu phổ biến.</p>
+                <p className={styles.emptyText}>{t('analytics.list.documents.empty')}</p>
               )}
             </CardContent>
           </Card>
         </div>
+
+        <EndpointDetailsModal
+          open={endpointModalOpen}
+          onClose={() => setEndpointModalOpen(false)}
+          metrics={apiMetrics}
+        />
       </div>
     </MainLayout>
   );

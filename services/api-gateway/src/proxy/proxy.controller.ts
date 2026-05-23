@@ -10,11 +10,12 @@ import {
   HttpCode,
   HttpStatus,
   All,
+  Head,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ProxyService, ServiceName } from './proxy.service';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { Roles } from '../common/decorators';
+import { Roles, Public } from '../common/decorators';
 import { UserRole } from '../common/interfaces';
 
 /** Path + query: dùng request.path (không gồm ?) để ghép URL downstream đúng. */
@@ -236,6 +237,84 @@ export class ProxyController {
       ServiceName.KNOWLEDGE,
       request,
       downstreamDocumentsPath(request),
+    );
+  }
+
+  /** OnlyOffice save callback — authenticated via OnlyOffice JWT token, not user JWT.
+   *  The gateway does NOT validate the OnlyOffice callback JWT (it uses a different secret
+   *  than the user JWT). Instead, the request is forwarded to knowledge-service where the
+   *  OnlyOfficeCallbackFilter validates it with the correct OnlyOffice JWT secret. */
+  @Public()
+  @Post('documents/:documentId/save-callback')
+  handleOnlyOfficeCallback(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
+  }
+
+  /** Manual save: user clicks "Lưu phiên bản mới" in OnlyOffice editor.
+   *  Frontend downloads the file blob from the SDK and uploads it here.
+   *  Requires user JWT auth (has role USER/MANAGER/ADMIN). */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('documents/:documentId/save')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleOnlyOfficeSave(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('documents/:documentId/lock')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleDocumentLockStatus(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('documents/:documentId/conflict-status')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleDocumentConflictStatus(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+    );
+  }
+
+  /** Serve document file for OnlyOffice Document Server.
+   *  OnlyOffice DS downloads the file via this URL. No user auth is required — the request
+   *  comes from the OnlyOffice DS container with a callback JWT token in the Authorization
+   *  header. The gateway forwards it directly to knowledge-service (which handles auth). */
+  @Public()
+  @Get('documents/:documentId/file')
+  handleDocumentFileDownload(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+      false,
+      true,
+    );
+  }
+
+  @Public()
+  @Head('documents/:documentId/file')
+  handleDocumentFileHead(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.KNOWLEDGE,
+      request,
+      downstreamDocumentsPath(request),
+      false,
+      true,
     );
   }
 
