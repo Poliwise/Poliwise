@@ -11,6 +11,7 @@ import {
   circuitBreakerConfig,
   loggingConfig,
   throttlerConfig,
+  redisConfig,
 } from './config';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth';
@@ -38,6 +39,7 @@ import {
         circuitBreakerConfig,
         loggingConfig,
         throttlerConfig,
+        redisConfig,
       ],
       envFilePath: '.env',
     }),

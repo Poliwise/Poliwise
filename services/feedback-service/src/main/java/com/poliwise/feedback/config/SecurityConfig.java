@@ -82,7 +82,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        // Restrict CORS to frontend origin - use environment variable for flexibility
+        String frontendOrigin = System.getenv().getOrDefault("FRONTEND_ORIGIN", "http://localhost:3000");
+        config.setAllowedOriginPatterns(List.of(frontendOrigin));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

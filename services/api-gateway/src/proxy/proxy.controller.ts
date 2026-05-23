@@ -6,12 +6,13 @@ import {
   Delete,
   Patch,
   Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
   All,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { ProxyService, ServiceName } from './proxy.service';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
 import { Roles } from '../common/decorators';
@@ -477,6 +478,31 @@ export class ProxyController {
   }
 
   // AI Q&A endpoints — route to ai-qa-service
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('ai/chat/stream')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleAIStream(@Req() request: Request, @Res() response: Response) {
+    const path = '/chat/stream';
+    this.proxyService.forward(ServiceName.AI_QA, request, path, true).subscribe({
+      next: (proxied: any) => {
+        if (proxied && proxied._proxied) {
+          response.status(proxied.statusCode ?? 200);
+          for (const [key, value] of Object.entries(proxied.headers || {})) {
+            response.setHeader(key, value as string);
+          }
+          if (proxied.data && typeof proxied.data.pipe === 'function') {
+            proxied.data.pipe(response);
+          } else {
+            response.end(proxied.data);
+          }
+        }
+      },
+      error: (err) => {
+        response.status(500).json({ success: false, error: err.message });
+      }
+    });
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('ai/*path')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)

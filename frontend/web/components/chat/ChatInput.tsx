@@ -11,6 +11,7 @@ interface ChatInputProps {
   isLoading?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  modelSelector?: React.ReactNode;
 }
 
 export function ChatInput({
@@ -20,6 +21,7 @@ export function ChatInput({
   isLoading = false,
   disabled = false,
   placeholder = 'Nhập câu hỏi của bạn...',
+  modelSelector,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -61,6 +63,7 @@ export function ChatInput({
             style={{ minHeight: '48px' }}
           />
         </div>
+        {modelSelector}
         <Button
           onClick={handleSubmit}
           disabled={!value.trim() || isLoading || disabled}

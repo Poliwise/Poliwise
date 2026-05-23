@@ -11,6 +11,7 @@
 --   008:    AI indexes (depends on tables, runs last for memory allocation)
 -- ============================================================
 
+\i /docker-entrypoint-initdb.d/000_bootstrap.sql
 \i /docker-entrypoint-initdb.d/001_core.sql
 \i /docker-entrypoint-initdb.d/002_metadata.sql
 \i /docker-entrypoint-initdb.d/003_knowledge.sql

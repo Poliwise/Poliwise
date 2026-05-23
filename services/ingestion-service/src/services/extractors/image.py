@@ -22,7 +22,7 @@ class ImageExtractor(DocumentExtractor):
     ) -> ExtractedDocument:
         image = Image.open(io.BytesIO(file_bytes))
 
-        text = self._ocr_image(image)
+        text, ocr_confidence = self._ocr_image(image)
         language = self._detect_language(text)
 
         chunks = [
@@ -38,13 +38,23 @@ class ImageExtractor(DocumentExtractor):
             chunks=chunks,
             page_count=1,
             language=language,
-            metadata={"extractor": "pytesseract", "width": image.width, "height": image.height},
+            metadata={
+                "extractor": "pytesseract",
+                "width": image.width,
+                "height": image.height,
+                "ocr_confidence": ocr_confidence,
+            },
         )
 
-    def _ocr_image(self, image: Image.Image) -> str:
-        """Perform OCR on an image."""
+    def _ocr_image(self, image: Image.Image) -> tuple[str, float]:
+        """Perform OCR on an image and return (text, avg_confidence)."""
+        data = pytesseract.image_to_data(image, lang=settings.ocr_language, output_type=pytesseract.Output.DICT)
+
+        confidences = [c for c in data["conf"] if c > 0]
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
         text = pytesseract.image_to_string(image, lang=settings.ocr_language)
-        return text
+        return text, avg_confidence / 100.0
 
     def _detect_language(self, text: str) -> str:
         """Language detection based on character set - supports EN and VI."""

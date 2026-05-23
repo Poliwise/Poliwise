@@ -63,7 +63,15 @@ async def on_document_deleted(message: IncomingMessage) -> None:
 
             logger.info("document_deleted", document_id=document_id)
 
-            # TODO: Soft-delete chunks for this document
+            from uuid import UUID
+            from src.db.session import async_session
+            from src.db.repositories.chunk_repo import ChunkRepository
+
+            async with async_session() as session:
+                chunk_repo = ChunkRepository(session)
+                deleted_count = await chunk_repo.soft_delete_chunks(UUID(document_id))
+                await session.commit()
+                logger.info("chunks_soft_deleted", document_id=document_id, count=deleted_count)
 
         except Exception as e:
             logger.error("deletion_failed", error=str(e))

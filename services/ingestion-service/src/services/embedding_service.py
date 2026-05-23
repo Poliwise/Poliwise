@@ -51,10 +51,26 @@ class EmbeddingService:
         if not texts:
             return []
 
+        # Truncate texts to avoid "413 Payload Too Large" error
+        # Let's import tiktoken and truncate each text to maximum 512 tokens
+        import tiktoken
+        try:
+            enc = tiktoken.get_encoding("cl100k_base")
+            truncated_texts = []
+            for text in texts:
+                tokens = enc.encode(text)
+                if len(tokens) > 512:
+                    truncated_texts.append(enc.decode(tokens[:512]))
+                else:
+                    truncated_texts.append(text)
+        except Exception as e:
+            logger.warning("failed_to_truncate_tokens_falling_back_to_char_slice", error=str(e))
+            truncated_texts = [text[:2000] for text in texts]
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.embedding_url}/v1/embeddings",
-                json={"input": texts},
+                json={"input": truncated_texts},
                 timeout=120.0,
             )
             response.raise_for_status()
