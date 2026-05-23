@@ -20,9 +20,10 @@ CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
     WITH (m = 16, ef_construction = 64);
 
 -- BM25 Full-text search via TSVECTOR generated column
+-- Uses 'simple' dictionary (lowercase + split) for Vietnamese content compatibility
 ALTER TABLE knowledge.chunks
     ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
-    GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+    GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
 
 CREATE INDEX IF NOT EXISTS idx_chunks_content_tsv
     ON knowledge.chunks USING GIN (content_tsv);
@@ -77,7 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_document_metadata_document
 
 ALTER TABLE conversation.messages
     ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
-    GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+    GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
 
 CREATE INDEX IF NOT EXISTS idx_messages_content_tsv
     ON conversation.messages USING GIN (content_tsv);
