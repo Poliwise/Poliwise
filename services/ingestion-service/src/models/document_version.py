@@ -16,6 +16,7 @@ class DocumentVersion(Base):
     version_number = Column(Integer, nullable=False)
     file_key = Column(String(500), nullable=False)
     file_size_bytes = Column(BigInteger, nullable=False)
+    document_type = Column(String(50), nullable=True)
     changelog = Column(Text, nullable=True)
     extracted_text = Column(Text, nullable=True)
     is_current = Column(Boolean, default=False, nullable=False)

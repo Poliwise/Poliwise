@@ -87,7 +87,7 @@ class ParentChildChunker:
             parent_chunk = Chunk(
                 chunk_id=parent_id,
                 document_id=metadata.get("document_id"),
-                document_version_id=metadata.get("version_id"),
+                document_version_id=metadata.get("document_version_id"),
                 document_version=metadata.get("document_version"),
                 chunk_type="parent",
                 content=section_text,
@@ -148,7 +148,7 @@ class ParentChildChunker:
             parent_chunk = Chunk(
                 chunk_id=parent_id,
                 document_id=metadata.get("document_id"),
-                document_version_id=metadata.get("version_id"),
+                document_version_id=metadata.get("document_version_id"),
                 document_version=metadata.get("document_version"),
                 chunk_type="parent",
                 content=parent_text,
@@ -214,7 +214,7 @@ class ParentChildChunker:
             child_chunks.append(
                 Chunk(
                     document_id=metadata.get("document_id"),
-                    document_version_id=metadata.get("version_id"),
+                    document_version_id=metadata.get("document_version_id"),
                     document_version=metadata.get("document_version"),
                     chunk_type="child",
                     parent_chunk_id=parent_id,
