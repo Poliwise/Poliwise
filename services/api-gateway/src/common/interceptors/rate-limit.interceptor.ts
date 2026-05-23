@@ -23,8 +23,10 @@ interface RateLimitRecord {
 export class RateLimitInterceptor implements NestInterceptor {
   private readonly ttl: number;
   private readonly limits: Record<string, number>;
-  private readonly recordStore = new Map<string, RateLimitRecord>();
+  private readonly fallbackStore = new Map<string, RateLimitRecord>();
   private readonly logger = new Logger(RateLimitInterceptor.name);
+  private useRedis: boolean;
+  private redisClient: any;
 
   constructor(private readonly configService: ConfigService) {
     this.ttl = this.configService.get<number>('throttler.ttl') || 60000;
@@ -38,19 +40,55 @@ export class RateLimitInterceptor implements NestInterceptor {
       public: this.configService.get<number>('throttler.limits.public') || 20,
     };
 
+    // Try to initialize Redis
+    this.useRedis = this.initRedis();
+
     setInterval(() => this.cleanupExpiredRecords(), 60000);
+  }
+
+  private initRedis(): boolean {
+    try {
+      const redis = require('redis');
+      const host = this.configService.get<string>('redis.host') || 'localhost';
+      const port = this.configService.get<number>('redis.port') || 6379;
+      const password = this.configService.get<string>('redis.password');
+
+      this.redisClient = redis.createClient({
+        host,
+        port,
+        password: password || undefined,
+      });
+
+      this.redisClient.on('error', (err: Error) => {
+        this.logger.warn(`Redis connection error, falling back to in-memory rate limiting: ${err.message}`);
+        this.useRedis = false;
+      });
+
+      this.redisClient.on('connect', () => {
+        this.logger.log('Redis connected for distributed rate limiting');
+      });
+
+      this.redisClient.connect().catch(() => {
+        this.useRedis = false;
+      });
+
+      return true;
+    } catch (e: any) {
+      this.logger.warn(`Redis not available, using in-memory rate limiting: ${e.message}`);
+      return false;
+    }
   }
 
   private cleanupExpiredRecords(): void {
     const now = Date.now();
-    for (const [key, record] of this.recordStore.entries()) {
+    for (const [key, record] of this.fallbackStore.entries()) {
       if (now >= record.resetTime) {
-        this.recordStore.delete(key);
+        this.fallbackStore.delete(key);
       }
     }
   }
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const request = context.switchToHttp().getRequest<Request>();
     
     // Skip rate limiting for health checks
@@ -65,7 +103,61 @@ export class RateLimitInterceptor implements NestInterceptor {
     const limit = this.getLimit(user);
     const now = Date.now();
 
-    const record = this.recordStore.get(key);
+    if (this.useRedis) {
+      return this.handleWithRedis(key, limit, now, response, next);
+    }
+    return this.handleWithMemory(key, limit, now, response, next);
+  }
+
+  private async handleWithRedis(
+    key: string,
+    limit: number,
+    now: number,
+    response: Response,
+    next: CallHandler
+  ): Promise<Observable<unknown>> {
+    const redisKey = `rate_limit:${key}`;
+    const resetTime = now + this.ttl;
+
+    try {
+      const current = await this.redisClient.incr(redisKey);
+      
+      if (current === 1) {
+        await this.redisClient.expire(redisKey, Math.ceil(this.ttl / 1000));
+      }
+
+      const ttl = await this.redisClient.ttl(redisKey);
+      const remaining = Math.max(0, limit - current);
+
+      response.setHeader('X-RateLimit-Limit', limit);
+      response.setHeader('X-RateLimit-Remaining', remaining);
+      response.setHeader('X-RateLimit-Reset', Math.ceil(Date.now() / 1000) + ttl);
+
+      if (current > limit) {
+        const retryAfter = ttl;
+        response.setHeader('Retry-After', retryAfter);
+        this.logger.warn(`Rate limit exceeded for key: ${key}`);
+        throw new HttpException(
+          ErrorResponse.rateLimitExceeded(retryAfter),
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    } catch (e) {
+      this.logger.warn(`Redis operation failed, falling back to memory: ${(e as Error).message}`);
+      return this.handleWithMemory(key, limit, now, response, next);
+    }
+
+    return next.handle().pipe(tap(() => {}));
+  }
+
+  private handleWithMemory(
+    key: string,
+    limit: number,
+    now: number,
+    response: Response,
+    next: CallHandler
+  ): Observable<unknown> {
+    const record = this.fallbackStore.get(key);
 
     if (record && now < record.resetTime) {
       if (record.count >= limit) {
@@ -88,7 +180,7 @@ export class RateLimitInterceptor implements NestInterceptor {
       }
       record.count++;
     } else {
-      this.recordStore.set(key, {
+      this.fallbackStore.set(key, {
         count: 1,
         resetTime: now + this.ttl,
       });

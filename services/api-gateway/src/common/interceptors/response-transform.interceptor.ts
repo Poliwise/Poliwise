@@ -40,10 +40,16 @@ export class ResponseTransformInterceptor implements NestInterceptor {
 
   private handleProxiedResponse(response: Response, data: unknown): void {
     if (response.headersSent) return;
+    this.logger.debug(`[handleProxiedResponse] isProxied=${this.isProxiedResponse(data)}`);
     if (!this.isProxiedResponse(data)) return;
 
     const proxied = data as ProxiedResponse;
-    if (this.isStreamResponse(proxied.data)) {
+    const isStream = this.isStreamResponse(proxied.data);
+    this.logger.debug(
+      `[handleProxiedResponse] isStream=${isStream} | type=${typeof proxied.data} ` +
+      `| proto=${Object.prototype.toString.call(proxied.data)} | hasPipe=${!!(proxied.data as any)?.pipe}`
+    );
+    if (isStream) {
       const status = proxied.statusCode ?? 200;
       response.status(status);
       this.copyHeaders(response, proxied.headers);
@@ -72,7 +78,7 @@ export class ResponseTransformInterceptor implements NestInterceptor {
   ): unknown {
     if (this.isProxiedResponse(data)) {
       const proxied = data as ProxiedResponse;
-      if (this.isBinaryResponse(proxied.data)) {
+      if (this.isBinaryResponse(proxied.data) || this.isStreamResponse(proxied.data)) {
         return undefined;
       }
       if (proxied.statusCode !== undefined) {
