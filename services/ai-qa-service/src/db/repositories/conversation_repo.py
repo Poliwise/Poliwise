@@ -90,6 +90,32 @@ class ConversationRepository:
         finally:
             await release_connection(conn)
 
+    async def update_title_if_default(self, conversation_id: UUID, title: str) -> None:
+        conn = await get_connection()
+        try:
+            await conn.execute(
+                """UPDATE conversation.conversations
+                   SET title = $2,
+                       updated_at = $3
+                   WHERE id = $1 AND (title = 'New Conversation' OR title IS NULL)""",
+                conversation_id, title, datetime.utcnow()
+            )
+        finally:
+            await release_connection(conn)
+
+    async def update_title(self, conversation_id: UUID, title: str) -> None:
+        conn = await get_connection()
+        try:
+            await conn.execute(
+                """UPDATE conversation.conversations
+                   SET title = $2,
+                       updated_at = $3
+                   WHERE id = $1""",
+                conversation_id, title, datetime.utcnow()
+            )
+        finally:
+            await release_connection(conn)
+
     async def update_message_count(self, conversation_id: UUID) -> None:
         conn = await get_connection()
         try:

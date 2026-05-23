@@ -9,11 +9,21 @@ export interface Source {
   similarity?: number;
 }
 
+export interface ChunkRef {
+  chunkId: string;
+  sectionTitle?: string;
+  excerpt: string;
+  fullContent: string;
+  similarityScore: number;
+  startCharIndex?: number;
+  endCharIndex?: number;
+}
+
 export interface SourceDocument {
   documentId: string;
   documentName: string;
   relevanceScore: number;
-  excerpt: string;
+  chunks: ChunkRef[];
 }
 
 export interface ModelInfo {
@@ -95,6 +105,7 @@ export interface Message {
   content: string;
   sources?: SourceDocument[];
   modelUsed?: string;
+  modelRequested?: string;
   tokensPrompt?: number;
   tokensCompletion?: number;
   tokensTotal?: number;
@@ -130,6 +141,7 @@ export type StreamEvent =
   | { type: 'conversationId'; conversationId: string }
   | { type: 'sources'; sources: SourceDocument[] }
   | { type: 'content'; content: string }
+  | { type: 'modelUsed'; modelUsed: string }
   | { type: 'done' }
   | { type: 'error'; error: string };
 

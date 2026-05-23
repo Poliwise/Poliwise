@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Menu, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useAuthStore } from '@/store';
+import { useUIStore } from '@/store/ui-store';
 import { api } from '@/lib/api';
 import type { Message, SourceDocument, FeedbackType, Conversation, ModelInfo } from '@/types';
 
@@ -12,6 +13,8 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
 import { ModelSelector } from './ModelSelector';
+import { SourcesPanel } from './SourcesPanel';
+import { DocumentViewerModal } from '@/components/documents/DocumentViewerModal';
 
 interface ChatContainerProps {
   initialConversationId?: string;
@@ -19,6 +22,8 @@ interface ChatContainerProps {
 
 export function ChatContainer({ initialConversationId }: ChatContainerProps) {
   const { user } = useAuthStore();
+  const isSourcesPanelOpen = useUIStore((s) => s.isSourcesPanelOpen);
+
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>(initialConversationId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -29,6 +34,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
   const [selectedModelId, setSelectedModelId] = useState('default');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const skipLoadRef = useRef(false);
 
   useEffect(() => {
     api.ai.getModels().then(setModels).catch(() => {});
@@ -63,6 +69,10 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
 
   useEffect(() => {
     if (selectedConversationId) {
+      if (skipLoadRef.current) {
+        skipLoadRef.current = false;
+        return;
+      }
       loadConversation(selectedConversationId);
     } else {
       setMessages([]);
@@ -130,6 +140,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
         hasSources: false,
         isStreaming: true,
         streamingCompleted: false,
+        modelRequested: selectedModelId,
         modelUsed,
         createdAt: new Date().toISOString(),
       };
@@ -143,18 +154,29 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
           case 'conversationId':
             conversationId = value.conversationId;
             if (!selectedConversationId) {
+              skipLoadRef.current = true;
               setSelectedConversationId(value.conversationId);
             }
             break;
           case 'sources':
             sources = value.sources;
             break;
+          case 'modelUsed':
+            modelUsed = value.modelUsed;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessageId
+                  ? { ...m, modelUsed }
+                  : m
+              )
+            );
+            break;
           case 'content':
             fullContent += value.content;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMessageId
-                  ? { ...m, content: fullContent, sources: sources.length > 0 ? sources : m.sources }
+                  ? { ...m, content: fullContent, sources: sources.length > 0 ? sources : m.sources, modelUsed }
                   : m
               )
             );
@@ -163,7 +185,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMessageId
-                  ? { ...m, content: fullContent, sources, isStreaming: false, streamingCompleted: true }
+                  ? { ...m, content: fullContent, sources, isStreaming: false, streamingCompleted: true, modelUsed }
                   : m
               )
             );
@@ -234,6 +256,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
         onClose={() => setIsSidebarOpen(false)}
       />
 
+      {/* Main chat area - shrinks when sources panel is open */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center gap-2 p-4 border-b border-border lg:hidden">
           <Button
@@ -289,6 +312,12 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
           }
         />
       </div>
+
+      {/* Right sources sidebar - slides in when active */}
+      {isSourcesPanelOpen && <SourcesPanel />}
+
+      {/* Document viewer modal (portal-like overlay) */}
+      <DocumentViewerModal />
     </div>
   );
 }

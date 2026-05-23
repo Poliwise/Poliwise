@@ -112,6 +112,11 @@ class ModelRegistry:
             )
             logger.warning(f"Model {model_id} marked as RATE_LIMITED for {settings.model_rate_limit_cooldown_minutes} minutes.")
 
+    def mark_unavailable(self, model_id: str):
+        if model_id in self._profiles:
+            self._profiles[model_id].status = ModelStatus.UNAVAILABLE
+            logger.warning(f"Model {model_id} marked as UNAVAILABLE due to connection failure.")
+
     def _refresh_rate_limit_status(self):
         now = datetime.utcnow()
         for profile in self._profiles.values():

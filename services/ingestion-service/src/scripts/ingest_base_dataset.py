@@ -31,7 +31,7 @@ class HandbookIngestor:
     def __init__(self):
         self.standardizer = DocumentPolicyStandardizer()
         self.chunker = ParentChildChunker()
-        self.user_id = uuid.UUID("00000000-0000-4000-a000-000000000000") 
+        self.user_id = uuid.UUID("00000000-0000-0000-0000-000000000001") 
         self.departments_cache = {} # name -> id (Major Divisions)
         self.categories_cache = {} # name -> id (The 38 folders)
         self.tags_cache = {} # slug -> id
@@ -136,7 +136,7 @@ class HandbookIngestor:
     async def _seed_metadata(self, base_path: Path):
         async with async_session() as session:
             # 0. Seed Admin User if not exists
-            admin_id = uuid.UUID("00000000-0000-4000-a000-000000000000")
+            admin_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
             await session.execute(text("""
                 INSERT INTO core.users (id, username, email, password_hash, role, status)
                 VALUES (:id, 'admin', 'admin@poliwise.com', 'hash', CAST('ADMIN' AS core.user_role), CAST('ACTIVE' AS core.account_status))

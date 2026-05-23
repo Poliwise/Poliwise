@@ -63,6 +63,15 @@ class ConversationService:
             **kwargs
         )
         await self.conv_repo.update_message_count(conversation_id)
+
+        # Auto-update title if it's a USER message and title is currently default/NULL
+        if role == "USER":
+            title = content[:100] + ("..." if len(content) > 100 else "")
+            try:
+                await self.conv_repo.update_title_if_default(conversation_id, title)
+            except Exception as e:
+                logger.error("failed_to_auto_update_conversation_title", error=str(e), conversation_id=str(conversation_id))
+
         return message
 
 

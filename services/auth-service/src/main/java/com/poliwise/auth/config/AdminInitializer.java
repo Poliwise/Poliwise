@@ -18,6 +18,7 @@ import java.util.UUID;
 /**
  * Initializes default admin account on application startup.
  * Creates the admin user only if it does not already exist.
+ * Generates a random password on first deployment.
  */
 @Component
 @RequiredArgsConstructor
@@ -31,9 +32,25 @@ public class AdminInitializer implements CommandLineRunner {
             ? System.getenv("ADMIN_USERNAME") : "admin";
     private static final String ADMIN_EMAIL = System.getenv("ADMIN_EMAIL") != null
             ? System.getenv("ADMIN_EMAIL") : "admin@poliwise.local";
-    private static final String ADMIN_PASSWORD = System.getenv("ADMIN_PASSWORD") != null
-            ? System.getenv("ADMIN_PASSWORD") : "changeme";
+    private static final String ADMIN_PASSWORD = generateRandomPassword();
     private static final UserRole ADMIN_ROLE = UserRole.ADMIN;
+
+    private static String generateRandomPassword() {
+        String password = System.getenv("ADMIN_PASSWORD");
+        if (password != null && !password.isEmpty()) {
+            return password;
+        }
+        // Generate random password for initial deployment
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*";
+        StringBuilder sb = new StringBuilder();
+        java.util.Random random = new java.util.Random();
+        for (int i = 0; i < 16; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        String generated = sb.toString();
+        log.warn("Generated random admin password for initial deployment: {}", generated);
+        return generated;
+    }
 
     @Override
     @Transactional
@@ -72,14 +89,14 @@ public class AdminInitializer implements CommandLineRunner {
                 .role(ADMIN_ROLE)
                 .status(AccountStatus.ACTIVE)
                 .failedLoginAttempts(0)
-                .mustChangePassword(false)
+                .mustChangePassword(true)
                 .passwordChangedAt(now)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
 
         userRepository.save(admin);
-        log.info("Admin account '{}' created successfully with username='{}' and password='{}'.",
-                ADMIN_USERNAME, ADMIN_USERNAME, ADMIN_PASSWORD);
+        log.info("Admin account '{}' created successfully. PASSWORD MUST BE CHANGED ON FIRST LOGIN.",
+                ADMIN_USERNAME);
     }
 }

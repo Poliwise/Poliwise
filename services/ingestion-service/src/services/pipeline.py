@@ -119,12 +119,25 @@ class IngestionPipeline:
                 # --- 6. PERSISTENCE ---
                 await processing_job_service.update_progress(job_id, 90, "Saving results to database")
 
-                # Save Version Metadata (checksums)
                 ver_repo = VersionRepository(session)
+
+                # Compute similarity to previous version if fingerprint exists
+                similarity_to_previous = None
+                if dup_semantic.vector is not None:
+                    prev_versions = await ver_repo.find_near_duplicates(
+                        dup_semantic.vector, threshold=0.0, limit=1
+                    )
+                    if prev_versions:
+                        _, sim = prev_versions[0]
+                        similarity_to_previous = sim
+
+                # Save Version Metadata (checksums, fingerprint, similarity)
                 await ver_repo.update_version(
                     version_id,
                     file_checksum=file_checksum,
                     content_hash=content_hash,
+                    fingerprint_embedding=dup_semantic.vector,
+                    similarity_to_previous=similarity_to_previous,
                 )
 
                 # Save Extracted Text to DocumentVersion
@@ -135,6 +148,11 @@ class IngestionPipeline:
                     page_count=extracted.page_count,
                     word_count=len(extracted.text.split())
                 )
+
+                # Save OCR confidence if available from extraction metadata
+                ocr_conf = extracted.metadata.get("ocr_confidence")
+                if ocr_conf is not None:
+                    await doc_repo.update_ocr_confidence(document_id, ocr_conf)
                 
                 # Bulk Insert Chunks
                 chunk_repo = ChunkRepository(session)

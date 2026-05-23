@@ -24,18 +24,19 @@ class MessageRepository:
         tokens_total: Optional[int] = None,
         latency_ms: Optional[int] = None,
         confidence: Optional[str] = None,
-        has_sources: bool = False
+        has_sources: bool = False,
+        metadata: Optional[dict] = None
     ) -> MessageResponse:
         conn = await get_connection()
         try:
             row = await conn.fetchrow(
                 """INSERT INTO conversation.messages
                    (conversation_id, role, content, sources, model_used, tokens_prompt,
-                    tokens_completion, tokens_total, latency_ms, confidence, has_sources, created_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    tokens_completion, tokens_total, latency_ms, confidence, has_sources, metadata, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                    RETURNING id, conversation_id, role, content, sources, model_used,
                              tokens_prompt, tokens_completion, tokens_total, latency_ms,
-                             confidence, has_sources, is_streaming, streaming_completed, created_at""",
+                             confidence, has_sources, metadata, is_streaming, streaming_completed, created_at""",
                 conversation_id,
                 role,
                 content,
@@ -47,11 +48,14 @@ class MessageRepository:
                 latency_ms,
                 confidence,
                 has_sources,
+                json.dumps(metadata) if metadata else '{}',
                 datetime.utcnow()
             )
             row_dict = dict(row)
             if row_dict.get('sources') and isinstance(row_dict['sources'], str):
                 row_dict['sources'] = json.loads(row_dict['sources'])
+            if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
+                row_dict['metadata'] = json.loads(row_dict['metadata'])
             return MessageResponse(**row_dict)
         finally:
             await release_connection(conn)
@@ -67,7 +71,7 @@ class MessageRepository:
             rows = await conn.fetch(
                 """SELECT m.id, m.conversation_id, m.role, m.content, m.sources, m.model_used,
                           m.tokens_prompt, m.tokens_completion, m.tokens_total, m.latency_ms,
-                          m.confidence, m.has_sources, m.is_streaming, m.streaming_completed, m.created_at
+                          m.confidence, m.has_sources, m.metadata, m.is_streaming, m.streaming_completed, m.created_at
                    FROM conversation.messages m
                    JOIN conversation.conversations c ON m.conversation_id = c.id
                    WHERE m.conversation_id = $1 AND c.user_id = $2 AND m.deleted_at IS NULL
@@ -80,6 +84,8 @@ class MessageRepository:
                 row_dict = dict(row)
                 if row_dict.get('sources') and isinstance(row_dict['sources'], str):
                     row_dict['sources'] = json.loads(row_dict['sources'])
+                if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
+                    row_dict['metadata'] = json.loads(row_dict['metadata'])
                 results.append(MessageResponse(**row_dict))
             return results
         finally:
@@ -91,7 +97,7 @@ class MessageRepository:
             row = await conn.fetchrow(
                 """SELECT m.id, m.conversation_id, m.role, m.content, m.sources, m.model_used,
                           m.tokens_prompt, m.tokens_completion, m.tokens_total, m.latency_ms,
-                          m.confidence, m.has_sources, m.is_streaming, m.streaming_completed, m.created_at
+                          m.confidence, m.has_sources, m.metadata, m.is_streaming, m.streaming_completed, m.created_at
                    FROM conversation.messages m
                    JOIN conversation.conversations c ON m.conversation_id = c.id
                    WHERE m.id = $1 AND c.user_id = $2 AND m.deleted_at IS NULL""",
@@ -102,6 +108,8 @@ class MessageRepository:
             row_dict = dict(row)
             if row_dict.get('sources') and isinstance(row_dict['sources'], str):
                 row_dict['sources'] = json.loads(row_dict['sources'])
+            if row_dict.get('metadata') and isinstance(row_dict['metadata'], str):
+                row_dict['metadata'] = json.loads(row_dict['metadata'])
             return MessageResponse(**row_dict)
         finally:
             await release_connection(conn)

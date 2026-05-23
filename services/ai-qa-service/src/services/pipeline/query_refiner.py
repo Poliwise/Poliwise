@@ -35,9 +35,10 @@ class RefinedQuery(BaseModel):
     latency_ms: int = 0
 
 class QueryRefiner:
-    def __init__(self, groq_api_key: str, model: str = "llama-3.1-8b-instant"):
+    def __init__(self, groq_api_key: str, model: str = "llama-3.1-8b-instant", max_tokens: int = 256):
         self.client = AsyncGroq(api_key=groq_api_key)
         self.model = model
+        self.max_tokens = max_tokens
 
     def _format_layer3_history(self, layer3_history: list[Any]) -> str:
         if not layer3_history:
@@ -73,7 +74,7 @@ class QueryRefiner:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=256,
+                max_tokens=self.max_tokens,
                 temperature=0.0,
                 response_format={"type": "json_object"},
             )

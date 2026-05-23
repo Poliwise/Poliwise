@@ -103,3 +103,13 @@ class ChunkRepository:
             .where(Chunk.document_id == document_id, Chunk.is_latest == True)
             .values(is_latest=False)
         )
+
+    async def soft_delete_chunks(self, document_id: UUID) -> int:
+        """Soft-delete all chunks for a document by setting deleted_at."""
+        from datetime import datetime
+        result = await self.session.execute(
+            update(Chunk)
+            .where(Chunk.document_id == document_id, Chunk.deleted_at == None)
+            .values(deleted_at=datetime.utcnow())
+        )
+        return result.rowcount

@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     layer2_model: str = "llama-3.1-8b-instant"
     layer2_max_tokens_classify: int = 10
     layer2_max_tokens_respond: int = 256
+    layer2_model_respond: str = "llama-3.1-8b-instant"
+    query_refiner_model: str = "llama-3.1-8b-instant"
+    query_refiner_max_tokens: int = 256
 
     # Layer 3 - Remote APIs
     openrouter_api_key: Optional[str] = None

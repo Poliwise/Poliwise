@@ -44,15 +44,23 @@ public class UnansweredQuestionConsumer {
     @Transactional
     public void handleUnansweredQuestion(Map<String, Object> message) {
         try {
-            String question = (String) message.get("question");
-            UUID userId = parseUUID(message.get("userId"));
-            UUID messageId = parseUUID(message.get("messageId"));
-            UUID conversationId = parseUUID(message.get("conversationId"));
-            String userRole = (String) message.get("userRole");
-            UUID departmentId = parseUUID(message.get("departmentId"));
-            String category = (String) message.get("category");
-            String searchQuery = (String) message.get("searchQuery");
-            Double similarity = (Double) message.get("topSimilarityScore");
+            // Extract payload from Python event (wrapped in "payload" key)
+            Map<String, Object> payload = (Map<String, Object>) message.get("payload");
+            if (payload == null) {
+                log.error("Message missing 'payload' key: {}", message.keySet());
+                return;
+            }
+            
+            String question = (String) payload.get("question");
+            UUID userId = parseUUID(payload.get("user_id"));
+            UUID messageId = parseUUID(payload.get("message_id"));
+            UUID conversationId = parseUUID(payload.get("conversation_id"));
+            String userRole = (String) payload.getOrDefault("user_role", "USER");
+            UUID departmentId = parseUUID(payload.get("user_department_id"));
+            String category = (String) payload.get("category");
+            String searchQuery = (String) payload.getOrDefault("search_query", question);
+            Double similarity = (Double) payload.get("top_similarity_score");
+            String priority = (String) payload.getOrDefault("priority", "NORMAL");
 
             UnansweredQuestion uq = UnansweredQuestion.builder()
                     .userId(userId)
@@ -66,7 +74,7 @@ public class UnansweredQuestionConsumer {
                     .searchQuery(searchQuery)
                     .topSimilarityScore(similarity != null ? BigDecimal.valueOf(similarity) : null)
                     .resolved(false)
-                    .priority("NORMAL")
+                    .priority(priority)
                     .build();
             unansweredQuestionRepository.save(uq);
 

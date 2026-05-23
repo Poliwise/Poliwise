@@ -52,6 +52,7 @@ class MessageResponse(BaseModel):
     latency_ms: Optional[int] = None
     confidence: Optional[ConfidenceLevel] = None
     has_sources: bool = False
+    metadata: Optional[dict] = None
     is_streaming: bool = False
     streaming_completed: bool = True
     created_at: datetime

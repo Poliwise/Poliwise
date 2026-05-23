@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown, AlertCircle, Clock, FileText } from 'lucide-react';
+import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown, AlertCircle, Clock, FileText, BookOpen } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button } from '@/components/ui';
 import { Badge } from '@/components/ui';
-import { SourcesPanel } from './SourcesPanel';
+import { useUIStore } from '@/store/ui-store';
 import type { Message, SourceDocument, FeedbackType } from '@/types';
 
 interface ChatMessageProps {
@@ -26,6 +26,23 @@ function formatLatency(ms?: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+/** Count total chunks across all source documents */
+function getTotalChunks(sources: SourceDocument[]): number {
+  return sources.reduce((acc, s) => acc + (s.chunks?.length || 0), 0);
+}
+
+function getModelName(id?: string): string {
+  if (!id) return '';
+  const names: Record<string, string> = {
+    'local/qwen3-8b': 'Qwen3 8B (Local)',
+    'groq/qwen3-32b': 'Qwen3 32B (Groq)',
+    'groq/llama-70b': 'Llama 3.3 70B (Groq)',
+    'gemini/flash-2': 'Gemini 2.0 Flash',
+    'openrouter/mistral-7b': 'Mistral 7B (OpenRouter)',
+  };
+  return names[id] || id;
+}
+
 export function ChatMessage({
   message,
   onCopy,
@@ -34,6 +51,16 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isUser = message.role === 'USER';
   const [copied, setCopied] = React.useState(false);
+  const openSourcesPanel = useUIStore((s) => s.openSourcesPanel);
+
+  const requestedModel = message.modelRequested === 'default'
+    ? 'local/qwen3-8b'
+    : message.modelRequested;
+
+  const isFallback = !isUser &&
+    message.modelUsed &&
+    requestedModel &&
+    message.modelUsed !== requestedModel;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -45,6 +72,10 @@ export function ChatMessage({
   const handleFeedback = (type: FeedbackType) => {
     onFeedback?.(message.id, type);
   };
+
+  const hasSources = !isUser && message.sources && message.sources.length > 0;
+  const totalChunks = hasSources ? getTotalChunks(message.sources!) : 0;
+  const totalDocs = hasSources ? message.sources!.length : 0;
 
   return (
     <div
@@ -94,8 +125,29 @@ export function ChatMessage({
           </p>
         </div>
 
-        {!isUser && message.sources && message.sources.length > 0 && (
-          <SourcesPanel sources={message.sources} />
+        {isFallback && (
+          <div className="flex items-start gap-1.5 px-3 py-2 mt-2 text-[11px] text-amber-700 bg-amber-50 rounded-lg border border-amber-200/50 max-w-full animate-fade-in">
+            <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold">Lưu ý:</span> Mô hình yêu cầu <span className="font-mono text-[10px] bg-amber-100/80 px-1 py-0.5 rounded">{getModelName(requestedModel)}</span> hiện không phản hồi. Hệ thống đã tự động chuyển sang mô hình dự phòng <span className="font-semibold text-amber-800">{getModelName(message.modelUsed)}</span> để đảm bảo câu trả lời không bị gián đoạn.
+            </div>
+          </div>
+        )}
+
+        {/* Layer 1: Inline Sources Summary */}
+        {hasSources && (
+          <div className="flex items-center gap-2 mt-1 px-1">
+            <BookOpen size={14} className="text-muted-foreground flex-shrink-0" />
+            <span className="text-xs text-muted-foreground">
+              Được tổng hợp từ {totalChunks} chunks thuộc {totalDocs} tài liệu.
+            </span>
+            <button
+              onClick={() => openSourcesPanel(message.sources!)}
+              className="text-xs font-medium text-primary hover:underline hover:translate-x-0.5 transition-all duration-200 cursor-pointer"
+            >
+              Xem chi tiết nguồn
+            </button>
+          </div>
         )}
 
         {!isUser && (
