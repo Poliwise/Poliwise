@@ -26,15 +26,15 @@ const statusLabels = {
 export function ModelSelector({ models, value, onChange, disabled }: ModelSelectorProps) {
   if (models.length === 0) return null;
 
-  const selectedModel = models.find((m) => m.id === value);
+  const selectedModel = models.find((m) => m.id === value) || models.find((m) => m.isDefault) || models[0];
 
   return (
     <div className="relative">
       <select
-        value={value}
+        value={selectedModel?.id || value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="appearance-none cursor-pointer bg-muted border border-input rounded-lg pl-3 pr-8 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted/80 transition-colors"
+        className="appearance-none cursor-pointer bg-muted border border-input rounded-lg pl-6 pr-8 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted/80 transition-colors"
       >
         {models.map((model) => {
           const isDisabled = model.status !== 'available';
@@ -57,7 +57,7 @@ export function ModelSelector({ models, value, onChange, disabled }: ModelSelect
         className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground"
       />
       <span
-        className={`absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${statusColors[selectedModel?.status || 'unavailable']}`}
+        className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${statusColors[selectedModel?.status || 'unavailable']}`}
       />
     </div>
   );
