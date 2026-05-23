@@ -12,6 +12,8 @@ class RetrievalChunk(BaseModel):
     content: str
     section_title: Optional[str] = None
     similarity_score: float
+    start_char_index: Optional[int] = None
+    end_char_index: Optional[int] = None
     metadata: Optional[dict] = None
 
 

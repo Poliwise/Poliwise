@@ -50,7 +50,7 @@ class ChunkRepository:
 
             query = f"""
                 SELECT c.id, c.document_id, dm.title as document_name, c.content,
-                       c.section_title,
+                       c.section_title, c.start_char_index, c.end_char_index,
                        ((c.embedding_vector <=> $1::vector){dept_boost_expr}) as distance,
                        c.metadata
                 FROM knowledge.chunks c
@@ -83,6 +83,8 @@ class ChunkRepository:
                     content=row['content'],
                     section_title=row.get('section_title'),
                     similarity_score=similarity,
+                    start_char_index=row.get('start_char_index'),
+                    end_char_index=row.get('end_char_index'),
                     metadata=json.loads(raw_metadata) if isinstance(raw_metadata, str) else raw_metadata
                 ))
 
@@ -129,20 +131,20 @@ class ChunkRepository:
 
             sql_query = f"""
                 SELECT c.id, c.document_id, dm.title as document_name, c.content,
-                       c.section_title,
+                       c.section_title, c.start_char_index, c.end_char_index,
                        (ts_rank(
                            setweight(coalesce(c.content_tsv, ''::tsvector), 'D') ||
-                           setweight(coalesce(to_tsvector('english', dm.title), ''::tsvector), 'A') ||
-                           setweight(coalesce(to_tsvector('english', c.section_title), ''::tsvector), 'B'),
-                           plainto_tsquery('english', $1)
+                           setweight(coalesce(to_tsvector('simple', dm.title), ''::tsvector), 'A') ||
+                           setweight(coalesce(to_tsvector('simple', c.section_title), ''::tsvector), 'B'),
+                           plainto_tsquery('simple', $1)
                        ){dept_boost_expr}) as rank,
                        c.metadata
                 FROM knowledge.chunks c
                 LEFT JOIN metadata.document_metadata dm ON dm.document_id = c.document_id AND dm.deleted_at IS NULL
                 WHERE (
-                    c.content_tsv @@ plainto_tsquery('english', $1)
-                    OR to_tsvector('english', dm.title) @@ plainto_tsquery('english', $1)
-                    OR to_tsvector('english', c.section_title) @@ plainto_tsquery('english', $1)
+                    c.content_tsv @@ plainto_tsquery('simple', $1)
+                    OR to_tsvector('simple', dm.title) @@ plainto_tsquery('simple', $1)
+                    OR to_tsvector('simple', c.section_title) @@ plainto_tsquery('simple', $1)
                 )
                   AND c.is_latest = true
                   AND c.deleted_at IS NULL
@@ -171,6 +173,8 @@ class ChunkRepository:
                     content=row['content'],
                     section_title=row.get('section_title'),
                     similarity_score=similarity,
+                    start_char_index=row.get('start_char_index'),
+                    end_char_index=row.get('end_char_index'),
                     metadata=json.loads(raw_metadata) if isinstance(raw_metadata, str) else raw_metadata
                 ))
 
