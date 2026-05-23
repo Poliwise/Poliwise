@@ -31,6 +31,7 @@ class Chunk:
     document_version: int
     chunk_type: str  # "parent" or "child"
     content: str
+    chunk_id: Optional[UUID] = None
     section_title: Optional[str] = None
     section_level: Optional[int] = None
     section_path: Optional[list[str]] = None

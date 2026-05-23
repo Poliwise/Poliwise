@@ -43,3 +43,11 @@ class DocumentRepository:
             .values(status=text("CAST(:status AS knowledge.processing_status)").bindparams(status=status))
         )
         await self.session.commit()
+
+    async def update_ocr_confidence(self, document_id: UUID, ocr_confidence: float) -> None:
+        """Update document OCR confidence after extraction."""
+        await self.session.execute(
+            update(Document)
+            .where(Document.id == document_id)
+            .values(ocr_confidence=ocr_confidence)
+        )
