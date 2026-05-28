@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/audit-logs")
+@RequestMapping("/api/v1/analytics/audit-logs")
 public class AuditController {
 
     private final AuditLogService auditLogService;

@@ -234,10 +234,12 @@ export class ProxyService {
     const traceId =
       (request.headers[TRACE_ID_HEADER.toLowerCase()] as string) || undefined;
 
+    const contentType = (request.headers['content-type'] as string) || '';
+    const isMultipart = contentType.toLowerCase().includes('multipart/form-data');
     const headers = this.buildForwardHeaders(request, user, traceId);
     const method = request.method.toLowerCase();
     const data = ['post', 'put', 'patch'].includes(method)
-      ? request.body
+      ? (isMultipart ? request : request.body)
       : undefined;
     const params = request.query as Record<string, string>;
 

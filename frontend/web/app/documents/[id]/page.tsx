@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -29,7 +29,7 @@ import {
 } from '@/services/document.service';
 import { onlyOfficeService, isEditableFileType } from '@/services/onlyoffice.service';
 import { AccessRuleModal } from '@/components/documents/AccessRuleModal';
-import OnlyOfficeEditor from '@/components/onlyoffice/OnlyOfficeEditor';
+import OnlyOfficeEditor, { OnlyOfficeEditorHandle } from '@/components/onlyoffice/OnlyOfficeEditor';
 import { ConflictResolver } from '@/components/onlyoffice/ConflictResolver';
 import { EditOldVersionModal } from '@/components/onlyoffice/EditOldVersionModal';
 import type {
@@ -119,6 +119,22 @@ export default function DocumentDetailPage() {
   } | null>(null);
   const [editOldVersionOpen, setEditOldVersionOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<import('@/types/document').DocumentVersion | null>(null);
+  const [mergeDiffData, setMergeDiffData] = useState<{
+    diffLines: Array<{ type: 'UNCHANGED' | 'ADDED' | 'DELETED'; lineNumber: number; content: string }>;
+    baseVersion: number;
+    currentVersion: number;
+  } | null>(null);
+
+  // Ref to access the editor's imperative API (downloadCurrentFile)
+  const editorRef = useRef<OnlyOfficeEditorHandle>(null);
+
+  // Holds the user's current editor content when a conflict is detected,
+  // so ConflictResolver can offer "Lấy bản hiện tại" and re-edit with it.
+  const [currentFileAtConflict, setCurrentFileAtConflict] = useState<File | null>(null);
+
+  // Passed to OnlyOfficeEditor when re-opening after conflict
+  const [editorCurrentFile, setEditorCurrentFile] = useState<File | null>(null);
+  const [editorLatestVersionPreview, setEditorLatestVersionPreview] = useState<{ versionNumber: number } | null>(null);
 
   // Ensure client-only components never SSR — prevents React #418 hydration mismatch
   useEffect(() => { setMounted(true); }, []);
@@ -266,10 +282,20 @@ export default function DocumentDetailPage() {
   const handleEditorConflict = (data: {
     lock: import('@/services/onlyoffice.service').LockInfo;
     currentVersion: number;
+    currentFile: File | null;
   }) => {
-    setEditorOpen(false);
-    setConflictData(data);
+    // currentFile: user's editor content (captured before editor was destroyed).
+    // ConflictResolver shows "mine" preview from this file and can upload it.
+    setCurrentFileAtConflict(data.currentFile);
+    // Keep a copy so we can re-open the editor with the same in-progress file.
+    setEditorCurrentFile(data.currentFile);
+    // Always show preview of the latest version (if known) when re-editing.
+    // If backend status fetch failed (0), fall back to the current document version.
+    const latest = data.currentVersion && data.currentVersion > 0 ? data.currentVersion : (document?.currentVersion || 1);
+    setEditorLatestVersionPreview({ versionNumber: latest });
+    setConflictData({ lock: data.lock, currentVersion: latest });
     setConflictOpen(true);
+    setEditorOpen(false);
   };
 
   if (loading) {
@@ -1030,10 +1056,14 @@ export default function DocumentDetailPage() {
       {/* OnlyOffice Editor — client-only, never SSR, to prevent hydration mismatch */}
       {mounted && document && (
         <OnlyOfficeEditor
+          ref={editorRef}
           open={editorOpen}
           onClose={() => {
             setEditorOpen(false);
             setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            setEditorCurrentFile(null);
+            setEditorLatestVersionPreview(null);
             loadDocument();
           }}
           documentId={documentId}
@@ -1041,12 +1071,19 @@ export default function DocumentDetailPage() {
           fileType={(document.fileType as unknown as string) || 'DOCX'}
           currentVersion={document.currentVersion || 1}
           targetVersion={editorTargetVersion}
-          onSaveSuccess={(newVersion) => {
+          mergeDiffData={mergeDiffData ?? undefined}
+          currentFile={editorCurrentFile}
+          latestVersionPreview={editorLatestVersionPreview}
+          onSaveSuccess={(newVersion: number) => {
             setEditorOpen(false);
             setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            setEditorCurrentFile(null);
+            setEditorLatestVersionPreview(null);
             loadDocument();
           }}
           onConflictDetected={handleEditorConflict}
+          conflictResolverActive={conflictOpen}
         />
       )}
 
@@ -1057,15 +1094,46 @@ export default function DocumentDetailPage() {
           onClose={() => {
             setConflictOpen(false);
             setConflictData(null);
+            setCurrentFileAtConflict(null);
+            setEditorOpen(false);
+            setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            // Release the lock since user chose not to resolve the conflict.
+            // The lock was preserved during the conflict resolution session.
+            if (conflictData) {
+              onlyOfficeService.releaseLock(documentId, conflictData.lock.lockToken).catch(() => {});
+            }
           }}
           documentId={documentId}
           documentTitle={document.title || document.originalFilename || 'Tài liệu'}
-          conflictData={conflictData}
-          isAdmin={isAdmin}
+          conflictData={conflictData!}
+          currentFile={currentFileAtConflict}
           onResolved={(strategy, newVersion) => {
             setConflictOpen(false);
             setConflictData(null);
+            setCurrentFileAtConflict(null);
+            setEditorOpen(false);
+            setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            // Release the lock after conflict resolution.
+            // After merge_as_new, backend extends the lock, so we must release it here.
+            if (conflictData) {
+              onlyOfficeService.releaseLock(documentId, conflictData.lock.lockToken).catch(() => {});
+            }
             loadDocument();
+          }}
+          onReEdit={() => {
+            setConflictOpen(false);
+            setConflictData(null);
+            // Pass current file blob + latest version preview to the editor
+            setEditorCurrentFile(currentFileAtConflict);
+            // Keep the latest preview already computed on conflict detection.
+            // (ConflictResolver may not have the latest version number if status call failed.)
+            setEditorLatestVersionPreview((prev) => prev || { versionNumber: document.currentVersion || 1 });
+            // Upgrade the lock to the latest version so it doesn't trigger another conflict on save
+            setEditorTargetVersion(conflictData.currentVersion);
+            setMergeDiffData(null);
+            setEditorOpen(true);
           }}
         />
       )}

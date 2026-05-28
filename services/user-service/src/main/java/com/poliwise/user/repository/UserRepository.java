@@ -1,6 +1,7 @@
 package com.poliwise.user.repository;
 
 import com.poliwise.user.entity.User;
+import com.poliwise.user.enums.AccountStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -42,4 +43,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     @Query("select count(u) from User u where u.department.id = :departmentId")
     long countByDepartmentId(@Param("departmentId") UUID departmentId);
+
+    long countByStatus(AccountStatus status);
 }

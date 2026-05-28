@@ -1,5 +1,7 @@
 package com.poliwise.knowledge.service;
 
+import java.util.UUID;
+
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.DeltaType;
@@ -54,6 +56,7 @@ public class OnlyOfficeService {
     private final DocumentVersionDeletionRepository deletionRepository;
     private final DocumentAuditLogRepository auditLogRepository;
     private final StorageService storageService;
+    private final TextExtractionService textExtractionService;
     private final OnlyOfficeProperties properties;
     private final SecretKey jwtSigningKey;
 
@@ -64,6 +67,7 @@ public class OnlyOfficeService {
             DocumentVersionDeletionRepository deletionRepository,
             DocumentAuditLogRepository auditLogRepository,
             StorageService storageService,
+            TextExtractionService textExtractionService,
             OnlyOfficeProperties properties) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
@@ -71,6 +75,7 @@ public class OnlyOfficeService {
         this.deletionRepository = deletionRepository;
         this.auditLogRepository = auditLogRepository;
         this.storageService = storageService;
+        this.textExtractionService = textExtractionService;
         this.properties = properties;
         this.jwtSigningKey = Keys.hmacShaKeyFor(
                 properties.getJwtSecret().getBytes(StandardCharsets.UTF_8));
@@ -121,6 +126,9 @@ public class OnlyOfficeService {
             } else {
                 // Same user — extend lock
                 lock.setExpiresAt(OffsetDateTime.now().plusMinutes(properties.getLockDurationMinutes()));
+                if (targetVersion != null && targetVersion > lock.getVersionAtLock()) {
+                    lock.setVersionAtLock(targetVersion);
+                }
                 DocumentLock saved = lockRepository.save(lock);
                 logAudit(documentId, "ONLYOFFICE_LOCK_EXTENDED",
                         Map.of("versionAtLock", saved.getVersionAtLock()),
@@ -164,6 +172,21 @@ public class OnlyOfficeService {
 
         int releasedVersion = lock.getVersionAtLock();
         lockRepository.delete(lock);
+
+        // Cleanup conflict file if it exists
+        Document document = documentRepository.findById(documentId).orElse(null);
+        if (document != null) {
+            String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+            String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+            try {
+                if (storageService.conflictFileExists(conflictFileKey)) {
+                    storageService.deleteFile(conflictFileKey);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete conflict file on lock release: {}", conflictFileKey, e);
+            }
+        }
+
         log.info("Lock released: documentId={}, userId={}", documentId, userId);
         logAudit(documentId, "ONLYOFFICE_LOCK_RELEASED",
                 Map.of("versionAtLock", releasedVersion), null, userId);
@@ -251,7 +274,7 @@ public class OnlyOfficeService {
      * Build the raw JSON config object for OnlyOffice SDK.
      * Returns a Map that will be serialized to JSON for the frontend.
      */
-    public Map<String, Object> buildEditorConfigJson(UUID documentId, UUID userId, String username) {
+    public Map<String, Object> buildEditorConfigJson(UUID documentId, UUID userId, String username, Integer targetVersion) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
 
@@ -266,8 +289,22 @@ public class OnlyOfficeService {
                 ? document.getFileType().toString().toLowerCase() : "docx";
         String documentType = mapToOnlyOfficeDocumentType(fileType);
 
-        String fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
-        String documentKey = lock.getLockToken().toString();
+        String fileUrl;
+        String documentKey;
+        String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+        String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+        int actualVersion = targetVersion != null ? targetVersion : lock.getVersionAtLock();
+
+        if (storageService.conflictFileExists(conflictFileKey)) {
+            fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
+            documentKey = lock.getLockToken().toString() + "_conflict";
+        } else if (actualVersion < document.getCurrentVersion()) {
+            fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
+            documentKey = lock.getLockToken().toString() + "_v" + actualVersion;
+        } else {
+            fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
+            documentKey = lock.getLockToken().toString();
+        }
         String callbackToken = buildCallbackToken(documentId, documentKey, fileUrl);
         String callbackUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/save-callback";
 
@@ -305,6 +342,82 @@ public class OnlyOfficeService {
         config.put("editorConfig", editorCfg);
         config.put("token", callbackToken);
         config.put("type", "desktop");
+        if (targetVersion != null) {
+            config.put("targetVersion", targetVersion);
+        }
+
+        return config;
+    }
+
+    /**
+     * Build editor config for re-opening the editor after a conflict.
+     * Uses the existing lock token and serves a specific version file.
+     * Does NOT acquire a new lock — the frontend already has the file blob.
+     */
+    public Map<String, Object> buildReEditConfig(UUID documentId, UUID userId, String username,
+            String lockToken, Integer targetVersion) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        DocumentLock lock = lockRepository.findByDocumentId(documentId)
+                .orElseThrow(() -> new IllegalStateException("No active lock found"));
+
+        if (!lock.matchesToken(UUID.fromString(lockToken))) {
+            throw new SecurityException("Invalid lock token");
+        }
+
+        if (lock.isExpired()) {
+            throw new IllegalStateException("Lock has expired. Please re-acquire the lock.");
+        }
+
+        String fileType = document.getFileType() != null
+                ? document.getFileType().toString().toLowerCase() : "docx";
+        String documentType = mapToOnlyOfficeDocumentType(fileType);
+
+        String fileUrl = "blob:placeholder";
+        String documentKey = lockToken + "_reedit_v" + targetVersion;
+        String callbackToken = buildCallbackToken(documentId, documentKey, fileUrl);
+        String callbackUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/save-callback";
+
+        java.util.Map<String, Object> docCfg = new java.util.LinkedHashMap<>();
+        docCfg.put("title", document.getOriginalFilename() != null ? document.getOriginalFilename() : "document." + fileType);
+        docCfg.put("fileType", fileType);
+        docCfg.put("url", fileUrl);
+        docCfg.put("key", documentKey);
+
+        java.util.Map<String, Object> userCfg = new java.util.LinkedHashMap<>();
+        userCfg.put("id", userId.toString());
+        userCfg.put("name", username != null ? username : "Anonymous");
+
+        java.util.Map<String, Object> events = new java.util.LinkedHashMap<>();
+        events.put("onDocumentReady", "function() { window.parent.postMessage({type: 'onlyoffice_ready'}, '*'); }");
+        events.put("onRequestSaveAs", "function(event) { window.parent.postMessage({type: 'onlyoffice_save_as', key: event.data.key, title: event.data.title, format: event.data.format}, '*'); }");
+        events.put("onDocumentSave", "function(event) { window.parent.postMessage({type: 'onlyoffice_doc_save', saved: event.data.saved}, '*'); }");
+
+        java.util.Map<String, Object> editorCfg = new java.util.LinkedHashMap<>();
+        editorCfg.put("callbackUrl", callbackUrl);
+        editorCfg.put("user", userCfg);
+        editorCfg.put("lang", "vi");
+        editorCfg.put("forcesave", true);
+        editorCfg.put("events", events);
+
+        java.util.Map<String, Object> config = new java.util.LinkedHashMap<>();
+        config.put("document", docCfg);
+        config.put("documentType", documentType);
+        config.put("editorConfig", editorCfg);
+        config.put("token", callbackToken);
+        config.put("type", "desktop");
+        config.put("targetVersion", targetVersion);
+        config.put("lock", Map.of(
+                "documentId", documentId.toString(),
+                "lockedBy", lock.getLockedBy().toString(),
+                "lockedByUsername", lock.getLockedByUsername() != null ? lock.getLockedByUsername() : "",
+                "versionAtLock", lock.getVersionAtLock(),
+                "lockToken", lockToken,
+                "lockedAt", lock.getLockedAt().toString(),
+                "expiresAt", lock.getExpiresAt().toString()
+        ));
+        config.put("currentVersion", document.getCurrentVersion());
 
         return config;
     }
@@ -391,12 +504,14 @@ public class OnlyOfficeService {
                 .changelog("Edited via OnlyOffice")
                 .createdBy(lock.getLockedBy())
                 .createdAt(OffsetDateTime.now())
+                .extractedText(extractTextFromFile(file))
                 .build();
         versionRepository.save(version);
 
         document.setCurrentVersion(newVersionNumber);
         document.setFileKey(newFileKey);
         document.setFileSizeBytes(file.getSize());
+        document.setExtractedText(extractTextFromFile(file));
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
 
@@ -439,6 +554,21 @@ public class OnlyOfficeService {
         if (document.getCurrentVersion() > lock.getVersionAtLock()) {
             log.info("Version conflict: documentId={}, lockedVersion={}, currentVersion={}",
                     documentId, lock.getVersionAtLock(), document.getCurrentVersion());
+
+            // Download and save conflict file for preview/merging
+            String downloadUrl = savedFileUrl
+                    .replace("localhost:8888", "onlyoffice-document-server:80")
+                    .replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+            try {
+                byte[] fileBytes = downloadFromUrl(downloadUrl);
+                String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+                String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+                storageService.uploadConflictFile(fileBytes, conflictFileKey);
+                log.info("Saved conflict preview file on version conflict: key={}", conflictFileKey);
+            } catch (Exception ex) {
+                log.error("Failed to download and save conflict preview file: {}", ex.getMessage(), ex);
+            }
+
             return OnlyOfficeCallbackResponse.conflict(
                     "A newer version has been uploaded. Please resolve the conflict before saving.",
                     documentId);
@@ -464,6 +594,9 @@ public class OnlyOfficeService {
                 documentId);
         int newVersionNumber = document.getCurrentVersion() + 1;
 
+        String extractedText = extractTextFromBytes(fileBytes,
+                document.getOriginalFilename() != null ? document.getOriginalFilename() : "document.docx");
+
         DocumentVersion version = DocumentVersion.builder()
                 .id(UUID.randomUUID())
                 .documentId(documentId)
@@ -473,12 +606,14 @@ public class OnlyOfficeService {
                 .changelog("Edited via OnlyOffice")
                 .createdBy(lock.getLockedBy())
                 .createdAt(OffsetDateTime.now())
+                .extractedText(extractedText)
                 .build();
         versionRepository.save(version);
 
         document.setCurrentVersion(newVersionNumber);
         document.setFileKey(newFileKey);
         document.setFileSizeBytes((long) fileBytes.length);
+        document.setExtractedText(extractedText);
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
 
@@ -550,12 +685,14 @@ public class OnlyOfficeService {
                 .changelog("Edited via OnlyOffice")
                 .createdBy(userId)
                 .createdAt(OffsetDateTime.now())
+                .extractedText(extractTextFromFile(file))
                 .build();
         versionRepository.save(version);
 
         document.setCurrentVersion(newVersionNumber);
         document.setFileKey(newFileKey);
         document.setFileSizeBytes(file.getSize());
+        document.setExtractedText(extractTextFromFile(file));
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
 
@@ -586,7 +723,238 @@ public class OnlyOfficeService {
         public int currentVersion() { return currentVersion; }
     }
 
+    // ========== Force Save via Command Service ==========
+
+    /**
+     * Trigger a forcesave by sending a command to the OnlyOffice Document Server
+     * Command Service API. This causes the DS to send a callback (status=6) with
+     * the saved file URL to our save-callback endpoint.
+     *
+     * Returns a TriggerSaveResult indicating whether the command was accepted.
+     */
+    public TriggerSaveResult triggerForceSave(UUID documentId, UUID userId) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        DocumentLock lock = lockRepository.findByDocumentId(documentId)
+                .orElseThrow(() -> new IllegalStateException("No active lock found. Please open the editor first."));
+
+        if (!lock.isOwnedBy(userId)) {
+            throw new SecurityException("You do not own the lock for this document.");
+        }
+
+        if (lock.isExpired()) {
+            throw new IllegalStateException("Lock has expired. Please re-acquire the lock.");
+        }
+
+        // The document key used by OnlyOffice must match buildEditorConfigJson perfectly
+        String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+        String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+        String documentKey;
+
+        if (storageService.conflictFileExists(conflictFileKey)) {
+            documentKey = lock.getLockToken().toString() + "_conflict";
+        } else if (lock.getVersionAtLock() < document.getCurrentVersion()) {
+            documentKey = lock.getLockToken().toString() + "_v" + lock.getVersionAtLock();
+        } else {
+            documentKey = lock.getLockToken().toString();
+        }
+
+        // Build the forcesave command payload
+        // OnlyOffice Command Service expects: {"c": "forcesave", "key": "<document_key>"}
+        String commandServiceUrl = getDocumentServerInternalUrl() + "/coauthoring/CommandService.ashx";
+
+        try {
+            // Build JWT-signed command payload
+            Map<String, Object> commandPayload = new LinkedHashMap<>();
+            commandPayload.put("c", "forcesave");
+            commandPayload.put("key", documentKey);
+            commandPayload.put("userdata", "manual_save_" + documentId);
+
+            // Sign the command with the same JWT secret OnlyOffice uses
+            String commandToken = Jwts.builder()
+                    .claims(commandPayload)
+                    .signWith(jwtSigningKey)
+                    .compact();
+
+            // Add token to payload
+            commandPayload.put("token", commandToken);
+
+            // Serialize to JSON
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String jsonBody = mapper.writeValueAsString(commandPayload);
+
+            log.info("Sending forcesave command to OnlyOffice: url={}, key={}", commandServiceUrl, documentKey);
+
+            java.net.URI uri = java.net.URI.create(commandServiceUrl);
+            java.net.URL url = uri.toURL();
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(15_000);
+            conn.setDoOutput(true);
+
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            String responseBody;
+            try (java.io.InputStream is = (responseCode >= 200 && responseCode < 300)
+                    ? conn.getInputStream() : conn.getErrorStream()) {
+                responseBody = is != null ? new String(is.readAllBytes(), StandardCharsets.UTF_8) : "";
+            }
+
+            log.info("OnlyOffice forcesave response: status={}, body={}", responseCode, responseBody);
+
+            if (responseCode >= 200 && responseCode < 300) {
+                // Parse the response — OnlyOffice returns {"error": 0} on success
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = mapper.readValue(responseBody, Map.class);
+                int error = response.get("error") instanceof Number
+                        ? ((Number) response.get("error")).intValue() : -1;
+
+                if (error == 0) {
+                    logAudit(documentId, "ONLYOFFICE_FORCESAVE_TRIGGERED",
+                            Map.of("documentKey", documentKey),
+                            Map.of("versionAtLock", lock.getVersionAtLock()), userId);
+                    return new TriggerSaveResult(true, false,
+                            "Forcesave command accepted. Waiting for callback.",
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                } else if (error == 1) {
+                    // error=1 means document key not found — editor might not be open yet
+                    return new TriggerSaveResult(false, false,
+                            "Document is not being tracked by OnlyOffice. Please make an edit first.",
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                } else if (error == 2) {
+                    // error=2 means callback error
+                    return new TriggerSaveResult(false, false,
+                            "OnlyOffice callback error. Please try again.",
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                } else if (error == 3) {
+                    // error=3 means forcesave is already in progress
+                    return new TriggerSaveResult(false, false,
+                            "Tiến trình lưu đang được thực hiện. Vui lòng đợi trong giây lát và thử lại.",
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                } else if (error == 4) {
+                    // error=4 means no changes have been made since last save
+                    return new TriggerSaveResult(false, false,
+                            "Tài liệu không có thay đổi nào mới để lưu.",
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                } else if (error == 6) {
+                    // error=6 means forcesave is not available (e.g. server-based license limit)
+                    return new TriggerSaveResult(false, false,
+                            "Auto-save is not available on this server. Please try saving manually.",
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                } else {
+                    return new TriggerSaveResult(false, false,
+                            "OnlyOffice returned error code: " + error,
+                            lock.getVersionAtLock(), document.getCurrentVersion());
+                }
+            } else {
+                log.error("Forcesave command failed: HTTP {}, body={}", responseCode, responseBody);
+                return new TriggerSaveResult(false, false,
+                        "Failed to send forcesave command: HTTP " + responseCode,
+                        lock.getVersionAtLock(), document.getCurrentVersion());
+            }
+        } catch (Exception ex) {
+            log.error("Failed to trigger forcesave: {}", ex.getMessage(), ex);
+            return new TriggerSaveResult(false, false,
+                    "Failed to trigger save: " + ex.getMessage(),
+                    lock.getVersionAtLock(), document.getCurrentVersion());
+        }
+    }
+
+    public record TriggerSaveResult(
+            boolean accepted,
+            boolean hasConflict,
+            String message,
+            int lockedVersion,
+            int currentVersion
+    ) {}
+
+    /**
+     * Get the OnlyOffice Document Server internal URL (for Docker network communication).
+     * Inside Docker, the DS is at onlyoffice-document-server:80.
+     * Outside Docker (dev), it's at localhost:8888.
+     */
+    private String getDocumentServerInternalUrl() {
+        // The documentServerUrl is typically http://localhost:8888 (for browser access).
+        // Inside Docker, knowledge-service reaches the DS at onlyoffice-document-server:80.
+        String dsUrl = properties.getDocumentServerUrl();
+        return dsUrl
+                .replace("localhost:8888", "onlyoffice-document-server:80")
+                .replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+    }
+
+    /**
+     * Release the current lock and acquire a new one against the latest version.
+     * Used during conflict resolution when user chooses "Edit/Merge".
+     * Returns a map with lock info and editor config for immediate re-opening.
+     */
+    @Transactional
+    public Map<String, Object> relockForMerge(UUID documentId, UUID userId, String username) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        // Release existing lock if owned by this user
+        Optional<DocumentLock> existingLock = lockRepository.findByDocumentId(documentId);
+        if (existingLock.isPresent()) {
+            DocumentLock lock = existingLock.get();
+            if (lock.isOwnedBy(userId) || lock.isExpired()) {
+                lockRepository.delete(lock);
+                logAudit(documentId, "ONLYOFFICE_RELOCK_RELEASED",
+                        Map.of("oldVersionAtLock", lock.getVersionAtLock()),
+                        null, userId);
+            } else {
+                throw new IllegalStateException("Document is locked by another user.");
+            }
+        }
+
+        // Acquire new lock against latest version
+        LockResponse newLock = acquireLock(documentId, userId, username, null);
+
+        // Build new editor config
+        Map<String, Object> editorConfig = buildEditorConfigJson(documentId, userId, username, null);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("lock", Map.of(
+                "documentId", documentId.toString(),
+                "lockedBy", newLock.lockedBy().toString(),
+                "lockedByUsername", newLock.lockedByUsername() != null ? newLock.lockedByUsername() : "",
+                "versionAtLock", newLock.versionAtLock(),
+                "lockToken", newLock.lockToken().toString(),
+                "lockedAt", newLock.lockedAt().toString(),
+                "expiresAt", newLock.expiresAt().toString()
+        ));
+        result.put("editorConfig", editorConfig);
+        result.put("currentVersion", document.getCurrentVersion());
+
+        logAudit(documentId, "ONLYOFFICE_RELOCK_FOR_MERGE",
+                null,
+                Map.of("newVersionAtLock", document.getCurrentVersion()), userId);
+
+        return result;
+    }
+
     // ========== Conflict Detection ==========
+
+    private String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) {
+            return "docx";
+        }
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    /**
+     * Check if a document lock has a version conflict.
+     */
+    public boolean hasConflict(UUID documentId) {
+        Document document = documentRepository.findById(documentId).orElse(null);
+        DocumentLock lock = lockRepository.findByDocumentId(documentId).orElse(null);
+        return document != null && lock != null && (document.getCurrentVersion() > lock.getVersionAtLock());
+    }
 
     /**
      * Check conflict status for a document lock.
@@ -600,7 +968,7 @@ public class OnlyOfficeService {
 
         if (lockOpt.isEmpty()) {
             return new ConflictStatusResponse(
-                    false, documentId, 0, document.getCurrentVersion(),
+                    false, false, documentId, 0, document.getCurrentVersion(),
                     null, null, "No active lock", null);
         }
 
@@ -608,11 +976,15 @@ public class OnlyOfficeService {
 
         if (!lock.isOwnedBy(userId)) {
             return new ConflictStatusResponse(
-                    false, documentId, lock.getVersionAtLock(), document.getCurrentVersion(),
+                    false, false, documentId, lock.getVersionAtLock(), document.getCurrentVersion(),
                     lock.getLockedBy(), lock.getLockedByUsername(),
                     "Document is being edited by: " + (lock.getLockedByUsername() != null ? lock.getLockedByUsername() : lock.getLockedBy().toString()),
                     null);
         }
+
+        String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+        String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+        boolean hasConflictFile = storageService.conflictFileExists(conflictFileKey);
 
         if (document.getCurrentVersion() > lock.getVersionAtLock()) {
             // Conflict — fetch the newer version's info
@@ -624,7 +996,7 @@ public class OnlyOfficeService {
             String baseContent = getVersionText(documentId, lock.getVersionAtLock());
 
             return new ConflictStatusResponse(
-                    true, documentId, lock.getVersionAtLock(), document.getCurrentVersion(),
+                    true, hasConflictFile, documentId, lock.getVersionAtLock(), document.getCurrentVersion(),
                     lock.getLockedBy(), lock.getLockedByUsername(),
                     "A newer version has been uploaded while you were editing. Please resolve the conflict.",
                     new VersionDiffInfo(baseContent, theirContent,
@@ -635,7 +1007,7 @@ public class OnlyOfficeService {
         }
 
         return new ConflictStatusResponse(
-                false, documentId, lock.getVersionAtLock(), document.getCurrentVersion(),
+                false, hasConflictFile, documentId, lock.getVersionAtLock(), document.getCurrentVersion(),
                 userId, lock.getLockedByUsername(), "No conflict", null);
     }
 
@@ -736,6 +1108,18 @@ public class OnlyOfficeService {
                 int lockedVersion = lock.getVersionAtLock();
                 int currentVersion = document.getCurrentVersion();
                 lockRepository.delete(lock);
+
+                // Cleanup conflict file if it exists
+                String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+                String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+                try {
+                    if (storageService.conflictFileExists(conflictFileKey)) {
+                        storageService.deleteFile(conflictFileKey);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to delete conflict file on discard: {}", conflictFileKey, e);
+                }
+
                 logAudit(documentId, "ONLYOFFICE_CONFLICT_RESOLVED",
                         Map.of("strategy", "discard_mine", "lockedVersion", lockedVersion),
                         Map.of("currentVersion", currentVersion), userId);
@@ -761,7 +1145,50 @@ public class OnlyOfficeService {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 
-        String newFileKey = storageService.uploadFile(file, documentId);
+        String newFileKey;
+        long fileSize;
+        String extractedText;
+
+        String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+        String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+
+        if (file == null || file.isEmpty()) {
+            if (storageService.conflictFileExists(conflictFileKey)) {
+                // Read from conflict file
+                byte[] bytes;
+                try (InputStream is = storageService.downloadFile(conflictFileKey)) {
+                    bytes = is.readAllBytes();
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to read conflict file: " + e.getMessage(), e);
+                }
+                newFileKey = storageService.uploadFile(bytes, document.getOriginalFilename() != null ? document.getOriginalFilename() : "document.docx", documentId);
+                fileSize = (long) bytes.length;
+                extractedText = extractTextFromBytes(bytes, document.getOriginalFilename() != null ? document.getOriginalFilename() : "document.docx");
+
+                // Cleanup conflict file
+                try {
+                    storageService.deleteFile(conflictFileKey);
+                } catch (Exception e) {
+                    log.warn("Failed to delete conflict file: {}", conflictFileKey, e);
+                }
+            } else {
+                throw new IllegalArgumentException("No file provided and no conflict file found.");
+            }
+        } else {
+            newFileKey = storageService.uploadFile(file, documentId);
+            fileSize = file.getSize();
+            extractedText = extractTextFromFile(file);
+
+            // Cleanup conflict file if it exists
+            try {
+                if (storageService.conflictFileExists(conflictFileKey)) {
+                    storageService.deleteFile(conflictFileKey);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete conflict file: {}", conflictFileKey, e);
+            }
+        }
+
         int newVersionNumber = document.getCurrentVersion() + 1;
 
         DocumentVersion version = DocumentVersion.builder()
@@ -769,16 +1196,18 @@ public class OnlyOfficeService {
                 .documentId(documentId)
                 .versionNumber(newVersionNumber)
                 .fileKey(newFileKey)
-                .fileSizeBytes(file.getSize())
+                .fileSizeBytes(fileSize)
                 .changelog(changelog != null ? changelog : "Merged via conflict resolution")
                 .createdBy(userId)
                 .createdAt(OffsetDateTime.now())
+                .extractedText(extractedText)
                 .build();
         DocumentVersion saved = versionRepository.save(version);
 
         document.setCurrentVersion(newVersionNumber);
         document.setFileKey(newFileKey);
-        document.setFileSizeBytes(file.getSize());
+        document.setFileSizeBytes(fileSize);
+        document.setExtractedText(extractedText);
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
 
@@ -806,12 +1235,14 @@ public class OnlyOfficeService {
                 .changelog("Force-pushed (overwritten latest version)")
                 .createdBy(userId)
                 .createdAt(OffsetDateTime.now())
+                .extractedText(extractTextFromFile(file))
                 .build();
         DocumentVersion saved = versionRepository.save(version);
 
         document.setCurrentVersion(newVersionNumber);
         document.setFileKey(newFileKey);
         document.setFileSizeBytes(file.getSize());
+        document.setExtractedText(extractTextFromFile(file));
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
 
@@ -907,27 +1338,36 @@ public class OnlyOfficeService {
         String filename;
         long fileSize;
 
-        // Use the version captured when the lock was acquired (versionAtLock).
-        // This ensures OnlyOffice always opens the correct file snapshot, not the latest.
-        Optional<DocumentLock> lockOpt = lockRepository.findByDocumentId(documentId);
-        if (lockOpt.isPresent() && !lockOpt.get().isExpired()) {
-            DocumentLock lock = lockOpt.get();
-            DocumentVersion versionAtLock = versionRepository
-                    .findByDocumentIdAndVersionNumber(documentId, lock.getVersionAtLock())
-                    .orElse(null);
-            if (versionAtLock != null) {
-                fileKey = versionAtLock.getFileKey();
-                filename = document.getOriginalFilename() != null ? document.getOriginalFilename() : "document";
-                fileSize = versionAtLock.getFileSizeBytes() != null ? versionAtLock.getFileSizeBytes() : 0;
+        String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
+        String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
+
+        if (storageService.conflictFileExists(conflictFileKey)) {
+            fileKey = conflictFileKey;
+            filename = document.getOriginalFilename() != null ? document.getOriginalFilename() : "document.docx";
+            fileSize = storageService.getFileSize(conflictFileKey);
+        } else {
+            // Use the version captured when the lock was acquired (versionAtLock).
+            // This ensures OnlyOffice always opens the correct file snapshot, not the latest.
+            Optional<DocumentLock> lockOpt = lockRepository.findByDocumentId(documentId);
+            if (lockOpt.isPresent() && !lockOpt.get().isExpired()) {
+                DocumentLock lock = lockOpt.get();
+                DocumentVersion versionAtLock = versionRepository
+                        .findByDocumentIdAndVersionNumber(documentId, lock.getVersionAtLock())
+                        .orElse(null);
+                if (versionAtLock != null) {
+                    fileKey = versionAtLock.getFileKey();
+                    filename = document.getOriginalFilename() != null ? document.getOriginalFilename() : "document";
+                    fileSize = versionAtLock.getFileSizeBytes() != null ? versionAtLock.getFileSizeBytes() : 0;
+                } else {
+                    fileKey = document.getFileKey();
+                    filename = document.getOriginalFilename() != null ? document.getOriginalFilename() : "document";
+                    fileSize = document.getFileSizeBytes() != null ? document.getFileSizeBytes() : 0;
+                }
             } else {
                 fileKey = document.getFileKey();
                 filename = document.getOriginalFilename() != null ? document.getOriginalFilename() : "document";
                 fileSize = document.getFileSizeBytes() != null ? document.getFileSizeBytes() : 0;
             }
-        } else {
-            fileKey = document.getFileKey();
-            filename = document.getOriginalFilename() != null ? document.getOriginalFilename() : "document";
-            fileSize = document.getFileSizeBytes() != null ? document.getFileSizeBytes() : 0;
         }
 
         String mimeType = document.getMimeType() != null ? document.getMimeType() : "application/octet-stream";
@@ -974,6 +1414,48 @@ public class OnlyOfficeService {
         return versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
                 .map(v -> v.getExtractedText() != null ? v.getExtractedText() : "")
                 .orElse("");
+    }
+
+    /**
+     * Extract text content from a file for storage.
+     * Returns empty string if extraction fails or file is not a supported format.
+     */
+    private String extractTextFromFile(MultipartFile file) {
+        try {
+            if (textExtractionService.isDocxFile(file.getOriginalFilename(), file.getContentType())) {
+                return textExtractionService.extractTextFromDocx(file.getInputStream());
+            }
+            // For other formats, try to read as text
+            if (file.getContentType() != null && file.getContentType().startsWith("text/")) {
+                return new String(file.getBytes(), StandardCharsets.UTF_8);
+            }
+            return "";
+        } catch (Exception e) {
+            log.warn("Failed to extract text from file {}: {}", file.getOriginalFilename(), e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * Extract text content from a byte array (used for files from callback URL).
+     */
+    private String extractTextFromBytes(byte[] fileBytes, String filename) {
+        try {
+            if (filename != null && filename.toLowerCase().endsWith(".docx")) {
+                return textExtractionService.extractTextFromDocx(
+                        new java.io.ByteArrayInputStream(fileBytes));
+            }
+            // For text files
+            String contentType = filename != null && filename.toLowerCase().matches(".*\\.(txt|md)$")
+                    ? "text/plain" : null;
+            if (contentType != null) {
+                return new String(fileBytes, StandardCharsets.UTF_8);
+            }
+            return "";
+        } catch (Exception e) {
+            log.warn("Failed to extract text from bytes {}: {}", filename, e.getMessage());
+            return "";
+        }
     }
 
     private String mapToOnlyOfficeDocumentType(String fileType) {

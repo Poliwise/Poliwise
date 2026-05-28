@@ -8,6 +8,7 @@ import java.util.UUID;
  */
 public record ConflictStatusResponse(
     boolean hasConflict,
+    boolean hasConflictFile,
     UUID documentId,
     int lockedVersion,
     int currentVersion,

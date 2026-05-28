@@ -17,13 +17,26 @@ interface EndpointDetailsModalProps {
   open: boolean;
   onClose: () => void;
   metrics: ApiMetricsResponse | null;
+  titleLabel?: string;
+  totalRequestsLabel?: string;
+  successLabel?: string;
+  errorsLabel?: string;
+  noDataLabel?: string;
+  colEndpoint?: string;
+  colTotal?: string;
+  colSuccess?: string;
+  colErrors?: string;
+  colRate?: string;
+  colAvgResponse?: string;
+  recentErrorsLabel?: string;
 }
 
 interface EndpointRowProps {
   endpoint: ApiEndpointMetrics;
+  recentErrorsLabel?: string;
 }
 
-function EndpointRow({ endpoint }: EndpointRowProps) {
+function EndpointRow({ endpoint, recentErrorsLabel = 'Recent errors' }: EndpointRowProps) {
   const [expanded, setExpanded] = useState(false);
   const successRate =
     endpoint.total > 0
@@ -107,7 +120,7 @@ function EndpointRow({ endpoint }: EndpointRowProps) {
         <tr className={styles.expandedRow}>
           <td colSpan={7} className={styles.expandedCell}>
             <div className={styles.errorsList}>
-              <span className={styles.errorsTitle}>Lỗi gần đây</span>
+              <span className={styles.errorsTitle}>{recentErrorsLabel}</span>
               {endpoint.recentErrors.map((err, i) => (
                 <div key={i} className={styles.errorItem}>
                   <span className={styles.errorTime}>
@@ -135,6 +148,18 @@ export function EndpointDetailsModal({
   open,
   onClose,
   metrics,
+  titleLabel = 'Endpoint Details',
+  totalRequestsLabel = 'Total requests',
+  successLabel = 'Success',
+  errorsLabel = 'Errors',
+  noDataLabel = 'No endpoint data yet',
+  colEndpoint = 'Endpoint',
+  colTotal = 'Total',
+  colSuccess = 'Success',
+  colErrors = 'Errors',
+  colRate = 'Success rate',
+  colAvgResponse = 'Avg response',
+  recentErrorsLabel = 'Recent errors',
 }: EndpointDetailsModalProps) {
   if (!metrics) return null;
 
@@ -142,26 +167,26 @@ export function EndpointDetailsModal({
   const sorted = [...endpoints].sort((a, b) => b.failure - a.failure);
 
   return (
-    <Modal open={open} onClose={onClose} title="Chi tiết Endpoint" size="xl">
+    <Modal open={open} onClose={onClose} title={titleLabel} size="xl">
       <div className={styles.summary}>
         <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Tổng requests</span>
+          <span className={styles.summaryLabel}>{totalRequestsLabel}</span>
           <span className={styles.summaryValue}>{overall.totalRequests.toLocaleString()}</span>
         </div>
         <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Thành công</span>
+          <span className={styles.summaryLabel}>{successLabel}</span>
           <span className={styles.summaryValue} style={{ color: '#22c55e' }}>
             {(overall.totalRequests - overall.totalErrors).toLocaleString()}
           </span>
         </div>
         <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Lỗi</span>
+          <span className={styles.summaryLabel}>{errorsLabel}</span>
           <span className={styles.summaryValue} style={{ color: '#ef4444' }}>
             {overall.totalErrors.toLocaleString()}
           </span>
         </div>
         <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Success rate</span>
+          <span className={styles.summaryLabel}>{colRate}</span>
           <span
             className={styles.summaryValue}
             style={{
@@ -181,25 +206,25 @@ export function EndpointDetailsModal({
       {endpoints.length === 0 ? (
         <div className={styles.empty}>
           <AlertCircle size={32} />
-          <span>Chưa có dữ liệu endpoint</span>
+          <span>{noDataLabel}</span>
         </div>
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
               <tr className={styles.thead}>
-                <th className={styles.th}>Endpoint</th>
-                <th className={styles.th}>Tổng</th>
-                <th className={styles.th}>Thành công</th>
-                <th className={styles.th}>Lỗi</th>
-                <th className={styles.th}>Success rate</th>
-                <th className={styles.th}>Avg response</th>
+                <th className={styles.th}>{colEndpoint}</th>
+                <th className={styles.th}>{colTotal}</th>
+                <th className={styles.th}>{colSuccess}</th>
+                <th className={styles.th}>{colErrors}</th>
+                <th className={styles.th}>{colRate}</th>
+                <th className={styles.th}>{colAvgResponse}</th>
                 <th className={styles.th}></th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((ep, i) => (
-                <EndpointRow key={i} endpoint={ep} />
+                <EndpointRow key={i} endpoint={ep} recentErrorsLabel={recentErrorsLabel} />
               ))}
             </tbody>
           </table>

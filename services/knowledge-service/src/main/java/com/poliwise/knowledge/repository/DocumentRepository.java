@@ -41,4 +41,9 @@ public interface DocumentRepository
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("select d from Document d where d.id = :id")
         Optional<Document> findByIdForUpdate(@Param("id") UUID id);
+
+        long countByDeletedAtIsNull();
+
+        @Query("select count(d) from Document d where d.deletedAt is null and d.status in :statuses")
+        long countActiveByStatuses(@Param("statuses") Collection<ProcessingStatus> statuses);
 }

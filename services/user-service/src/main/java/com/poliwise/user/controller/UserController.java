@@ -119,6 +119,13 @@ public class UserController {
         return ResponseEntity.ok(userService.changeStatus(userId, request, changedBy));
     }
 
+    // ─── STATS (internal service / Admin / Manager) ─────────────────────────────────
+
+    @GetMapping("/stats")
+    public ResponseEntity<UserStatsResponse> getStats() {
+        return ResponseEntity.ok(userService.getStats());
+    }
+
     // ─── SOFT DELETE ───────────────────────────────────────────────────────────
 
     /**

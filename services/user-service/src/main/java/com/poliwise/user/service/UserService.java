@@ -3,6 +3,7 @@ package com.poliwise.user.service;
 import com.poliwise.user.dto.*;
 import com.poliwise.user.dto.event.UserRevokedEvent;
 import com.poliwise.user.dto.event.UserStatusChangedEvent;
+import com.poliwise.user.dto.event.ProfileUpdatedEvent;
 import com.poliwise.user.entity.Department;
 import com.poliwise.user.entity.User;
 import com.poliwise.user.entity.UserProfile;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -86,6 +89,9 @@ public class UserService {
         User user = findActiveUserById(userId);
         UserProfile profile = resolveOrCreateProfile(user);
 
+        Map<String, Object> oldValues = captureProfileValues(profile);
+        String[] changedFields = determineChangedFields(request, profile);
+
         profile.setFullName(request.fullName());
         profile.setPhone(request.phone());
         profile.setPosition(request.position());
@@ -98,7 +104,47 @@ public class UserService {
 
         User saved = userRepository.save(user);
         log.info("Updated profile for userId={}", userId);
+
+        if (changedFields.length > 0) {
+            Map<String, Object> newValues = captureProfileValues(profile);
+            ProfileUpdatedEvent event = ProfileUpdatedEvent.create(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getId(),
+                    user.getUsername(),
+                    oldValues,
+                    newValues,
+                    changedFields
+            );
+            eventPublisher.publishProfileUpdated(event);
+        }
+
         return toResponse(saved);
+    }
+
+    private Map<String, Object> captureProfileValues(UserProfile p) {
+        return Map.of(
+                "fullName", p.getFullName() != null ? p.getFullName() : "",
+                "phone", p.getPhone() != null ? p.getPhone() : "",
+                "position", p.getPosition() != null ? p.getPosition() : "",
+                "bio", p.getBio() != null ? p.getBio() : "",
+                "dateOfBirth", p.getDateOfBirth() != null ? p.getDateOfBirth().toString() : ""
+        );
+    }
+
+    private String[] determineChangedFields(UpdateProfileRequest req, UserProfile p) {
+        java.util.ArrayList<String> changed = new java.util.ArrayList<>();
+        if (!equalsSafe(req.fullName(), p.getFullName())) changed.add("fullName");
+        if (!equalsSafe(req.phone(), p.getPhone())) changed.add("phone");
+        if (!equalsSafe(req.position(), p.getPosition())) changed.add("position");
+        if (!equalsSafe(req.avatarUrl(), p.getAvatarUrl())) changed.add("avatarUrl");
+        if (!equalsSafe(req.bio(), p.getBio())) changed.add("bio");
+        if (!equalsSafe(req.dateOfBirth(), p.getDateOfBirth() != null ? p.getDateOfBirth().toString() : null)) changed.add("dateOfBirth");
+        return changed.toArray(new String[0]);
+    }
+
+    private boolean equalsSafe(Object a, Object b) {
+        return a == null ? b == null : a.equals(b);
     }
 
     // CHANGE DEPARTMENT
@@ -228,6 +274,15 @@ public class UserService {
         eventPublisher.publishRevoked(revokedEvent);
 
         log.info("Soft-deleted userId={} by {} -- PII anonymized", userId, deletedBy);
+    }
+
+    // STATS
+
+    @Transactional(readOnly = true)
+    public UserStatsResponse getStats() {
+        long total = userRepository.count();
+        long active = userRepository.countByStatus(AccountStatus.ACTIVE);
+        return new UserStatsResponse(total, active);
     }
 
     // INTERNAL HELPERS

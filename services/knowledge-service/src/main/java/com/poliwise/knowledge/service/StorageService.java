@@ -69,6 +69,53 @@ public class StorageService {
         }
     }
 
+    public void uploadConflictFile(byte[] bytes, String fileKey) {
+        String extension = getExtension(fileKey);
+        String contentType = getContentType(extension);
+
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .stream(new java.io.ByteArrayInputStream(bytes), bytes.length, -1)
+                            .contentType(contentType)
+                            .build()
+            );
+            log.info("Uploaded conflict file to MinIO: bucket={}, key={}", bucketName, fileKey);
+        } catch (Exception e) {
+            log.error("Failed to upload conflict file to MinIO: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to upload conflict file: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean conflictFileExists(String fileKey) {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .build()
+            );
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public long getFileSize(String fileKey) {
+        try {
+            return minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .build()
+            ).size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public InputStream downloadFile(String fileKey) {
         try {
             return minioClient.getObject(

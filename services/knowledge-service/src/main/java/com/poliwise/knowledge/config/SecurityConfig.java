@@ -46,6 +46,7 @@ public class SecurityConfig {
                         // Match both HTTP methods to avoid 403 on pre-flight checks.
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/file").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/v1/documents/*/file").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

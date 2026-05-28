@@ -337,6 +337,21 @@ public class DocumentManagementService {
         }
     }
 
+    // ========== Stats ==========
+
+    public DocumentStatsResponse getStats() {
+        long total = documentRepository.countByDeletedAtIsNull();
+
+        Collection<ProcessingStatus> activeStatuses = List.of(
+                ProcessingStatus.PARSED, ProcessingStatus.CHUNKED,
+                ProcessingStatus.EMBEDDED, ProcessingStatus.INDEXED,
+                ProcessingStatus.READY
+        );
+        long active = documentRepository.countActiveByStatuses(activeStatuses);
+
+        return new DocumentStatsResponse(total, active);
+    }
+
     // ========== Audit Logs ==========
 
     public Page<DocumentAuditLogResponse> getAuditLogs(UUID documentId, UUID actorId, String action,

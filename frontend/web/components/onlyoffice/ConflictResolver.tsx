@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, AlertTriangle, GitMerge, Trash2, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
-import { onlyOfficeService, type LockInfo, type ConflictStatus, type VersionDiff } from '@/services/onlyoffice.service';
-import { documentService } from '@/services/document.service';
-import { Button } from '@/components/ui/button/Button';
-import { Modal } from '@/components/ui/modal/Modal';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, Edit3, ArrowLeft, Loader2, Upload, FileText } from 'lucide-react';
+import mammoth from 'mammoth';
+import { onlyOfficeService, type LockInfo, type ConflictStatus } from '@/services/onlyoffice.service';
 
 interface ConflictResolverProps {
   open: boolean;
@@ -16,15 +14,14 @@ interface ConflictResolverProps {
     lock: LockInfo;
     currentVersion: number;
   };
+  /** The user's current editor content (captured before editor was closed). */
+  currentFile?: File | null;
   onResolved: (strategy: string, newVersion?: number) => void;
-  isAdmin: boolean;
+  /** Called when user picks "Chỉnh sửa lại". Parent opens editor with currentFile + preview. */
+  onReEdit?: () => void;
 }
 
-type DiffLine = {
-  type: 'UNCHANGED' | 'ADDED' | 'DELETED';
-  lineNumber: number;
-  content: string;
-};
+type ActivePreview = 'mine' | 'theirs' | null;
 
 export function ConflictResolver({
   open,
@@ -32,36 +29,41 @@ export function ConflictResolver({
   documentId,
   documentTitle,
   conflictData,
+  currentFile,
   onResolved,
-  isAdmin,
+  onReEdit,
 }: ConflictResolverProps) {
   const { lock, currentVersion } = conflictData;
-  const [view, setView] = useState<'diff' | 'resolving'>('diff');
-  const [selectedStrategy, setSelectedStrategy] = useState<'merge_as_new' | 'discard_mine' | 'force_push'>('merge_as_new');
-  const [mergeChangelog, setMergeChangelog] = useState('');
-  const [mergedFile, setMergedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [diffLines, setDiffLines] = useState<DiffLine[]>([]);
   const [conflictStatus, setConflictStatus] = useState<ConflictStatus | null>(null);
+
+  // Per-panel preview state
+  const [minePreview, setMinePreview] = useState<{
+    loading: boolean;
+    html: string | null;
+    error: string | null;
+  }>({ loading: false, html: null, error: null });
+
+  const [theirsPreview, setTheirsPreview] = useState<{
+    loading: boolean;
+    html: string | null;
+    error: string | null;
+  }>({ loading: false, html: null, error: null });
 
   const lockedVersion = lock.versionAtLock;
 
-  // Load diff data
+  // Load conflict status
   useEffect(() => {
     if (!open) return;
 
-    const loadDiff = async () => {
+    const loadStatus = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [status, diff] = await Promise.all([
-          onlyOfficeService.getConflictStatus(documentId),
-          onlyOfficeService.getVersionDiff(documentId, lockedVersion, currentVersion),
-        ]);
+        const status = await onlyOfficeService.getConflictStatus(documentId);
         setConflictStatus(status);
-        setDiffLines(diff.lines as DiffLine[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Không thể tải thông tin xung đột');
       } finally {
@@ -69,344 +71,356 @@ export function ConflictResolver({
       }
     };
 
-    loadDiff();
-  }, [open, documentId, lockedVersion, currentVersion]);
+    loadStatus();
+  }, [open, documentId]);
 
-  const handleResolve = useCallback(async () => {
-    setIsResolving(true);
-    setError(null);
+  // Load "mine" preview — render currentFile with mammoth or download conflict file
+  const loadMinePreview = useCallback(async () => {
+    if (!currentFile && !conflictStatus?.hasConflictFile) {
+      setMinePreview({ loading: false, html: null, error: 'Không có nội dung từ trình chỉnh sửa.' });
+      return;
+    }
+
+    setMinePreview({ loading: true, html: null, error: null });
 
     try {
-      if (selectedStrategy === 'discard_mine') {
-        await onlyOfficeService.resolveConflict(documentId, 'discard_mine', lock.lockToken);
-        onResolved('discard_mine');
-        onClose();
-        return;
-      }
-
-      if (selectedStrategy === 'force_push' || selectedStrategy === 'merge_as_new') {
-        if (!mergedFile) {
-          setError('Vui lòng tải lên file đã merge trước khi lưu.');
-          setIsResolving(false);
-          return;
-        }
-
-        const result = await onlyOfficeService.resolveConflict(
-          documentId,
-          selectedStrategy,
-          lock.lockToken,
-          selectedStrategy === 'merge_as_new' ? mergeChangelog : 'Force-pushed version',
-          mergedFile
+      let arrayBuffer: ArrayBuffer;
+      if (currentFile) {
+        arrayBuffer = await currentFile.arrayBuffer();
+      } else {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/documents/${documentId}/file`,
+          {
+            headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+          }
         );
-
-        onResolved(selectedStrategy, result.newVersion);
-        onClose();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        arrayBuffer = await res.arrayBuffer();
       }
+
+      const { value } = await mammoth.convertToHtml(
+        { arrayBuffer },
+        {
+          styleMap: [
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "p[style-name='Heading 3'] => h3:fresh",
+          ],
+        }
+      );
+      setMinePreview({ loading: false, html: value, error: null });
+    } catch {
+      setMinePreview({ loading: false, html: null, error: 'Không thể hiển thị tài liệu DOCX.' });
+    }
+  }, [currentFile, conflictStatus, documentId]);
+
+  // Load "theirs" preview — fetch version file, render with mammoth
+  const loadTheirsPreview = useCallback(async () => {
+    setTheirsPreview({ loading: true, html: null, error: null });
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/documents/${documentId}/versions/${currentVersion}/download`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const arrayBuffer = await res.arrayBuffer();
+      const { value } = await mammoth.convertToHtml(
+        { arrayBuffer },
+        {
+          styleMap: [
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "p[style-name='Heading 3'] => h3:fresh",
+          ],
+        }
+      );
+      setTheirsPreview({ loading: false, html: value, error: null });
+    } catch {
+      setTheirsPreview({ loading: false, html: null, error: 'Không thể tải nội dung phiên bản này.' });
+    }
+  }, [documentId, currentVersion]);
+
+  const handleCancel = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  // Hủy thay đổi — discard my changes
+  const handleDiscard = useCallback(async () => {
+    setIsResolving(true);
+    setError(null);
+    try {
+      await onlyOfficeService.resolveConflict(documentId, 'discard_mine', lock.lockToken);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Giải quyết xung đột thất bại');
+      console.warn('Discard conflict changes failed (likely already released/expired):', err);
+    } finally {
+      setIsResolving(false);
+      onResolved('discard_mine');
+      onClose();
+    }
+  }, [documentId, lock, onResolved, onClose]);
+
+  // Lấy bản hiện tại — upload current file as new version
+  const handleKeepMine = useCallback(async () => {
+    if (!currentFile) {
+      setError('Không có nội dung hiện tại để tải lên. Vui lòng chọn "Chỉnh sửa lại".');
+      return;
+    }
+    setIsResolving(true);
+    setError(null);
+    try {
+      const result = await onlyOfficeService.resolveConflict(
+        documentId,
+        'merge_as_new',
+        lock.lockToken,
+        `Phiên bản từ conflict — sử dụng bản chỉnh sửa của tôi (v${lockedVersion})`,
+        currentFile
+      );
+      onResolved('merge_as_new', result.newVersion);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Tải lên thất bại');
     } finally {
       setIsResolving(false);
     }
-  }, [selectedStrategy, mergedFile, mergeChangelog, documentId, lock, onResolved, onClose]);
+  }, [documentId, currentFile, lock, lockedVersion, onResolved, onClose]);
 
-  const stats = useMemo(() => {
-    const added = diffLines.filter(l => l.type === 'ADDED').length;
-    const deleted = diffLines.filter(l => l.type === 'DELETED').length;
-    return { added, deleted };
-  }, [diffLines]);
+  // Chỉnh sửa lại — just tell parent to open editor with current file
+  const handleReEdit = useCallback(() => {
+    onReEdit?.();
+  }, [onReEdit]);
 
-  const renderDiffLine = (line: DiffLine, idx: number) => {
-    const prefix = line.type === 'ADDED' ? '+' : line.type === 'DELETED' ? '-' : ' ';
-    const bgClass = line.type === 'ADDED'
-      ? 'bg-green-50 text-green-900'
-      : line.type === 'DELETED'
-      ? 'bg-red-50 text-red-900'
-      : 'text-gray-700';
-
-    return (
-      <div
-        key={idx}
-        className={`flex font-mono text-xs leading-6 ${bgClass}`}
-      >
-        <span className="w-12 flex-shrink-0 text-right pr-3 text-gray-400 select-none border-r border-gray-200 mr-3">
-          {line.type === 'DELETED' ? line.lineNumber : line.type === 'ADDED' ? line.lineNumber : ' '}
-        </span>
-        <span className="w-5 flex-shrink-0 text-center select-none text-gray-400">{prefix}</span>
-        <span className="whitespace-pre-wrap break-all flex-1 px-2">{line.content || ' '}</span>
-      </div>
-    );
-  };
+  const hasFile = !!currentFile || !!conflictStatus?.hasConflictFile;
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Giải quyết xung đột: ${documentTitle}`}
-      size="full"
+    <div
+      className="fixed inset-0 z-[150] flex flex-col"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
     >
-      <div className="flex flex-col" style={{ height: 'calc(90vh - 120px)' }}>
-        {/* Header explanation */}
-        <div className="bg-orange-50 border-b border-orange-200 px-6 py-4">
+      <div className="flex flex-col mx-auto mt-12 mb-8 rounded-xl shadow-2xl overflow-hidden"
+        style={{ width: 'min(1400px, 95vw)', height: 'calc(100vh - 120px)' }}>
+        {/* Header */}
+        <div className="bg-orange-50 border-b border-orange-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-orange-900 font-medium">
-                Xung đột phiên bản được phát hiện!
+              <p className="text-sm text-orange-900 font-semibold">
+                Phát hiện xung đột phiên bản
               </p>
               <p className="text-sm text-orange-700 mt-1">
-                Trong khi bạn đang chỉnh sửa phiên bản <strong>v{lockedVersion}</strong>,
-                người khác đã tải lên phiên bản <strong>v{currentVersion}</strong> mới hơn.
-                Bạn cần giải quyết xung đột trước khi có thể lưu thay đổi của mình.
+                Bạn đang chỉnh sửa <strong>v{lockedVersion}</strong>,
+                phiên bản mới nhất hiện tại là <strong>v{currentVersion}</strong>.
+                Xem nội dung từng phiên bản bên dưới và chọn cách xử lý.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content area */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-4" />
+            <div className="flex flex-col items-center justify-center flex-1 gap-4">
+              <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
               <p className="text-gray-500">Đang tải thông tin xung đột...</p>
             </div>
-          ) : error && !conflictStatus ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <AlertCircle className="w-8 h-8 text-red-500 mb-4" />
-              <p className="text-red-600">{error}</p>
-              <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
-                Thử lại
-              </Button>
-            </div>
           ) : (
-            <div className="grid grid-cols-3 gap-6 h-full">
-              {/* LEFT: Base version (what we started editing) */}
-              <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900">
-                    Cơ sở (v{lockedVersion})
-                  </p>
-                  <p className="text-xs text-blue-600">
-                    Phiên bản bạn bắt đầu chỉnh sửa
-                  </p>
-                </div>
-                <div className="flex-1 overflow-y-auto p-0">
-                  <pre className="text-xs font-mono leading-6 p-3 whitespace-pre-wrap break-all text-gray-700 bg-white h-full">
-                    {conflictStatus?.diffInfo?.baseContent
-                      || (diffLines.filter(l => l.type === 'DELETED' || l.type === 'UNCHANGED')
-                          .map(l => l.content).join('\n'))
-                      || 'Không có nội dung'}
-                  </pre>
-                </div>
-              </div>
-
-              {/* CENTER: The diff */}
-              <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+            <div className="flex flex-1 overflow-hidden">
+              {/* LEFT: Mine */}
+              <div className="flex flex-col flex-1 border-r border-gray-200 overflow-hidden">
+                <div className="bg-blue-50 px-4 py-3 border-b border-blue-200 shrink-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">Sự khác biệt</p>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="text-green-600">+{stats.added} dòng</span>
-                      <span className="text-red-600">-{stats.deleted} dòng</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-blue-900">
+                        Bản chỉnh sửa của tôi (từ v{lockedVersion})
+                      </p>
+                      <p className="text-xs text-blue-600 mt-0.5">
+                        {hasFile ? 'Bản nháp đã lưu từ trình chỉnh sửa' : 'Trình chỉnh sửa đã đóng — không lấy được nội dung'}
+                      </p>
                     </div>
+                    {hasFile && !minePreview.html && !minePreview.error && (
+                      <button
+                        onClick={loadMinePreview}
+                        className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Xem nội dung
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Thay đổi của bạn so với phiên bản mới nhất
-                  </p>
                 </div>
-                <div className="flex-1 overflow-y-auto p-0">
-                  {diffLines.length > 0 ? (
-                    <div>{diffLines.map(renderDiffLine)}</div>
+
+                <div className="flex-1 overflow-auto bg-white">
+                  {!hasFile ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <FileText className="w-12 h-12 mb-3 opacity-30" />
+                      <p className="text-sm">Không có nội dung</p>
+                      <p className="text-xs mt-1">Chỉ có thể xem khi đang mở trình chỉnh sửa</p>
+                    </div>
+                  ) : minePreview.loading ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-3">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+                      <p className="text-gray-400 text-sm">Đang chuyển đổi DOCX...</p>
+                    </div>
+                  ) : minePreview.error ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
+                      <AlertTriangle className="w-10 h-10 text-red-400" />
+                      <p className="text-red-400 text-sm">{minePreview.error}</p>
+                      <button
+                        onClick={loadMinePreview}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : minePreview.html ? (
+                    <div
+                      className="p-8 bg-gray-50 min-h-full"
+                      style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '14px', lineHeight: '1.8', color: '#1a1a1a' }}
+                      dangerouslySetInnerHTML={{ __html: minePreview.html }}
+                    />
                   ) : (
-                    <pre className="text-xs font-mono leading-6 p-3 text-gray-500">
-                      Không có sự khác biệt về text giữa hai phiên bản
-                    </pre>
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <FileText className="w-12 h-12 mb-3 opacity-30" />
+                      <p className="text-sm">Nhấn "Xem nội dung" để xem trước</p>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* RIGHT: Their version (newest) */}
-              <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-purple-50 px-4 py-2 border-b border-purple-200">
+              {/* RIGHT: Latest */}
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div className="bg-purple-50 px-4 py-3 border-b border-purple-200 shrink-0">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-purple-900">
                         Mới nhất (v{currentVersion})
                       </p>
-                      <p className="text-xs text-purple-600">
-                        Phiên bản mới nhất đã được tải lên bởi người khác
+                      <p className="text-xs text-purple-600 mt-0.5">
+                        {conflictStatus?.diffInfo?.theirCreatedByUsername} — {conflictStatus?.diffInfo?.theirCreatedAt
+                          ? new Date(conflictStatus.diffInfo.theirCreatedAt).toLocaleString('vi-VN')
+                          : ''}
                       </p>
+                      {conflictStatus?.diffInfo?.theirChangelog && (
+                        <p className="text-xs text-purple-500 italic mt-0.5">
+                          Ghi chú: {conflictStatus.diffInfo.theirChangelog}
+                        </p>
+                      )}
                     </div>
-                    <button
-                      onClick={() => {
-                        documentService.downloadVersion(documentId, currentVersion, `version-${currentVersion}`);
-                      }}
-                      className="text-xs px-2 py-1 border border-purple-300 rounded text-purple-700 hover:bg-purple-100 transition-colors"
-                      title="Tải về phiên bản mới nhất"
-                    >
-                      Tải về
-                    </button>
+                    {!theirsPreview.html && !theirsPreview.error && (
+                      <button
+                        onClick={loadTheirsPreview}
+                        className="flex items-center gap-1.5 text-xs text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Xem nội dung
+                      </button>
+                    )}
                   </div>
-                  {conflictStatus?.diffInfo?.theirChangelog && (
-                    <p className="text-xs text-purple-500 italic mt-1">
-                      Ghi chú: {conflictStatus.diffInfo.theirChangelog}
-                    </p>
-                  )}
                 </div>
-                <div className="flex-1 overflow-y-auto p-0">
-                  <pre className="text-xs font-mono leading-6 p-3 whitespace-pre-wrap break-all text-gray-700 bg-white h-full">
-                    {conflictStatus?.diffInfo?.theirContent
-                      || (diffLines.filter(l => l.type === 'ADDED' || l.type === 'UNCHANGED')
-                          .map(l => l.content).join('\n'))
-                      || 'Không có nội dung'}
-                  </pre>
+
+                <div className="flex-1 overflow-auto bg-white">
+                  {theirsPreview.loading ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-3">
+                      <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                      <p className="text-gray-400 text-sm">Đang chuyển đổi DOCX...</p>
+                    </div>
+                  ) : theirsPreview.error ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
+                      <AlertTriangle className="w-10 h-10 text-red-400" />
+                      <p className="text-red-400 text-sm">{theirsPreview.error}</p>
+                      <button
+                        onClick={loadTheirsPreview}
+                        className="text-xs text-purple-600 hover:underline"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : theirsPreview.html ? (
+                    <div
+                      className="p-8 bg-gray-50 min-h-full"
+                      style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '14px', lineHeight: '1.8', color: '#1a1a1a' }}
+                      dangerouslySetInnerHTML={{ __html: theirsPreview.html }}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <FileText className="w-12 h-12 mb-3 opacity-30" />
+                      <p className="text-sm">Nhấn "Xem nội dung" để xem trước</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Resolution strategy picker */}
-        {!isLoading && conflictStatus && (
-          <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
-            <p className="text-sm font-semibold text-gray-700 mb-3">Chọn cách giải quyết:</p>
-            <div className="grid grid-cols-3 gap-3">
-              {/* Strategy 1: Merge as new version */}
-              <button
-                type="button"
-                onClick={() => setSelectedStrategy('merge_as_new')}
-                className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                  selectedStrategy === 'merge_as_new'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-blue-300'
-                }`}
-              >
-                <GitMerge className={`w-5 h-5 mb-2 ${selectedStrategy === 'merge_as_new' ? 'text-blue-600' : 'text-gray-400'}`} />
-                <p className={`text-sm font-semibold ${selectedStrategy === 'merge_as_new' ? 'text-blue-900' : 'text-gray-700'}`}>
-                  Merge &amp; Lưu mới
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Tải lên file đã merge của bạn dưới dạng phiên bản mới
-                </p>
-              </button>
-
-              {/* Strategy 2: Discard mine */}
-              <button
-                type="button"
-                onClick={() => setSelectedStrategy('discard_mine')}
-                className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                  selectedStrategy === 'discard_mine'
-                    ? 'border-orange-500 bg-orange-50'
-                    : 'border-gray-200 bg-white hover:border-orange-300'
-                }`}
-              >
-                <Trash2 className={`w-5 h-5 mb-2 ${selectedStrategy === 'discard_mine' ? 'text-orange-600' : 'text-gray-400'}`} />
-                <p className={`text-sm font-semibold ${selectedStrategy === 'discard_mine' ? 'text-orange-900' : 'text-gray-700'}`}>
-                  Bỏ thay đổi của tôi
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Giữ phiên bản mới nhất, hủy bỏ thay đổi của bạn
-                </p>
-              </button>
-
-              {/* Strategy 3: Force push (ADMIN only) */}
-              <button
-                type="button"
-                onClick={() => setSelectedStrategy('force_push')}
-                disabled={!isAdmin}
-                className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                  !isAdmin
-                    ? 'border-gray-100 bg-gray-100 cursor-not-allowed opacity-50'
-                    : selectedStrategy === 'force_push'
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200 bg-white hover:border-red-300'
-                }`}
-              >
-                <AlertTriangle className={`w-5 h-5 mb-2 ${!isAdmin ? 'text-gray-300' : selectedStrategy === 'force_push' ? 'text-red-600' : 'text-gray-400'}`} />
-                <p className={`text-sm font-semibold ${!isAdmin ? 'text-gray-400' : selectedStrategy === 'force_push' ? 'text-red-900' : 'text-gray-700'}`}>
-                  Ghi đè {isAdmin ? '' : '(ADMIN)'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {isAdmin
-                    ? 'Ghi đè phiên bản mới nhất bằng file của bạn'
-                    : 'Chỉ ADMIN mới có quyền ghi đè'}
-                </p>
-              </button>
-            </div>
-
-            {/* Strategy-specific inputs */}
-            {(selectedStrategy === 'merge_as_new' || selectedStrategy === 'force_push') && (
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {selectedStrategy === 'merge_as_new' ? 'Ghi chú thay đổi (tùy chọn)' : 'Ghi chú'}
-                  </label>
-                  <input
-                    type="text"
-                    value={mergeChangelog}
-                    onChange={e => setMergeChangelog(e.target.value)}
-                    placeholder={selectedStrategy === 'merge_as_new'
-                      ? 'VD: Merge changes from v2 and v3'
-                      : 'VD: Force-pushed: hotfix critical bug'}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    File đã merge <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="file"
-                    accept=".docx,.doc,.txt,.md"
-                    onChange={e => setMergedFile(e.target.files?.[0] ?? null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    {selectedStrategy === 'merge_as_new'
-                      ? 'Tải lên file bạn đã merge từ các thay đổi'
-                      : 'Tải lên file để ghi đè phiên bản mới nhất'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-4 flex items-center gap-2 text-red-600 text-sm bg-red-50 px-4 py-2 rounded-lg">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
-              </div>
-            )}
+        {/* Error */}
+        {error && (
+          <div className="mx-6 mb-2 flex items-center gap-2 text-red-600 text-sm bg-red-50 px-4 py-2 rounded-lg flex-shrink-0">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {error}
           </div>
         )}
 
-        {/* Footer actions */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white">
-          <Button variant="outline" onClick={onClose} disabled={isResolving}>
-            Hủy bỏ
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleResolve}
-            disabled={
-              isResolving ||
-              isLoading ||
-              (selectedStrategy !== 'discard_mine' && !mergedFile)
-            }
-          >
-            {isResolving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Đang xử lý...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                {selectedStrategy === 'discard_mine' && 'Bỏ thay đổi'}
-                {selectedStrategy === 'merge_as_new' && 'Lưu phiên bản mới'}
-                {selectedStrategy === 'force_push' && 'Ghi đè'}
-              </>
-            )}
-          </Button>
-        </div>
+        {/* Action buttons */}
+        {!isLoading && (
+          <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex-shrink-0">
+            <div className="grid grid-cols-3 gap-4">
+              {/* Hủy */}
+              <button
+                onClick={handleDiscard}
+                disabled={isResolving}
+                className="flex flex-col items-center p-4 rounded-lg border-2 border-orange-200 bg-white hover:border-orange-400 hover:bg-orange-50 transition-colors disabled:opacity-50"
+              >
+                <ArrowLeft className="w-6 h-6 text-orange-500 mb-2" />
+                <span className="text-sm font-semibold text-orange-900">Hủy thay đổi</span>
+                <span className="text-xs text-gray-500 mt-1 text-center">
+                  Giữ nguyên phiên bản v{currentVersion}, không tải lên gì
+                </span>
+              </button>
+
+              {/* Lấy bản hiện tại */}
+              <button
+                onClick={handleKeepMine}
+                disabled={isResolving || !hasFile}
+                className="flex flex-col items-center p-4 rounded-lg border-2 border-green-200 bg-white hover:border-green-400 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!hasFile ? 'Không có nội dung — cần mở lại trình chỉnh sửa' : undefined}
+              >
+                {isResolving ? (
+                  <Loader2 className="w-6 h-6 text-green-500 mb-2 animate-spin" />
+                ) : (
+                  <Upload className="w-6 h-6 text-green-500 mb-2" />
+                )}
+                <span className="text-sm font-semibold text-green-900">Lấy bản hiện tại</span>
+                <span className="text-xs text-gray-500 mt-1 text-center">
+                  {hasFile
+                    ? `Tải bản của tôi lên thành phiên bản mới (v${currentVersion + 1})`
+                    : 'Không có nội dung — cần mở lại trình chỉnh sửa'}
+                </span>
+              </button>
+
+              {/* Chỉnh sửa lại */}
+              <button
+                onClick={handleReEdit}
+                disabled={isResolving}
+                className="flex flex-col items-center p-4 rounded-lg border-2 border-blue-200 bg-white hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
+              >
+                {isResolving ? (
+                  <Loader2 className="w-6 h-6 text-blue-500 mb-2 animate-spin" />
+                ) : (
+                  <Edit3 className="w-6 h-6 text-blue-500 mb-2" />
+                )}
+                <span className="text-sm font-semibold text-blue-900">Chỉnh sửa lại</span>
+                <span className="text-xs text-gray-500 mt-1 text-center">
+                  Mở OnlyOffice với bản hiện tại + xem trước bản mới nhất
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </Modal>
+    </div>
   );
 }

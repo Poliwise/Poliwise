@@ -200,6 +200,18 @@ export class ProxyController {
     );
   }
 
+  /** Get login stats for dashboard — MANAGER/ADMIN only */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('auth/login-stats')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  handleLoginStats(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.AUTH,
+      request,
+      downstreamPath(request, '/api/v1/auth'),
+    );
+  }
+
   // ===== Document Management Endpoints =====
   
   /** List documents with pagination, search, and filters */

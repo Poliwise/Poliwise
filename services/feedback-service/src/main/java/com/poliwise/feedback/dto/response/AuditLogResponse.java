@@ -4,6 +4,7 @@ import com.poliwise.feedback.enums.AuditAction;
 import com.poliwise.feedback.enums.ResourceType;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 public record AuditLogResponse(
@@ -16,5 +17,8 @@ public record AuditLogResponse(
         UUID resourceId,
         String resourceName,
         String ipAddress,
-        Instant createdAt
+        Instant createdAt,
+        Map<String, Object> oldValue,
+        Map<String, Object> newValue,
+        String[] changedFields
 ) {}

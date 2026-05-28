@@ -10,6 +10,8 @@ import {
   Download,
   TrendingUp,
   AlertTriangle,
+  LogIn,
+  Eye,
 } from 'lucide-react';
 import {
   LineChart,
@@ -56,6 +58,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>('today');
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const [apiMetrics, setApiMetrics] = useState<ApiMetricsResponse | null>(null);
   const [apiMetricsLoading, setApiMetricsLoading] = useState(true);
@@ -63,6 +66,7 @@ export default function AnalyticsPage() {
 
   const [trends, setTrends] = useState<{
     date: string; questions: number; likes: number; dislikes: number;
+    avgResponseTime?: number; uniqueUsers?: number;
   }[]>([]);
   const [topQuestions, setTopQuestions] = useState<{
     question: string; askCount: number; lastAskedAt: string;
@@ -70,35 +74,108 @@ export default function AnalyticsPage() {
   const [topDocuments, setTopDocuments] = useState<{
     documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
   }[]>([]);
+  const [loginStats, setLoginStats] = useState<{
+    loginsThisMonth: number; failedLoginsThisMonth: number;
+  } | null>(null);
+  const [docViewStats, setDocViewStats] = useState<{
+    viewsThisMonth: number;
+  } | null>(null);
+
+  const defaultStats: DashboardStats = {
+    totalQuestions: 0, questionsToday: 0, questionsThisWeek: 0, questionsThisMonth: 0,
+    activeDocuments: 0, totalDocuments: 0, activeUsers: 0, totalUsers: 0,
+  };
+  const defaultOverview: AnalyticsOverview = {
+    stats: defaultStats,
+    questionTrend: [],
+    questionsByDepartment: [],
+    topQuestions: [],
+    topDocuments: [],
+    satisfaction: { likes: 0, dislikes: 0, rate: 0 },
+  };
 
   const loadData = useCallback(async (currentPeriod: Period) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [statsData, overviewData, trendsData, questionsData, docsData] = await Promise.all([
-        api.analytics.getDashboard(),
-        api.analytics.getOverview(),
-        api.analytics.getTrends(currentPeriod === 'today' ? 1 : currentPeriod === 'week' ? 7 : 30),
-        api.analytics.getTopQuestions(5),
-        api.analytics.getTopDocuments(5),
-      ]);
-      setStats(statsData);
-      setOverview(overviewData);
-      setTrends(trendsData);
-      setTopQuestions(questionsData);
-      setTopDocuments(docsData);
-    } catch {
+    if (!initialLoadDone) setLoading(true);
+    const days = currentPeriod === 'today' ? 1 : currentPeriod === 'week' ? 7 : 30;
+
+    const results = await Promise.allSettled([
+      api.analytics.getDashboard().catch(() => null),
+      api.analytics.getOverview().catch(() => null),
+      api.analytics.getTrends(days).catch(() => []),
+      api.analytics.getTopQuestions(5).catch(() => []),
+      api.analytics.getTopDocuments(100).catch(() => []),
+      api.auth.getLoginStats(days).catch(() => null),
+      api.documents.getAll({ limit: 1 }).catch(() => null),
+      api.documents.getAll({ limit: 1, status: 'READY' }).catch(() => null),
+      api.users.search({ limit: 1 }).catch(() => null),
+      api.users.search({ limit: 1, status: 'ACTIVE' }).catch(() => null),
+    ]);
+
+    const [
+      statsData, overviewData, trendsData, questionsData, docsData, loginData,
+      totalDocsData, activeDocsData, totalUsersData, activeUsersData
+    ] = results as [
+      PromiseFulfilledResult<DashboardStats | null>,
+      PromiseFulfilledResult<AnalyticsOverview | null>,
+      PromiseFulfilledResult<typeof trends | []>,
+      PromiseFulfilledResult<typeof topQuestions | []>,
+      PromiseFulfilledResult<typeof topDocuments | []>,
+      PromiseFulfilledResult<{ loginSuccessCount: number; loginFailedCount: number } | null>,
+      PromiseFulfilledResult<{ pagination: { total: number } } | null>,
+      PromiseFulfilledResult<{ pagination: { total: number } } | null>,
+      PromiseFulfilledResult<{ pagination: { total: number } } | null>,
+      PromiseFulfilledResult<{ pagination: { total: number } } | null>,
+    ];
+
+    const resolvedStats = statsData.status === 'fulfilled' ? statsData.value : null;
+    const resolvedOverview = overviewData.status === 'fulfilled' ? overviewData.value : null;
+    const resolvedTrends = trendsData.status === 'fulfilled' ? trendsData.value : [];
+    const resolvedQuestions = questionsData.status === 'fulfilled' ? questionsData.value : [];
+    const resolvedDocs = docsData.status === 'fulfilled' ? docsData.value : [];
+    const resolvedLogin = loginData.status === 'fulfilled' ? loginData.value : null;
+    
+    const realTotalDocs = totalDocsData.status === 'fulfilled' ? totalDocsData.value?.pagination?.total ?? 0 : 0;
+    const realActiveDocs = activeDocsData.status === 'fulfilled' ? activeDocsData.value?.pagination?.total ?? 0 : 0;
+    const realTotalUsers = totalUsersData.status === 'fulfilled' ? totalUsersData.value?.pagination?.total ?? 0 : 0;
+    const realActiveUsers = activeUsersData.status === 'fulfilled' ? activeUsersData.value?.pagination?.total ?? 0 : 0;
+
+    const baseStats = resolvedStats ?? defaultStats;
+    setStats({
+      ...baseStats,
+      totalDocuments: realTotalDocs || baseStats.totalDocuments,
+      activeDocuments: realActiveDocs || baseStats.activeDocuments,
+      totalUsers: realTotalUsers || baseStats.totalUsers,
+      activeUsers: realActiveUsers || baseStats.activeUsers,
+    });
+    
+    setOverview(resolvedOverview ?? defaultOverview);
+    setTrends(Array.isArray(resolvedTrends) ? resolvedTrends : []);
+    setTopQuestions(Array.isArray(resolvedQuestions) ? resolvedQuestions : []);
+    setTopDocuments(Array.isArray(resolvedDocs) ? resolvedDocs.slice(0, 5) : []);
+    setLoginStats(resolvedLogin ? {
+      loginsThisMonth: resolvedLogin.loginSuccessCount,
+      failedLoginsThisMonth: resolvedLogin.loginFailedCount,
+    } : null);
+    
+    // Use document citations as a proxy for document views since UsageStats are not recording generic views
+    const totalCitations = Array.isArray(resolvedDocs) ? resolvedDocs.reduce((sum, doc) => sum + (doc.totalCitations || 0), 0) : 0;
+    setDocViewStats({ viewsThisMonth: totalCitations });
+
+    const allFailed = !resolvedStats && !resolvedOverview && !resolvedTrends?.length && !resolvedQuestions?.length && !resolvedDocs?.length;
+    if (allFailed) {
       setError(t('analytics.loadError'));
-    } finally {
-      setLoading(false);
+    } else {
+      setError(null);
     }
-  }, [t]);
+    setLoading(false);
+    setInitialLoadDone(true);
+  }, [t, initialLoadDone]);
 
   const loadApiMetrics = useCallback(async (currentPeriod: Period) => {
+    setApiMetricsLoading(true);
     try {
-      const data = await api.metrics.getApiHealth(
-        currentPeriod === 'today' ? 1 : currentPeriod === 'week' ? 7 : 30
-      );
+      const days = currentPeriod === 'today' ? 1 : currentPeriod === 'week' ? 7 : 30;
+      const data = await api.metrics.getApiHealth(days);
       setApiMetrics(data);
     } catch {
       setApiMetrics(null);
@@ -116,19 +193,40 @@ export default function AnalyticsPage() {
     loadApiMetrics(period);
   }, [isManager, period, loadData, loadApiMetrics, router]);
 
+  useEffect(() => {
+    if (!isManager) return;
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData(period);
+        loadApiMetrics(period);
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [isManager, period, loadData, loadApiMetrics]);
+
   const getStatValue = (key: keyof DashboardStats) => {
     if (!stats) return 0;
     if (key === 'questionsToday') {
-      return period === 'today' ? stats.questionsToday
+      return (period === 'today' ? stats.questionsToday
         : period === 'week' ? stats.questionsThisWeek
-        : stats.questionsThisMonth;
+        : stats.questionsThisMonth) ?? 0;
     }
-    return stats[key] as number;
+    return (stats[key] as number) ?? 0;
   };
 
   const { likes: likeCount = 0, dislikes: dislikeCount = 0 } = overview?.satisfaction || {};
   const totalFeedback = likeCount + dislikeCount;
   const satisfactionRate = totalFeedback > 0 ? Math.round((likeCount / totalFeedback) * 100) : 0;
+
+  const currentPeriodQuestions = period === 'today' ? (stats?.questionsToday ?? 0)
+    : period === 'week' ? (stats?.questionsThisWeek ?? 0)
+    : (stats?.questionsThisMonth ?? 0);
+  const previousPeriodQuestions = period === 'today' ? (stats?.questionsThisWeek ?? 0) - (stats?.questionsToday ?? 0)
+    : period === 'week' ? (stats?.questionsThisMonth ?? 0) - (stats?.questionsThisWeek ?? 0)
+    : (stats?.totalQuestions ?? 0) - (stats?.questionsThisMonth ?? 0);
+  const questionsChange = previousPeriodQuestions > 0
+    ? Math.round(((currentPeriodQuestions - previousPeriodQuestions) / previousPeriodQuestions) * 100)
+    : 0;
 
   const pieData = [
     { name: t('analytics.chart.useful'), value: likeCount },
@@ -203,10 +301,17 @@ export default function AnalyticsPage() {
               </div>
               <div className={styles.statContent}>
                 <span className={styles.statLabel}>{t('analytics.stat.questions')}</span>
-                <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
-                {stats.questionsThisWeek > 0 && (
+                <div className={styles.statValueRow}>
+                  <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
+                  {questionsChange !== 0 && (
+                    <span className={styles.changeBadge} style={{ color: questionsChange > 0 ? '#22c55e' : '#ef4444' }}>
+                      {questionsChange > 0 ? '+' : ''}{questionsChange}%
+                    </span>
+                  )}
+                </div>
+                {(stats.questionsThisWeek ?? 0) > 0 && (
                   <span className={styles.statMeta}>
-                    {stats.questionsThisMonth.toLocaleString()} {t('analytics.stat.questionsMonth')}
+                    {(stats.questionsThisMonth ?? 0).toLocaleString()} {t('analytics.stat.questionsMonth')}
                   </span>
                 )}
               </div>
@@ -258,7 +363,37 @@ export default function AnalyticsPage() {
             metrics={apiMetrics}
             loading={apiMetricsLoading}
             onClick={() => setEndpointModalOpen(true)}
+            label={t('analytics.apiHealth.label')}
+            loadingLabel={t('analytics.apiHealth.loading')}
+            noDataLabel={t('analytics.apiHealth.noData')}
+            errorsLabel={t('analytics.apiHealth.errors')}
+            totalRequestsLabel={t('analytics.apiHealth.totalRequests')}
           />
+
+          <Card padding="md">
+            <div className={styles.statCardInner}>
+              <div className={styles.statIconWrap} style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                <LogIn size={22} />
+              </div>
+              <div className={styles.statContent}>
+                <span className={styles.statLabel}>{t('analytics.stat.logins')}</span>
+                <span className={styles.statValue}>{(loginStats?.loginsThisMonth ?? 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card padding="md">
+            <div className={styles.statCardInner}>
+              <div className={styles.statIconWrap} style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+                <Eye size={22} />
+              </div>
+              <div className={styles.statContent}>
+                <span className={styles.statLabel}>{t('analytics.stat.docViews')}</span>
+                <span className={styles.statValue}>{(docViewStats?.viewsThisMonth ?? 0).toLocaleString()}</span>
+                <span className={styles.statMeta}>{t('analytics.stat.docViewsPeriod')}</span>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Charts Row */}
@@ -302,6 +437,16 @@ export default function AnalyticsPage() {
                   <span>{t('analytics.chart.empty')}</span>
                 </div>
               )}
+              {trends.length > 0 && (() => {
+                const avgRT = trends.reduce((sum, t) => sum + (t.avgResponseTime ?? 0), 0) / (trends.length || 1);
+                const totalUsers = trends.reduce((sum, t) => sum + (t.uniqueUsers ?? 0), 0);
+                return (
+                  <div className={styles.trendMetrics}>
+                    <span>{t('analytics.trendMetrics.avgResponse')}: {avgRT > 0 ? `${Math.round(avgRT)}ms` : '-'}</span>
+                    <span>{t('analytics.trendMetrics.uniqueUsers')}: {totalUsers > 0 ? totalUsers.toLocaleString() : '-'}</span>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -353,7 +498,7 @@ export default function AnalyticsPage() {
         {apiMetrics && apiMetrics.dailyErrors.length > 0 && (
           <Card padding="md" className={styles.chartCard}>
             <CardHeader>
-              <CardTitle as="h3">Xu hướng lỗi API theo ngày</CardTitle>
+              <CardTitle as="h3">{t('analytics.chart.apiErrors')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={180}>
@@ -452,6 +597,18 @@ export default function AnalyticsPage() {
           open={endpointModalOpen}
           onClose={() => setEndpointModalOpen(false)}
           metrics={apiMetrics}
+          titleLabel={t('analytics.endpointDetails.title')}
+          totalRequestsLabel={t('analytics.endpointDetails.totalRequests')}
+          successLabel={t('analytics.endpointDetails.success')}
+          errorsLabel={t('analytics.endpointDetails.errors')}
+          noDataLabel={t('analytics.endpointDetails.noData')}
+          colEndpoint={t('analytics.endpointDetails.colEndpoint')}
+          colTotal={t('analytics.endpointDetails.colTotal')}
+          colSuccess={t('analytics.endpointDetails.colSuccess')}
+          colErrors={t('analytics.endpointDetails.colErrors')}
+          colRate={t('analytics.endpointDetails.colRate')}
+          colAvgResponse={t('analytics.endpointDetails.colAvgResponse')}
+          recentErrorsLabel={t('analytics.endpointDetails.recentErrors')}
         />
       </div>
     </MainLayout>

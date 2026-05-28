@@ -107,15 +107,61 @@ public class OnlyOfficeController {
         }
     }
 
+    // ===== 2d. Trigger save via OnlyOffice Command Service =====
+    // Frontend "Lưu phiên bản mới" button calls this endpoint.
+    // Backend sends a forcesave command to OnlyOffice DS Command Service,
+    // which triggers a status=6 callback with the saved file URL.
+    @PostMapping("/{documentId}/trigger-save")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<Map<String, Object>> triggerSave(
+            @PathVariable UUID documentId,
+            HttpServletRequest httpRequest) {
+        UUID userId = getCurrentUserId(httpRequest);
+        var result = onlyOfficeService.triggerForceSave(documentId, userId);
+
+        if (result.hasConflict()) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "accepted", false,
+                    "hasConflict", true,
+                    "message", result.message(),
+                    "lockedVersion", result.lockedVersion(),
+                    "currentVersion", result.currentVersion()
+            ));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "accepted", result.accepted(),
+                "hasConflict", false,
+                "message", result.message(),
+                "lockedVersion", result.lockedVersion(),
+                "currentVersion", result.currentVersion()
+        ));
+    }
+
+    // ===== 2e. Relock for conflict resolution (merge/re-edit) =====
+    // Releases the current lock and acquires a new one against the latest version.
+    // Used when user chooses "Edit/Merge" in conflict resolution.
+    @PostMapping("/{documentId}/relock")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<Map<String, Object>> relockForMerge(
+            @PathVariable UUID documentId,
+            HttpServletRequest httpRequest) {
+        UUID userId = getCurrentUserId(httpRequest);
+        String username = getCurrentUsername(httpRequest);
+        var result = onlyOfficeService.relockForMerge(documentId, userId, username);
+        return ResponseEntity.ok(result);
+    }
+
     // ===== 3. Get editor configuration (for OnlyOffice iframe) =====
     @GetMapping("/{documentId}/editor-config")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<Map<String, Object>> getEditorConfig(
             @PathVariable UUID documentId,
+            @RequestParam(value = "targetVersion", required = false) Integer targetVersion,
             HttpServletRequest httpRequest) {
         UUID userId = getCurrentUserId(httpRequest);
         String username = getCurrentUsername(httpRequest);
-        Map<String, Object> config = onlyOfficeService.buildEditorConfigJson(documentId, userId, username);
+        Map<String, Object> config = onlyOfficeService.buildEditorConfigJson(documentId, userId, username, targetVersion);
         return ResponseEntity.ok(config);
     }
 
@@ -124,6 +170,7 @@ public class OnlyOfficeController {
     //   - status=1: editing in progress. Return {error:0,status:"editing"} to keep editor open.
     //   - status=2: user saved. OnlyOffice provides a "url" field pointing to the cached file
     //               on the DocumentServer. We download it from there and create a new version.
+    //   - status=6: forcesave triggered via Command Service. Same as status=2.
     @PostMapping(value = "/{documentId}/save-callback", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OnlyOfficeCallbackResponse> handleSaveCallback(
             @PathVariable UUID documentId,
@@ -148,15 +195,32 @@ public class OnlyOfficeController {
         }
 
         // status=2: document was saved — download the file from DocumentServer and create new version
-        if (status == 2) {
+        // status=6: forcesave triggered — only process if it's a manual save (userdata starts with "manual_save_")
+        //           Auto-saves from the editor (forcesave:true config) are acknowledged without creating versions.
+        if (status == 2 || status == 6) {
+            // For status=6 (forcesave), check if this is a manual save, or if there is a conflict.
+            // If it is an auto-save without conflict, we just acknowledge.
+            // If there is a conflict, we MUST process it to save the conflict file.
+            if (status == 6) {
+                String userdata = callback.getUserdata();
+                boolean isManualSave = userdata != null && userdata.startsWith("manual_save_");
+                boolean hasConflict = onlyOfficeService.hasConflict(documentId);
+
+                if (!isManualSave && !hasConflict) {
+                    // Auto-save from editor without conflict — just acknowledge, don't create a version
+                    log.debug("OnlyOffice auto-save callback (status=6, no manual_save userdata, no conflict) for documentId={}, acknowledging without version creation", documentId);
+                    return ResponseEntity.ok(OnlyOfficeCallbackResponse.forEditing(documentId));
+                }
+            }
+
             if (savedFileUrl == null || savedFileUrl.isBlank()) {
-                log.warn("OnlyOffice callback (status=2) with no url for documentId={}", documentId);
+                log.warn("OnlyOffice callback (status={}) with no url for documentId={}", status, documentId);
                 return ResponseEntity.badRequest()
                         .body(OnlyOfficeCallbackResponse.error("No url provided for save", documentId));
             }
             try {
                 OnlyOfficeCallbackPrincipal principal = new OnlyOfficeCallbackPrincipal(
-                        "save", documentId, callback.getKey());
+                        status == 6 ? "forcesave" : "save", documentId, callback.getKey());
                 OnlyOfficeCallbackResponse response = onlyOfficeService.handleSaveCallbackFromUrl(
                         documentId, principal, savedFileUrl);
                 return ResponseEntity.ok(response);
@@ -167,7 +231,14 @@ public class OnlyOfficeController {
             }
         }
 
+        // status=4: document closed with no changes
+        if (status == 4) {
+            log.debug("OnlyOffice callback (status=4): document closed without saving, documentId={}", documentId);
+            return ResponseEntity.ok(OnlyOfficeCallbackResponse.forEditing(documentId));
+        }
+
         // Unknown status
+        log.debug("OnlyOffice callback: unknown status={} for documentId={}", status, documentId);
         return ResponseEntity.ok(OnlyOfficeCallbackResponse.forEditing(documentId));
     }
 
@@ -274,6 +345,25 @@ public class OnlyOfficeController {
             @PathVariable UUID documentId) {
         FetchLatestVersionResponse response = onlyOfficeService.fetchLatestVersion(documentId);
         return ResponseEntity.ok(response);
+    }
+
+    // ===== 11b. Re-open editor for merge without re-acquiring lock =====
+    // Used when user picks "Chỉnh sửa lại" in conflict resolver.
+    // Frontend already has the file blob from the previous editor session.
+    // We serve editor config that points to the specific locked version (blob URL provided by frontend),
+    // and return the latest version number so the frontend can show a preview panel.
+    @PostMapping("/{documentId}/re-edit")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<Map<String, Object>> reOpenForMerge(
+            @PathVariable UUID documentId,
+            @RequestParam("lockToken") String lockToken,
+            @RequestParam("targetVersion") Integer targetVersion,
+            HttpServletRequest httpRequest) {
+        UUID userId = getCurrentUserId(httpRequest);
+        String username = getCurrentUsername(httpRequest);
+        Map<String, Object> result = onlyOfficeService.buildReEditConfig(
+                documentId, userId, username, lockToken, targetVersion);
+        return ResponseEntity.ok(result);
     }
 
     // ===== 11. Autocomplete callback placeholder (OnlyOffice SDK placeholder) =====

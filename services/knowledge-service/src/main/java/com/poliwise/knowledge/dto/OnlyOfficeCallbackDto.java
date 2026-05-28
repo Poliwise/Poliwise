@@ -21,6 +21,7 @@ public class OnlyOfficeCallbackDto {
     private String lastsave;
     private Boolean notmodified;
     private String filetype;
+    private String userdata;
 
     @JsonProperty("history")
     private History getHistory() { return history; }

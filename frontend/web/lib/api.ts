@@ -177,9 +177,19 @@ function coercePaginated<T>(
 
   // Handle wrapped ApiResponse with { success, data: [...], pagination: {...} }
   const dataArr = wrappedData as T[] | undefined;
-  const pagination = (root.pagination || root.Pagination) as
+  let pagination = (root.pagination || root.Pagination) as
     | { page: number; limit: number; total: number; totalPages: number }
     | undefined;
+    
+  // Handle format where pagination fields are flat at root: { data: [...], page: 1, limit: 20, total: 5, totalPages: 1 }
+  if (!pagination && root && 'page' in root && 'total' in root) {
+    pagination = {
+      page: (root.page as number) ?? 1,
+      limit: (root.limit as number) ?? 20,
+      total: (root.total as number) ?? 0,
+      totalPages: (root.totalPages as number) ?? 0,
+    };
+  }
 
   return {
     data: Array.isArray(dataArr) ? dataArr : [],
@@ -417,6 +427,20 @@ class ApiClient {
         return sessions as Session[];
       }
       return [];
+    },
+
+    getLoginStats: async (days = 30): Promise<{
+      loginSuccessCount: number;
+      loginFailedCount: number;
+    }> => {
+      const res = await this.client.get<{
+        loginSuccessCount?: number; loginFailedCount?: number;
+      }>('/api/v1/auth/login-stats', { params: { days } });
+      const raw = res.data as Record<string, unknown>;
+      return {
+        loginSuccessCount: typeof raw.loginSuccessCount === 'number' ? raw.loginSuccessCount : 0,
+        loginFailedCount: typeof raw.loginFailedCount === 'number' ? raw.loginFailedCount : 0,
+      };
     },
 
     revokeSession: async (sessionId: string): Promise<void> => {
@@ -1098,13 +1122,57 @@ class ApiClient {
   // ==========================================================================
   analytics = {
     getDashboard: async (): Promise<DashboardStats> => {
-      const res = await this.client.get<ApiResponse<DashboardStats>>('/api/v1/analytics/dashboard');
-      return coerceSingleObject<DashboardStats>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data!;
+      const res = await this.client.get<ApiResponse<Record<string, unknown>>>('/api/v1/analytics/dashboard');
+      const raw = coerceSingleObject<Record<string, unknown>>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data as Record<string, unknown>;
+      return {
+        totalQuestions: Number(raw.totalQuestions ?? raw.weekQuestions ?? 0),
+        questionsToday: Number(raw.todayQuestions ?? 0),
+        questionsThisWeek: Number(raw.weekQuestions ?? 0),
+        questionsThisMonth: Number(raw.monthQuestions ?? 0),
+        totalDocuments: Number(raw.totalDocuments ?? 0),
+        activeDocuments: Number(raw.activeDocuments ?? 0),
+        totalUsers: Number(raw.totalUsers ?? 0),
+        activeUsers: Number(raw.activeUsers ?? 0),
+      };
     },
 
     getOverview: async (): Promise<AnalyticsOverview> => {
-      const res = await this.client.get<ApiResponse<AnalyticsOverview>>('/api/v1/analytics/overview');
-      return coerceSingleObject<AnalyticsOverview>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data!;
+      const res = await this.client.get<ApiResponse<Record<string, unknown>>>('/api/v1/analytics/overview');
+      const raw = coerceSingleObject<Record<string, unknown>>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data as Record<string, unknown>;
+      const rawStats = (raw.stats ?? raw) as Record<string, unknown>;
+
+      const mapTopQuestions = (items: unknown[]): AnalyticsOverview['topQuestions'] =>
+        (items as Record<string, unknown>[]).map((item) => ({
+          question: String(item.questionSample ?? item.question ?? ''),
+          askCount: Number(item.askCount ?? 0),
+          lastAskedAt: String(item.lastAskedAt ?? ''),
+        }));
+
+      const mapTopDocuments = (items: unknown[]): AnalyticsOverview['topDocuments'] =>
+        (items as Record<string, unknown>[]).map((item) => ({
+          documentId: String(item.documentId ?? item.id ?? ''),
+          documentTitle: String(item.originalFilename ?? item.documentTitle ?? ''),
+          viewCount: Number(item.totalCitations ?? item.viewCount ?? 0),
+          lastViewedAt: String(item.lastCitedAt ?? item.lastViewedAt ?? ''),
+        }));
+
+      return {
+        stats: {
+          totalQuestions: Number(rawStats.totalQuestions ?? rawStats.weekQuestions ?? 0),
+          questionsToday: Number(rawStats.todayQuestions ?? 0),
+          questionsThisWeek: Number(rawStats.weekQuestions ?? 0),
+          questionsThisMonth: Number(rawStats.monthQuestions ?? 0),
+          totalDocuments: Number(rawStats.totalDocuments ?? 0),
+          activeDocuments: Number(rawStats.activeDocuments ?? 0),
+          totalUsers: Number(rawStats.totalUsers ?? 0),
+          activeUsers: Number(rawStats.activeUsers ?? 0),
+        },
+        questionTrend: Array.isArray(raw.questionTrend) ? raw.questionTrend as AnalyticsOverview['questionTrend'] : [],
+        questionsByDepartment: Array.isArray(raw.questionsByDepartment) ? raw.questionsByDepartment as AnalyticsOverview['questionsByDepartment'] : [],
+        topQuestions: Array.isArray(raw.topQuestions) ? mapTopQuestions(raw.topQuestions) : [],
+        topDocuments: Array.isArray(raw.topDocuments) ? mapTopDocuments(raw.topDocuments) : [],
+        satisfaction: (raw.satisfaction ?? { likes: 0, dislikes: 0, rate: 0 }) as AnalyticsOverview['satisfaction'],
+      };
     },
 
     getTrends: async (days = 30): Promise<{
@@ -1185,6 +1253,16 @@ class ApiClient {
 
     rejectUnanswered: async (id: string): Promise<void> => {
       await this.client.put(`/api/v1/ai/unanswered/${id}/reject`);
+    },
+
+    getDocumentViews: async (days = 30): Promise<{
+      viewCount: number;
+    }> => {
+      const res = await this.client.get<ApiResponse<Record<string, unknown>>>('/api/v1/analytics/document-views', { params: { days } });
+      const raw = coerceSingleObject<Record<string, unknown>>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data as Record<string, unknown>;
+      return {
+        viewCount: Number(raw?.viewCount ?? 0)
+      };
     },
   };
 
@@ -1305,26 +1383,30 @@ class ApiClient {
       id: string;
       userId: string;
       username: string;
+      userRole?: string;
       action: string;
       resourceType: string;
       resourceId?: string;
       resourceName?: string;
-      oldValue?: Record<string, unknown>;
-      newValue?: Record<string, unknown>;
       ipAddress?: string;
       createdAt: string;
+      oldValue?: Record<string, unknown>;
+      newValue?: Record<string, unknown>;
+      changedFields?: string[];
     }> => {
       const res = await this.client.get<ApiResponse<{
-        id: string; userId: string; username: string; action: string;
+        id: string; userId: string; username: string; userRole?: string; action: string;
         resourceType: string; resourceId?: string; resourceName?: string;
-        oldValue?: Record<string, unknown>; newValue?: Record<string, unknown>;
         ipAddress?: string; createdAt: string;
+        oldValue?: Record<string, unknown>; newValue?: Record<string, unknown>;
+        changedFields?: string[];
       }>>(`/api/v1/analytics/audit-logs/${id}`);
       return coercePaginated<{
-        id: string; userId: string; username: string; action: string;
+        id: string; userId: string; username: string; userRole?: string; action: string;
         resourceType: string; resourceId?: string; resourceName?: string;
-        oldValue?: Record<string, unknown>; newValue?: Record<string, unknown>;
         ipAddress?: string; createdAt: string;
+        oldValue?: Record<string, unknown>; newValue?: Record<string, unknown>;
+        changedFields?: string[];
       }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
     },
   };

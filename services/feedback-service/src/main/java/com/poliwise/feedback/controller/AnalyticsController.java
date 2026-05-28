@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -81,6 +82,13 @@ public class AnalyticsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate targetDate = date != null ? date : LocalDate.now();
         return ResponseEntity.ok(ApiResponse.success(analyticsService.getDepartmentStats(deptId, targetDate)));
+    }
+
+    @GetMapping("/document-views")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDocumentViewStats(
+            @RequestParam(defaultValue = "30") int days) {
+        Map<String, Object> stats = analyticsService.getDocumentViewStats(days);
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
     @GetMapping("/trends")

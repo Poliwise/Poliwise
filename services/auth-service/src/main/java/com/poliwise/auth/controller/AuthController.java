@@ -4,10 +4,13 @@ import com.poliwise.auth.dto.auth.*;
 import com.poliwise.auth.entity.RefreshToken;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
+import com.poliwise.auth.repository.LoginHistoryRepository;
+import com.poliwise.auth.enums.LoginStatus;
 import com.poliwise.auth.security.JwtAuthenticationToken;
 import com.poliwise.auth.service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -28,6 +31,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final LoginHistoryRepository loginHistoryRepository;
     private final ForgotPasswordService forgotPasswordService;
     private final ChangePasswordService changePasswordService;
 
@@ -36,6 +40,7 @@ public class AuthController {
             RefreshTokenService refreshTokenService,
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
+            LoginHistoryRepository loginHistoryRepository,
             ForgotPasswordService forgotPasswordService,
             ChangePasswordService changePasswordService
     ) {
@@ -43,6 +48,7 @@ public class AuthController {
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.loginHistoryRepository = loginHistoryRepository;
         this.forgotPasswordService = forgotPasswordService;
         this.changePasswordService = changePasswordService;
     }
@@ -102,6 +108,29 @@ public class AuthController {
         String rawAccessToken = extractRawAccessToken(httpRequest);
         int count = authService.logoutAllDevices(((JwtAuthenticationToken) authentication).getPayload().sub(), rawAccessToken);
         return ResponseEntity.ok(Map.of("message", "Logged out from all devices", "sessionsRevoked", count));
+    }
+
+    @GetMapping("/login-stats")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    public ResponseEntity<?> getLoginStats(@RequestParam(defaultValue = "30") int days) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime from = now.minusDays(days);
+        Instant fromInstant = from.toInstant();
+        Instant toInstant = now.toInstant();
+
+        long successCount = loginHistoryRepository.countByStatusAndCreatedAtBetween(LoginStatus.SUCCESS, fromInstant, toInstant);
+        long failedCount = loginHistoryRepository.countByStatusAndCreatedAtBetween(LoginStatus.FAILED_CREDENTIALS, fromInstant, toInstant);
+        failedCount += loginHistoryRepository.countByStatusAndCreatedAtBetween(LoginStatus.FAILED_DEACTIVATED, fromInstant, toInstant);
+        failedCount += loginHistoryRepository.countByStatusAndCreatedAtBetween(LoginStatus.FAILED_LOCKED, fromInstant, toInstant);
+        failedCount += loginHistoryRepository.countByStatusAndCreatedAtBetween(LoginStatus.FAILED_REVOKED, fromInstant, toInstant);
+
+        return ResponseEntity.ok(Map.of(
+                "periodDays", days,
+                "loginSuccessCount", successCount,
+                "loginFailedCount", failedCount,
+                "periodFrom", from.toString(),
+                "periodTo", now.toString()
+        ));
     }
 
     @GetMapping("/sessions")

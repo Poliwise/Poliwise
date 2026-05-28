@@ -10,9 +10,21 @@ interface ApiHealthCardProps {
   metrics: ApiMetricsResponse | null;
   loading: boolean;
   onClick: () => void;
+  label?: string;
+  loadingLabel?: string;
+  noDataLabel?: string;
+  errorsLabel?: string;
+  totalRequestsLabel?: string;
 }
 
-export function ApiHealthCard({ metrics, loading, onClick }: ApiHealthCardProps) {
+export function ApiHealthCard({
+  metrics, loading, onClick,
+  label = 'API Health',
+  loadingLabel = 'Loading...',
+  noDataLabel = 'No data',
+  errorsLabel = 'errors',
+  totalRequestsLabel = 'total requests',
+}: ApiHealthCardProps) {
   if (loading) {
     return (
       <Card padding="md" className={styles.card}>
@@ -21,8 +33,8 @@ export function ApiHealthCard({ metrics, loading, onClick }: ApiHealthCardProps)
             <Activity size={22} />
           </div>
           <div className={styles.content}>
-            <span className={styles.label}>API Health</span>
-            <span className={styles.loading}>Đang tải...</span>
+            <span className={styles.label}>{label}</span>
+            <span className={styles.loading}>{loadingLabel}</span>
           </div>
         </div>
       </Card>
@@ -37,8 +49,8 @@ export function ApiHealthCard({ metrics, loading, onClick }: ApiHealthCardProps)
             <AlertCircle size={22} />
           </div>
           <div className={styles.content}>
-            <span className={styles.label}>API Health</span>
-            <span className={styles.subValue}>Không có dữ liệu</span>
+            <span className={styles.label}>{label}</span>
+            <span className={styles.subValue}>{noDataLabel}</span>
           </div>
         </div>
       </Card>
@@ -70,14 +82,14 @@ export function ApiHealthCard({ metrics, loading, onClick }: ApiHealthCardProps)
           {status.icon}
         </div>
         <div className={styles.content}>
-          <span className={styles.label}>API Health</span>
+          <span className={styles.label}>{label}</span>
           <div className={styles.row}>
             <span className={styles.mainValue} style={{ color: status.color }}>
               {successRate}%
             </span>
             <span className={styles.separator}>/</span>
             <span className={styles.subValue}>
-              {errorCount} lỗi
+              {errorCount} {errorsLabel}
               {failedEndpoints > 0 && (
                 <span className={styles.badge}>
                   {failedEndpoints} endpoint{failedEndpoints > 1 ? 's' : ''}
@@ -86,7 +98,7 @@ export function ApiHealthCard({ metrics, loading, onClick }: ApiHealthCardProps)
             </span>
           </div>
           <span className={styles.meta}>
-            {overall.totalRequests.toLocaleString()} tổng requests
+            {overall.totalRequests.toLocaleString()} {totalRequestsLabel}
           </span>
         </div>
         <div className={styles.arrow}>

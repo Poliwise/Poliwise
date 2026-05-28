@@ -65,6 +65,8 @@ public class AuditLogService {
             Instant from = request.fromDate().toInstant(ZoneOffset.UTC);
             Instant to = request.toDate().toInstant(ZoneOffset.UTC);
             logs = auditLogRepository.findByCreatedAtBetween(from, to, pageable);
+        } else if (request.search() != null && !request.search().isBlank()) {
+            logs = auditLogRepository.findByUsernameContainingIgnoreCase(request.search(), pageable);
         } else {
             logs = auditLogRepository.findAll(pageable);
         }
@@ -84,9 +86,40 @@ public class AuditLogService {
         return count;
     }
 
-    private AuditLogResponse toResponse(AuditLog log) {
-        return new AuditLogResponse(log.getId(), log.getUserId(), log.getUsername(),
-                log.getUserRole(), log.getAction(), log.getResourceType(),
-                log.getResourceId(), log.getResourceName(), log.getIpAddress(), log.getCreatedAt());
+    private AuditLogResponse toResponse(AuditLog auditLog) {
+        Map<String, Object> oldValue = null;
+        Map<String, Object> newValue = null;
+        String[] changedFieldsArr = new String[0];
+        if (auditLog.getMetadata() != null) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> meta = objectMapper.readValue(auditLog.getMetadata(), Map.class);
+                Object ov = meta.get("oldValues");
+                if (ov instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> ovm = (Map<String, Object>) ov;
+                    oldValue = ovm;
+                }
+                Object nv = meta.get("newValues");
+                if (nv instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> nvm = (Map<String, Object>) nv;
+                    newValue = nvm;
+                }
+                Object cf = meta.get("changedFields");
+                if (cf instanceof String[]) {
+                    changedFieldsArr = (String[]) cf;
+                } else if (cf instanceof java.util.List) {
+                    java.util.List<?> cfl = (java.util.List<?>) cf;
+                    changedFieldsArr = cfl.toArray(new String[0]);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse audit log metadata for id={}", auditLog.getId(), e);
+            }
+        }
+        return new AuditLogResponse(auditLog.getId(), auditLog.getUserId(), auditLog.getUsername(),
+                auditLog.getUserRole(), auditLog.getAction(), auditLog.getResourceType(),
+                auditLog.getResourceId(), auditLog.getResourceName(), auditLog.getIpAddress(), auditLog.getCreatedAt(),
+                oldValue, newValue, changedFieldsArr);
     }
 }

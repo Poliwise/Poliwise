@@ -33,7 +33,7 @@ interface AuditLog {
   timestamp: string;
   userId: string;
   userName: string;
-  userEmail: string;
+  userEmail?: string;
   action: string;
   resourceType: string;
   resourceId?: string;
@@ -46,19 +46,42 @@ interface AuditLog {
 
 function getActionConfig(t: Translator) {
   return {
-    LOGIN: { label: t('admin.audit.action.login'), variant: 'success' as const },
+    LOGIN_SUCCESS: { label: t('admin.audit.action.login'), variant: 'success' as const },
+    LOGIN_FAILED: { label: t('admin.audit.action.loginFailed'), variant: 'destructive' as const },
     LOGOUT: { label: t('admin.audit.action.logout'), variant: 'neutral' as const },
-    LOGOUT_ALL: { label: t('admin.audit.action.logoutAll'), variant: 'warning' as const },
-    CREATE: { label: t('admin.audit.action.create'), variant: 'info' as const },
-    UPDATE: { label: t('admin.audit.action.update'), variant: 'info' as const },
-    DELETE: { label: t('admin.audit.action.delete'), variant: 'destructive' as const },
     PASSWORD_CHANGE: { label: t('admin.audit.action.passwordChange'), variant: 'warning' as const },
+    USER_CREATE: { label: t('admin.audit.action.userCreate'), variant: 'info' as const },
+    USER_UPDATE: { label: t('admin.audit.action.userUpdate'), variant: 'info' as const },
+    USER_PROFILE_UPDATE: { label: t('admin.audit.action.profileUpdate'), variant: 'info' as const },
+    USER_DEACTIVATE: { label: t('admin.audit.action.userDeactivate'), variant: 'warning' as const },
+    USER_ACTIVATE: { label: t('admin.audit.action.userActivate'), variant: 'success' as const },
+    USER_REVOKE: { label: t('admin.audit.action.userRevoke'), variant: 'warning' as const },
+    USER_DELETE: { label: t('admin.audit.action.userDelete'), variant: 'destructive' as const },
     ROLE_CHANGE: { label: t('admin.audit.action.roleChange'), variant: 'warning' as const },
     STATUS_CHANGE: { label: t('admin.audit.action.statusChange'), variant: 'warning' as const },
     DOCUMENT_UPLOAD: { label: t('admin.audit.action.docUpload'), variant: 'info' as const },
     DOCUMENT_DELETE: { label: t('admin.audit.action.docDelete'), variant: 'destructive' as const },
+    DOCUMENT_UPDATE: { label: t('admin.audit.action.docUpdate'), variant: 'info' as const },
+    DOCUMENT_PUBLISH: { label: t('admin.audit.action.docPublish'), variant: 'info' as const },
+    DOCUMENT_ARCHIVE: { label: t('admin.audit.action.docArchive'), variant: 'neutral' as const },
+    DOCUMENT_VERSION_CREATE: { label: t('admin.audit.action.docVersionCreate'), variant: 'info' as const },
+    QUESTION_ASK: { label: t('admin.audit.action.questionAsk'), variant: 'info' as const },
+    CONVERSATION_CREATE: { label: t('admin.audit.action.conversationCreate'), variant: 'info' as const },
+    CONVERSATION_DELETE: { label: t('admin.audit.action.conversationDelete'), variant: 'destructive' as const },
+    FEEDBACK_SUBMIT: { label: t('admin.audit.action.feedbackSubmit'), variant: 'info' as const },
+    SETTINGS_UPDATE: { label: t('admin.audit.action.settingsChange'), variant: 'warning' as const },
+    USER_SETTINGS_UPDATE: { label: t('admin.audit.action.userSettingsUpdate'), variant: 'warning' as const },
+    CATEGORY_CREATE: { label: t('admin.audit.action.categoryCreate'), variant: 'info' as const },
+    CATEGORY_UPDATE: { label: t('admin.audit.action.categoryUpdate'), variant: 'info' as const },
+    CATEGORY_DELETE: { label: t('admin.audit.action.categoryDelete'), variant: 'destructive' as const },
+    TAG_CREATE: { label: t('admin.audit.action.tagCreate'), variant: 'info' as const },
+    TAG_UPDATE: { label: t('admin.audit.action.tagUpdate'), variant: 'info' as const },
+    TAG_DELETE: { label: t('admin.audit.action.tagDelete'), variant: 'destructive' as const },
+    DEPARTMENT_CREATE: { label: t('admin.audit.action.departmentCreate'), variant: 'info' as const },
+    DEPARTMENT_UPDATE: { label: t('admin.audit.action.departmentUpdate'), variant: 'info' as const },
+    DEPARTMENT_DELETE: { label: t('admin.audit.action.departmentDelete'), variant: 'destructive' as const },
+    BULK_IMPORT: { label: t('admin.audit.action.bulkImport'), variant: 'info' as const },
     REPORT_EXPORT: { label: t('admin.audit.action.reportExport'), variant: 'info' as const },
-    SETTINGS_CHANGE: { label: t('admin.audit.action.settingsChange'), variant: 'warning' as const },
     ONLYOFFICE_LOCK_ACQUIRED: { label: 'Khóa chỉnh sửa', variant: 'info' as const },
     ONLYOFFICE_LOCK_RELEASED: { label: 'Mở khóa chỉnh sửa', variant: 'neutral' as const },
     ONLYOFFICE_LOCK_EXTENDED: { label: 'Gia hạn khóa chỉnh sửa', variant: 'neutral' as const },
@@ -66,7 +89,37 @@ function getActionConfig(t: Translator) {
     ONLYOFFICE_CONFLICT_DETECTED: { label: 'Phát hiện xung đột phiên bản', variant: 'warning' as const },
     ONLYOFFICE_CONFLICT_RESOLVED: { label: 'Giải quyết xung đột', variant: 'info' as const },
     ONLYOFFICE_SAVE_SUCCESS: { label: 'Lưu OnlyOffice thành công', variant: 'success' as const },
+    ONLYOFFICE_MANUAL_SAVE: { label: 'Lưu thủ công OnlyOffice', variant: 'info' as const },
+    ONLYOFFICE_FORCESAVE_TRIGGERED: { label: 'Tự động lưu OnlyOffice', variant: 'info' as const },
     ONLYOFFICE_VERSION_DELETED: { label: 'Xóa phiên bản OnlyOffice', variant: 'destructive' as const },
+  };
+}
+
+interface BackendAuditLog {
+  id: string;
+  userId: string;
+  username: string;
+  userRole?: string;
+  action: string;
+  resourceType: string;
+  resourceId?: string;
+  resourceName?: string;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+function mapBackendToAuditLog(backend: BackendAuditLog): AuditLog {
+  return {
+    id: backend.id,
+    timestamp: backend.createdAt,
+    userId: backend.userId,
+    userName: backend.username,
+    action: backend.action,
+    resourceType: backend.resourceType,
+    resourceId: backend.resourceId,
+    resourceName: backend.resourceName,
+    ipAddress: backend.ipAddress || '-',
+    status: 'SUCCESS',
   };
 }
 
@@ -95,7 +148,8 @@ export default function AuditLogsPage() {
         action: currentActionFilter || undefined,
         search: currentSearch || undefined,
       });
-      setLogs(response.data as unknown as AuditLog[]);
+      const backendLogs = (response.data as unknown as BackendAuditLog[]) || [];
+      setLogs(backendLogs.map(mapBackendToAuditLog));
       setTotalPages(response.pagination?.totalPages ?? 1);
     } catch {
       setError(t('admin.audit.loadError'));
@@ -124,22 +178,47 @@ export default function AuditLogsPage() {
 
   const actionOptions = [
     { value: '', label: t('admin.audit.filter.allActions') },
-    { value: 'LOGIN', label: t('admin.audit.action.login') },
-    { value: 'LOGOUT', label: t('admin.audit.action.logout') },
-    { value: 'CREATE', label: t('admin.audit.action.create') },
-    { value: 'UPDATE', label: t('admin.audit.action.update') },
-    { value: 'DELETE', label: t('admin.audit.action.delete') },
+    { value: 'LOGIN_SUCCESS', label: t('admin.audit.action.login') },
+    { value: 'LOGIN_FAILED', label: t('admin.audit.action.loginFailed') },
     { value: 'PASSWORD_CHANGE', label: t('admin.audit.action.passwordChange') },
+    { value: 'USER_PROFILE_UPDATE', label: t('admin.audit.action.profileUpdate') },
     { value: 'ROLE_CHANGE', label: t('admin.audit.action.roleChange') },
     { value: 'STATUS_CHANGE', label: t('admin.audit.action.statusChange') },
+    { value: 'USER_CREATE', label: t('admin.audit.action.userCreate') },
+    { value: 'USER_UPDATE', label: t('admin.audit.action.userUpdate') },
+    { value: 'USER_DEACTIVATE', label: t('admin.audit.action.userDeactivate') },
+    { value: 'USER_ACTIVATE', label: t('admin.audit.action.userActivate') },
+    { value: 'USER_REVOKE', label: t('admin.audit.action.userRevoke') },
+    { value: 'USER_DELETE', label: t('admin.audit.action.userDelete') },
     { value: 'DOCUMENT_UPLOAD', label: t('admin.audit.action.docUpload') },
+    { value: 'DOCUMENT_UPDATE', label: t('admin.audit.action.docUpdate') },
     { value: 'DOCUMENT_DELETE', label: t('admin.audit.action.docDelete') },
+    { value: 'DOCUMENT_PUBLISH', label: t('admin.audit.action.docPublish') },
+    { value: 'DOCUMENT_ARCHIVE', label: t('admin.audit.action.docArchive') },
+    { value: 'DOCUMENT_VERSION_CREATE', label: t('admin.audit.action.docVersionCreate') },
+    { value: 'SETTINGS_UPDATE', label: t('admin.audit.action.settingsChange') },
+    { value: 'CATEGORY_CREATE', label: t('admin.audit.action.categoryCreate') },
+    { value: 'CATEGORY_UPDATE', label: t('admin.audit.action.categoryUpdate') },
+    { value: 'CATEGORY_DELETE', label: t('admin.audit.action.categoryDelete') },
+    { value: 'TAG_CREATE', label: t('admin.audit.action.tagCreate') },
+    { value: 'TAG_UPDATE', label: t('admin.audit.action.tagUpdate') },
+    { value: 'TAG_DELETE', label: t('admin.audit.action.tagDelete') },
+    { value: 'DEPARTMENT_CREATE', label: t('admin.audit.action.departmentCreate') },
+    { value: 'DEPARTMENT_UPDATE', label: t('admin.audit.action.departmentUpdate') },
+    { value: 'DEPARTMENT_DELETE', label: t('admin.audit.action.departmentDelete') },
+    { value: 'BULK_IMPORT', label: t('admin.audit.action.bulkImport') },
     { value: 'REPORT_EXPORT', label: t('admin.audit.action.reportExport') },
+    { value: 'QUESTION_ASK', label: t('admin.audit.action.questionAsk') },
+    { value: 'CONVERSATION_CREATE', label: t('admin.audit.action.conversationCreate') },
+    { value: 'CONVERSATION_DELETE', label: t('admin.audit.action.conversationDelete') },
+    { value: 'FEEDBACK_SUBMIT', label: t('admin.audit.action.feedbackSubmit') },
     { value: 'ONLYOFFICE_LOCK_ACQUIRED', label: 'Khóa chỉnh sửa' },
     { value: 'ONLYOFFICE_LOCK_RELEASED', label: 'Mở khóa chỉnh sửa' },
+    { value: 'ONLYOFFICE_LOCK_EXTENDED', label: 'Gia hạn khóa' },
+    { value: 'ONLYOFFICE_LOCK_EXPIRED', label: 'Khóa hết hạn' },
     { value: 'ONLYOFFICE_CONFLICT_DETECTED', label: 'Phát hiện xung đột' },
     { value: 'ONLYOFFICE_CONFLICT_RESOLVED', label: 'Giải quyết xung đột' },
-    { value: 'ONLYOFFICE_SAVE_SUCCESS', label: 'Lưu OnlyOffice thành công' },
+    { value: 'ONLYOFFICE_SAVE_SUCCESS', label: 'Lưu OnlyOffice' },
     { value: 'ONLYOFFICE_VERSION_DELETED', label: 'Xóa phiên bản OnlyOffice' },
   ];
 
@@ -279,7 +358,7 @@ export default function AuditLogsPage() {
               </div>
               <div className={styles.detailItem}>
                 <span className={styles.detailLabel}>{t('admin.audit.detail.user')}</span>
-                <span className={styles.detailValue}>{selectedLog.userName} ({selectedLog.userEmail})</span>
+                <span className={styles.detailValue}>{selectedLog.userName}</span>
               </div>
               <div className={styles.detailItem}>
                 <span className={styles.detailLabel}>{t('admin.audit.detail.action')}</span>

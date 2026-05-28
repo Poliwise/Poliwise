@@ -38,6 +38,7 @@ export interface LockInfo {
 
 export interface ConflictStatus {
   hasConflict: boolean;
+  hasConflictFile: boolean;
   documentId: string;
   lockedVersion: number;
   currentVersion: number;
@@ -117,10 +118,12 @@ export const onlyOfficeService = {
    * Get editor configuration for OnlyOffice iframe.
    * Returns the JWT-signed config JSON from knowledge-service.
    * Note: backend returns the config directly (not wrapped in { data: ... }).
+   * @param targetVersion if provided, serve a specific version's file (frontend provides blob URL).
    */
-  async getEditorConfig(documentId: string): Promise<Record<string, unknown>> {
+  async getEditorConfig(documentId: string, targetVersion?: number): Promise<Record<string, unknown>> {
+    const params = targetVersion ? `?targetVersion=${targetVersion}` : '';
     return await apiFetch<Record<string, unknown>>(
-      `/api/v1/documents/${documentId}/editor-config`
+      `/api/v1/documents/${documentId}/editor-config${params}`
     );
   },
 
@@ -244,6 +247,43 @@ export const onlyOfficeService = {
   },
 
   /**
+   * Download the conflict file (user's edited draft) stored in MinIO.
+   * During a forcesave callback with version conflict, the backend saves the user's
+   * edited content to MinIO at locks/{documentId}/conflict.{ext}.
+   * The /file endpoint serves this conflict file when it exists.
+   * Returns a File object or null if the download fails.
+   */
+  async downloadConflictFile(documentId: string, filename: string): Promise<File | null> {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(
+        `${API_URL}/api/v1/documents/${documentId}/file`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (!blob || blob.size === 0) return null;
+      return new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Download a specific version's file as a Blob.
+   * Used by ConflictResolver to fetch the locked version file directly from backend.
+   */
+  async downloadVersionFile(documentId: string, versionNumber: number): Promise<Blob> {
+    const token = localStorage.getItem('accessToken');
+    const res = await fetch(
+      `${API_URL}/api/v1/documents/${documentId}/versions/${versionNumber}/download`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  },
+
+  /**
    * Delete a specific version (ADMIN only).
    * Cannot delete the latest version or the only version.
    */
@@ -299,9 +339,120 @@ export const onlyOfficeService = {
   },
 
   /**
+   * Fetch the latest version metadata for a document.
+   */
+  async fetchLatestVersion(documentId: string): Promise<{ versionNumber: number; versionId: string }> {
+    return await apiFetch<{ versionNumber: number; versionId: string }>(
+      `/api/v1/documents/${documentId}/fetch-latest`
+    );
+  },
+
+  /**
+   * Trigger a server-side forcesave via OnlyOffice Command Service.
+   * The backend sends a forcesave command to OnlyOffice DS, which triggers
+   * a callback (status=6) to save the document as a new version.
+   * Returns immediately with whether the command was accepted.
+   * Frontend should poll getLockStatus() to detect when the save completes.
+   */
+  async triggerSave(documentId: string): Promise<TriggerSaveResponse> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const traceId = typeof window !== 'undefined' ? localStorage.getItem('traceId') : null;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (traceId) headers['x-trace-id'] = traceId;
+
+    const res = await fetch(`${API_URL}/api/v1/documents/${documentId}/trigger-save`, {
+      method: 'POST',
+      headers,
+    });
+
+    if (res.status === 409) {
+      const data = await res.json().catch(() => ({})) as TriggerSaveResponse;
+      return { 
+        accepted: false, 
+        hasConflict: true, 
+        message: data.message || 'Version conflict detected', 
+        lockedVersion: data.lockedVersion ?? 0, 
+        currentVersion: data.currentVersion ?? 0 
+      };
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` })) as { message?: string };
+      throw new Error(err.message || `Trigger save failed: ${res.status}`);
+    }
+
+    return res.json() as Promise<TriggerSaveResponse>;
+  },
+
+  /**
+   * Re-open the editor for merge after conflict without re-acquiring lock.
+   * Uses the existing lock token and serves a specific version.
+   */
+  async reOpenForMerge(
+    documentId: string,
+    lockToken: string,
+    targetVersion: number
+  ): Promise<ReOpenResponse> {
+    const params = new URLSearchParams({
+      lockToken,
+      targetVersion: String(targetVersion),
+    });
+    return await apiFetch<ReOpenResponse>(
+      `/api/v1/documents/${documentId}/re-edit?${params.toString()}`,
+      { method: 'POST' }
+    );
+  },
+
+  /**
+   * Relock a document for merge/re-edit during conflict resolution.
+   * Releases the old lock and acquires a new one against the latest version.
+   * Returns lock info + editor config for immediate re-opening.
+   */
+  async relockForMerge(documentId: string): Promise<RelockResponse> {
+    return await apiFetch<RelockResponse>(
+      `/api/v1/documents/${documentId}/relock`,
+      { method: 'POST' }
+    );
+  },
+
+  /**
    * Get the OnlyOffice Document Server URL for embedding.
    */
   getDocumentServerUrl(): string {
     return process.env.NEXT_PUBLIC_ONLYOFFICE_URL || 'http://localhost:8888';
   },
 };
+
+export interface TriggerSaveResponse {
+  accepted: boolean;
+  hasConflict: boolean;
+  message: string;
+  lockedVersion: number;
+  currentVersion: number;
+}
+
+export interface RelockResponse {
+  lock: LockInfo;
+  editorConfig: Record<string, unknown>;
+  currentVersion: number;
+}
+
+export interface ReOpenResponse {
+  document: {
+    title: string;
+    fileType: string;
+    url: string;
+    key: string;
+  };
+  documentType: string;
+  editorConfig: Record<string, unknown>;
+  token: string;
+  type: string;
+  targetVersion: number;
+  lock: LockInfo;
+  currentVersion: number;
+}

@@ -18,6 +18,11 @@ spring:
     compatibility-verifier:
       enabled: false
 
+app:
+  services:
+    user-service-url: ${USER_SERVICE_URL:http://localhost:8082}
+    knowledge-service-url: ${KNOWLEDGE_SERVICE_URL:http://localhost:8083}
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres?schema=analytics&pgbouncer=true}
     username: ${SPRING_DATASOURCE_USERNAME:postgres.yokxvdwwmibopyauwocp}
