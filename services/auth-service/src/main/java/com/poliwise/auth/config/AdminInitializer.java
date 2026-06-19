@@ -79,7 +79,6 @@ public class AdminInitializer implements CommandLineRunner {
                 .build();
 
         userRepository.save(admin);
-        log.info("Admin account '{}' created successfully with username='{}' and password='{}'.",
-                ADMIN_USERNAME, ADMIN_USERNAME, ADMIN_PASSWORD);
+        log.info("Admin account '{}' created successfully.", ADMIN_USERNAME);
     }
 }

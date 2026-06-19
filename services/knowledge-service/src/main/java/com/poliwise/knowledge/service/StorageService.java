@@ -39,7 +39,7 @@ public class StorageService {
                             .contentType(file.getContentType())
                             .build()
             );
-            log.info("Uploaded file to MinIO: bucket={}, key={}", bucketName, fileKey);
+            log.debug("Uploaded file to MinIO: bucket={}, key={}", bucketName, fileKey);
             return fileKey;
         } catch (Exception e) {
             log.error("Failed to upload file to MinIO: {}", e.getMessage(), e);
@@ -61,7 +61,7 @@ public class StorageService {
                             .contentType(contentType)
                             .build()
             );
-            log.info("Uploaded byte array to MinIO: bucket={}, key={}", bucketName, fileKey);
+            log.debug("Uploaded byte array to MinIO: bucket={}, key={}", bucketName, fileKey);
             return fileKey;
         } catch (Exception e) {
             log.error("Failed to upload bytes to MinIO: {}", e.getMessage(), e);
@@ -82,7 +82,7 @@ public class StorageService {
                             .contentType(contentType)
                             .build()
             );
-            log.info("Uploaded conflict file to MinIO: bucket={}, key={}", bucketName, fileKey);
+            log.debug("Uploaded conflict file to MinIO: bucket={}, key={}", bucketName, fileKey);
         } catch (Exception e) {
             log.error("Failed to upload conflict file to MinIO: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to upload conflict file: " + e.getMessage(), e);
@@ -138,7 +138,7 @@ public class StorageService {
                             .object(fileKey)
                             .build()
             );
-            log.info("Deleted file from MinIO: bucket={}, key={}", bucketName, fileKey);
+            log.debug("Deleted file from MinIO: bucket={}, key={}", bucketName, fileKey);
         } catch (Exception e) {
             log.error("Failed to delete file from MinIO: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to delete file: " + e.getMessage(), e);

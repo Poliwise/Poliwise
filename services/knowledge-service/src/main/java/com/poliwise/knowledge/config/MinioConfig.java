@@ -53,9 +53,6 @@ public class MinioConfig {
             );
             if (!exists) {
                 client.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-                log.info("Created MinIO bucket: {}", bucketName);
-            } else {
-                log.info("MinIO bucket already exists: {}", bucketName);
             }
         } catch (Exception e) {
             log.warn("Could not initialize MinIO bucket (may not be available): {}", e.getMessage());

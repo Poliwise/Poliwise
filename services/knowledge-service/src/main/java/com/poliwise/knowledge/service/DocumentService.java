@@ -257,7 +257,7 @@ public class DocumentService {
 
         // Publish deletion event
         eventPublisher.publishDocumentDeleted(
-                com.poliwise.knowledge.dto.event.DocumentDeletedEvent.create(documentId, deletedBy)
+                com.poliwise.knowledge.dto.event.DocumentDeletedEvent.create(documentId, document.getOriginalFilename(), deletedBy)
         );
 
         log.info("Document soft deleted: id={}", documentId);

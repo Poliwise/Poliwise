@@ -187,7 +187,7 @@ public class OnlyOfficeController {
         Integer status = callback.getStatus();
         String savedFileUrl = callback.getUrl();
 
-        log.debug("OnlyOffice callback: documentId={}, status={}, url={}", documentId, status, savedFileUrl);
+        log.trace("OnlyOffice callback: documentId={}, status={}, url={}", documentId, status, savedFileUrl);
 
         // status=1: user is still editing — just keep the editor open
         if (status == null || status == 1) {
@@ -208,7 +208,7 @@ public class OnlyOfficeController {
 
                 if (!isManualSave && !hasConflict) {
                     // Auto-save from editor without conflict — just acknowledge, don't create a version
-                    log.debug("OnlyOffice auto-save callback (status=6, no manual_save userdata, no conflict) for documentId={}, acknowledging without version creation", documentId);
+                    log.trace("OnlyOffice auto-save callback (status=6, no manual_save userdata, no conflict) for documentId={}, acknowledging without version creation", documentId);
                     return ResponseEntity.ok(OnlyOfficeCallbackResponse.forEditing(documentId));
                 }
             }
@@ -233,12 +233,12 @@ public class OnlyOfficeController {
 
         // status=4: document closed with no changes
         if (status == 4) {
-            log.debug("OnlyOffice callback (status=4): document closed without saving, documentId={}", documentId);
+            log.trace("OnlyOffice callback (status=4): document closed without saving, documentId={}", documentId);
             return ResponseEntity.ok(OnlyOfficeCallbackResponse.forEditing(documentId));
         }
 
         // Unknown status
-        log.debug("OnlyOffice callback: unknown status={} for documentId={}", status, documentId);
+            log.trace("OnlyOffice callback: unknown status={} for documentId={}", status, documentId);
         return ResponseEntity.ok(OnlyOfficeCallbackResponse.forEditing(documentId));
     }
 

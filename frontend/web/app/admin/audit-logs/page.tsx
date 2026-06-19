@@ -19,14 +19,22 @@ import {
   Modal,
   Pagination,
   EmptyState,
-  PageHeader,
 } from '@/components/ui';
-import { MainLayout } from '@/components/layout';
-import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
 import { Translator } from '@/lib/i18n';
 import { useLanguage } from '@/providers';
 import styles from './audit-logs.module.css';
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
 
 interface AuditLog {
   id: string;
@@ -142,8 +150,9 @@ export default function AuditLogsPage() {
     setLoading(true);
     setError(null);
     try {
+      const { api } = await import('@/lib/api');
       const response = await api.audit.search({
-        page: currentPage,
+        page: currentPage - 1,
         limit: 20,
         action: currentActionFilter || undefined,
         search: currentSearch || undefined,
@@ -229,7 +238,7 @@ export default function AuditLogsPage() {
       width: '10rem',
       render: (log) => (
         <span className={styles.timestamp}>
-          {new Date(log.timestamp).toLocaleString('vi-VN')}
+          {formatDate(log.timestamp)}
         </span>
       ),
     },
@@ -294,13 +303,19 @@ export default function AuditLogsPage() {
   ];
 
   return (
-    <MainLayout>
-      <div className={styles.container}>
-        <PageHeader
-          title={t('admin.audit.title')}
-          description={t('admin.audit.subtitle')}
-        />
+    <div className={styles.pageWrapper}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.pageHeaderInner}>
+          <div>
+            <h1 className={styles.pageTitle}>{t('admin.audit.title')}</h1>
+            <p className={styles.pageSubtitle}>{t('admin.audit.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
+      {/* Content */}
+      <div className={styles.pageBody}>
         {error && <div className={styles.error}>{error}</div>}
 
         <div className={styles.filters}>
@@ -341,55 +356,55 @@ export default function AuditLogsPage() {
             )}
           </>
         )}
-
-        {/* Detail Modal */}
-        <Modal
-          open={!!selectedLog}
-          onClose={() => setSelectedLog(null)}
-          title={t('admin.audit.detail.title')}
-          size="sm"
-          footer={<Button variant="secondary" onClick={() => setSelectedLog(null)}>{t('admin.audit.close')}</Button>}
-        >
-          {selectedLog && (
-            <div className={styles.detailGrid}>
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.id')}</span>
-                <code className={styles.detailValue}>{selectedLog.id}</code>
-              </div>
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.user')}</span>
-                <span className={styles.detailValue}>{selectedLog.userName}</span>
-              </div>
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.action')}</span>
-                <span className={styles.detailValue}>{selectedLog.action}</span>
-              </div>
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.resource')}</span>
-                <span className={styles.detailValue}>
-                  {selectedLog.resourceType}{selectedLog.resourceId ? ` / ${selectedLog.resourceId}` : ''}
-                </span>
-              </div>
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.ip')}</span>
-                <span className={styles.detailValue}>{selectedLog.ipAddress}</span>
-              </div>
-              {selectedLog.userAgent && (
-                <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>{t('admin.audit.detail.userAgent')}</span>
-                  <span className={styles.detailValue}>{selectedLog.userAgent}</span>
-                </div>
-              )}
-              {selectedLog.details && (
-                <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>{t('admin.audit.detail.details')}</span>
-                  <span className={styles.detailValue}>{selectedLog.details}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </Modal>
       </div>
-    </MainLayout>
+
+      {/* Detail Modal */}
+      <Modal
+        open={!!selectedLog}
+        onClose={() => setSelectedLog(null)}
+        title={t('admin.audit.detail.title')}
+        size="sm"
+        footer={<Button variant="secondary" onClick={() => setSelectedLog(null)}>{t('admin.audit.close')}</Button>}
+      >
+        {selectedLog && (
+          <div className={styles.detailGrid}>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>{t('admin.audit.detail.id')}</span>
+              <code className={styles.detailValue}>{selectedLog.id}</code>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>{t('admin.audit.detail.user')}</span>
+              <span className={styles.detailValue}>{selectedLog.userName}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>{t('admin.audit.detail.action')}</span>
+              <span className={styles.detailValue}>{selectedLog.action}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>{t('admin.audit.detail.resource')}</span>
+              <span className={styles.detailValue}>
+                {selectedLog.resourceType}{selectedLog.resourceId ? ` / ${selectedLog.resourceId}` : ''}
+              </span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>{t('admin.audit.detail.ip')}</span>
+              <span className={styles.detailValue}>{selectedLog.ipAddress}</span>
+            </div>
+            {selectedLog.userAgent && (
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.userAgent')}</span>
+                <span className={styles.detailValue}>{selectedLog.userAgent}</span>
+              </div>
+            )}
+            {selectedLog.details && (
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>{t('admin.audit.detail.details')}</span>
+                <span className={styles.detailValue}>{selectedLog.details}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+    </div>
   );
 }

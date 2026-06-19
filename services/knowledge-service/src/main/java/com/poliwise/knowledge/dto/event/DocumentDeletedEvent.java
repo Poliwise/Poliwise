@@ -9,13 +9,15 @@ import java.util.UUID;
 public record DocumentDeletedEvent(
         UUID eventId,
         UUID documentId,
+        String documentName,
         UUID deletedBy,
         OffsetDateTime occurredAt
 ) {
-    public static DocumentDeletedEvent create(UUID documentId, UUID deletedBy) {
+    public static DocumentDeletedEvent create(UUID documentId, String documentName, UUID deletedBy) {
         return new DocumentDeletedEvent(
                 UUID.randomUUID(),
                 documentId,
+                documentName,
                 deletedBy,
                 OffsetDateTime.now()
         );

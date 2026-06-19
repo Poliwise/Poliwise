@@ -17,10 +17,8 @@ import {
   Column,
   Modal,
   ConfirmDialog,
-  PageHeader,
   EmptyState,
 } from '@/components/ui';
-import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsManager } from '@/store';
 import { Translator } from '@/lib/i18n';
@@ -62,16 +60,13 @@ export default function UnansweredQuestionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Resolve modal
   const [resolveTarget, setResolveTarget] = useState<UnansweredQuestion | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [resolving, setResolving] = useState(false);
 
-  // Reject modal
   const [rejectTarget, setRejectTarget] = useState<UnansweredQuestion | null>(null);
   const [rejecting, setRejecting] = useState(false);
 
-  // Keep latest t in a ref so loadQuestions doesn't need t as a dependency
   const tRef = useRef(t);
   tRef.current = t;
 
@@ -196,13 +191,19 @@ export default function UnansweredQuestionsPage() {
   ];
 
   return (
-    <MainLayout>
-      <div className={styles.container}>
-        <PageHeader
-          title={t('admin.unanswered.title')}
-          description={t('admin.unanswered.subtitle')}
-        />
+    <div className={styles.pageWrapper}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.pageHeaderInner}>
+          <div>
+            <h1 className={styles.pageTitle}>{t('admin.unanswered.title')}</h1>
+            <p className={styles.pageSubtitle}>{t('admin.unanswered.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
+      {/* Content */}
+      <div className={styles.pageBody}>
         {error && <div className={styles.error}>{error}</div>}
 
         <div className={styles.filters}>
@@ -286,6 +287,6 @@ export default function UnansweredQuestionsPage() {
           variant="warning"
         />
       </div>
-    </MainLayout>
+    </div>
   );
 }

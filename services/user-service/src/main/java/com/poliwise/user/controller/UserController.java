@@ -119,6 +119,50 @@ public class UserController {
         return ResponseEntity.ok(userService.changeStatus(userId, request, changedBy));
     }
 
+    // ─── UPDATE USER (Admin) ─────────────────────────────────────────────────────
+
+    /**
+     * Cập nhật role, status, department của bất kỳ user nào.
+     * Chỉ Admin được phép.
+     */
+    @PutMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> updateUser(
+            @PathVariable UUID userId,
+            @Valid @RequestBody UpdateUserRequest request,
+            @RequestHeader("X-User-Id") UUID changedBy) {
+        return ResponseEntity.ok(userService.updateUser(userId, request, changedBy));
+    }
+
+    // ─── CHANGE STATUS (convenience aliases) ───────────────────────────────────
+
+    @PostMapping("/{userId}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> deactivateUser(
+            @PathVariable UUID userId,
+            @RequestHeader("X-User-Id") UUID changedBy) {
+        return ResponseEntity.ok(userService.changeStatus(userId,
+                new ChangeStatusRequest(AccountStatus.DEACTIVATED, null), changedBy));
+    }
+
+    @PostMapping("/{userId}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> reactivateUser(
+            @PathVariable UUID userId,
+            @RequestHeader("X-User-Id") UUID changedBy) {
+        return ResponseEntity.ok(userService.changeStatus(userId,
+                new ChangeStatusRequest(AccountStatus.ACTIVE, null), changedBy));
+    }
+
+    @PostMapping("/{userId}/revoke")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> revokeUser(
+            @PathVariable UUID userId,
+            @RequestHeader("X-User-Id") UUID changedBy) {
+        return ResponseEntity.ok(userService.changeStatus(userId,
+                new ChangeStatusRequest(AccountStatus.REVOKED, null), changedBy));
+    }
+
     // ─── STATS (internal service / Admin / Manager) ─────────────────────────────────
 
     @GetMapping("/stats")

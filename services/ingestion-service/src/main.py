@@ -34,21 +34,14 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     """Application lifespan event handler."""
     # Startup
-    logger.info("ingestion_service_starting_up")
     await init_db()
-    logger.info("database_initialized")
-
-    # Setup RabbitMQ consumers
     await setup_consumers()
-    logger.info("rabbitmq_consumers_initialized")
 
     yield
 
     # Shutdown
-    logger.info("ingestion_service_shutting_down")
     await close_db()
     await close_rabbitmq()
-    logger.info("connections_closed")
 
 
 # Create FastAPI app

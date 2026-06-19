@@ -176,6 +176,42 @@ export class ProxyController {
     );
   }
 
+  /** POST /users/:id/deactivate — convenience alias → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('users/:id/deactivate')
+  @Roles(UserRole.ADMIN)
+  handleUserDeactivate(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** POST /users/:id/reactivate — convenience alias → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('users/:id/reactivate')
+  @Roles(UserRole.ADMIN)
+  handleUserReactivate(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
+  /** POST /users/:id/revoke — convenience alias → user-service */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post('users/:id/revoke')
+  @Roles(UserRole.ADMIN)
+  handleUserRevoke(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.USER,
+      request,
+      downstreamPath(request, '/api/v1/users'),
+    );
+  }
+
   /** POST /users/bulk — bulk create → auth-service */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('users/bulk')
@@ -552,6 +588,30 @@ export class ProxyController {
       ServiceName.FEEDBACK,
       request,
       downstreamPath(request, '/api/v1/feedback'),
+    );
+  }
+
+  // ===== Reports Endpoints (export/reports) — route to feedback-service =====
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('reports')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  handleReportsRoot(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      '/api/v1/reports' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('reports/*path')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  handleReportsNested(@Req() request: Request) {
+    const relative = request.path.replace(/^\/api\/v1\/reports/, '') || '/';
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      '/api/v1/reports' + (relative === '/' ? '' : relative),
     );
   }
 

@@ -24,7 +24,7 @@ public class RabbitMQConfig {
     public static final String ROUTING_DOCUMENT_DELETED = "document.deleted";
     public static final String ROUTING_USER_STATUS = "user.status.changed";
     public static final String ROUTING_USER_PROFILE = "user.profile.updated";
-    public static final String ROUTING_AUTH_LOGIN = "user.login";
+    public static final String ROUTING_AUTH_LOGIN = "user.login.*";
 
     @Bean public TopicExchange poliwiseExchange() { return new TopicExchange(EXCHANGE_NAME); }
     @Bean public TopicExchange userExchange() { return new TopicExchange(USER_EXCHANGE_NAME, true, false); }

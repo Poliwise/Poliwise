@@ -276,6 +276,66 @@ public class UserService {
         log.info("Soft-deleted userId={} by {} -- PII anonymized", userId, deletedBy);
     }
 
+    // UPDATE USER (Admin — role + status + department)
+    @Transactional
+    public UserResponse updateUser(UUID userId, UpdateUserRequest request, UUID changedBy) {
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+
+        if (request.status() != null && request.status() != user.getStatus()) {
+            AccountStatus previousStatus = user.getStatus();
+            AccountStatus newStatus = request.status();
+            validateStatusTransition(previousStatus, newStatus);
+            user.setStatus(newStatus);
+
+            UserStatusChangedEvent event = UserStatusChangedEvent.create(
+                    user.getId(),
+                    user.getUsername(),
+                    previousStatus,
+                    newStatus,
+                    user.getRole(),
+                    changedBy
+            );
+            eventPublisher.publishStatusChanged(event);
+
+            if (newStatus == AccountStatus.REVOKED) {
+                UserRevokedEvent revokedEvent = UserRevokedEvent.create(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getRole(),
+                        changedBy,
+                        "Status changed to REVOKED via admin update"
+                );
+                eventPublisher.publishRevoked(revokedEvent);
+            }
+
+            log.info("Changed status of userId={} from {} to {} by {}", userId, previousStatus, newStatus, changedBy);
+        }
+
+        if (request.role() != null) {
+            user.setRole(request.role());
+            log.info("Changed role of userId={} to {} by {}", userId, request.role(), changedBy);
+        }
+
+        if (request.departmentId() != null) {
+            Department department = departmentRepository.findById(request.departmentId())
+                    .orElseThrow(() -> new UserNotFoundException(
+                            "Department not found: " + request.departmentId()));
+            if (!Boolean.TRUE.equals(department.getIsActive())) {
+                throw new IllegalArgumentException(
+                        "Cannot assign user to inactive department: " + department.getName());
+            }
+            user.setDepartment(department);
+            log.info("Changed department of userId={} to departmentId={} by {}",
+                    userId, request.departmentId(), changedBy);
+        } else if (request.departmentId() == null && request.status() == null && request.role() == null) {
+            // No-op — nothing to update
+        }
+
+        User saved = userRepository.save(user);
+        return toResponse(saved);
+    }
+
     // STATS
 
     @Transactional(readOnly = true)

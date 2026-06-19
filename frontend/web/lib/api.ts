@@ -1273,16 +1273,25 @@ class ApiClient {
     create: async (data: {
       type: string;
       format: string;
+      title?: string;
       dateFrom?: string;
       dateTo?: string;
       departmentId?: string;
     }): Promise<{ id: string; status: string; title: string }> => {
       const res = await this.client.post<ApiResponse<{
         id: string; status: string; title: string;
-      }>>('/api/v1/reports', data);
-      return coercePaginated<{ id: string; status: string; title: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
+      }>>('/api/v1/reports/export', {
+        reportType: data.type,
+        format: data.format,
+        title: data.title,
+      });
+      const wrapped = res.data as unknown as Record<string, unknown>;
+      const inner = wrapped?.data as Record<string, unknown> | undefined;
+      return {
+        id: String(inner?.id ?? ''),
+        status: String(inner?.status ?? ''),
+        title: String(inner?.title ?? ''),
+      };
     },
 
     getStatus: async (id: string): Promise<{
@@ -1295,9 +1304,16 @@ class ApiClient {
       const res = await this.client.get<ApiResponse<{
         id: string; status: string; title: string; fileKey?: string; errorMessage?: string;
       }>>(`/api/v1/reports/${id}`);
-      return coercePaginated<{
-        id: string; status: string; title: string; fileKey?: string; errorMessage?: string;
-      }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const wrapped = res.data as unknown as Record<string, unknown>;
+      const inner = wrapped?.data as Record<string, unknown> | undefined;
+      if (!inner) return { id: '', status: '', title: '' };
+      return {
+        id: String(inner.id ?? ''),
+        status: String(inner.status ?? ''),
+        title: String(inner.title ?? ''),
+        fileKey: inner.fileKey as string | undefined,
+        errorMessage: inner.errorMessage as string | undefined,
+      };
     },
 
     download: async (id: string): Promise<Blob> => {
@@ -1311,19 +1327,45 @@ class ApiClient {
       data: { id: string; title: string; type: string; format: string; status: string; createdAt: string }[];
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }> => {
-      const res = await this.client.get<
-        ApiResponse<{ id: string; title: string; type: string; format: string; status: string; createdAt: string }[]> &
-        { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/reports', { params });
-      const coerced = coercePaginated<{
-        id: string; title: string; type: string; format: string; status: string; createdAt: string;
-      }>(res.data as unknown as Record<string, unknown>, 'data');
+      const res = await this.client.get<{
+        success: boolean;
+        data?: unknown;
+      }>('/api/v1/reports', { params });
+      const wrapped = res.data as Record<string, unknown>;
+      const pageData = (wrapped.data ?? wrapped) as Record<string, unknown>;
+
+      // Spring Page format: { content: [], totalElements, totalPages, size, number }
+      const content = pageData.content as unknown[] ?? [];
+      const data = content.map((item) => {
+        const r = item as Record<string, unknown>;
+        return {
+          id: String(r.id ?? ''),
+          title: String(r.title ?? ''),
+          type: String(r.reportType ?? r.type ?? ''),
+          format: String(r.format ?? ''),
+          status: String(r.status ?? ''),
+          createdAt: String(r.createdAt ?? ''),
+        };
+      });
+
+      const totalElements = pageData.totalElements as number ?? 0;
+      const totalPages = pageData.totalPages as number ?? 1;
+      const size = pageData.size as number ?? 20;
+      const number = pageData.number as number ?? 0;
+
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as {
-          data?: { id: string; title: string; type: string; format: string; status: string; createdAt: string }[];
-        })?.data || [],
-        pagination: coerced.pagination,
+        data,
+        pagination: {
+          page: number + 1,
+          limit: size,
+          total: totalElements,
+          totalPages,
+        },
       };
+    },
+
+    delete: async (id: string): Promise<void> => {
+      await this.client.delete(`/api/v1/reports/${id}`);
     },
   };
 
@@ -1340,7 +1382,7 @@ class ApiClient {
       resourceId?: string;
       startDate?: string;
       endDate?: string;
-      search?: string; // Generic keyword search
+      search?: string;
     }): Promise<{
       data: {
         id: string;
@@ -1355,27 +1397,43 @@ class ApiClient {
       }[];
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }> => {
-      const res = await this.client.get<
-        ApiResponse<{
-          id: string; userId: string; username: string; action: string;
-          resourceType: string; resourceId?: string; resourceName?: string;
-          ipAddress?: string; createdAt: string;
-        }[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/analytics/audit-logs', { params });
-      const coerced = coercePaginated<{
-        id: string; userId: string; username: string; action: string;
-        resourceType: string; resourceId?: string; resourceName?: string;
-        ipAddress?: string; createdAt: string;
-      }>(res.data as unknown as Record<string, unknown>, 'data');
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        '/api/v1/analytics/audit-logs',
+        { params },
+      );
+      const wrapped = res.data as Record<string, unknown>;
+      const pageData = (wrapped.data ?? wrapped) as Record<string, unknown>;
+
+      // Spring Page format: { content: [], totalElements, totalPages, size, number }
+      const content = pageData.content as unknown[] ?? [];
+      const data = content.map((item) => {
+        const r = item as Record<string, unknown>;
+        return {
+          id: String(r.id ?? ''),
+          userId: String(r.userId ?? ''),
+          username: String(r.username ?? ''),
+          action: String(r.action ?? ''),
+          resourceType: String(r.resourceType ?? ''),
+          resourceId: r.resourceId ? String(r.resourceId) : undefined,
+          resourceName: r.resourceName ? String(r.resourceName) : undefined,
+          ipAddress: r.ipAddress ? String(r.ipAddress) : undefined,
+          createdAt: String(r.createdAt ?? ''),
+        };
+      });
+
+      const totalElements = pageData.totalElements as number ?? 0;
+      const totalPages = pageData.totalPages as number ?? 1;
+      const size = pageData.size as number ?? 50;
+      const number = pageData.number as number ?? 0;
+
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as {
-          data?: {
-            id: string; userId: string; username: string; action: string;
-            resourceType: string; resourceId?: string; resourceName?: string;
-            ipAddress?: string; createdAt: string;
-          }[]
-        })?.data || [],
-        pagination: coerced.pagination,
+        data,
+        pagination: {
+          page: number + 1,
+          limit: size,
+          total: totalElements,
+          totalPages,
+        },
       };
     },
 

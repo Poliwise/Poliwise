@@ -45,15 +45,29 @@ public class ReportController {
         UUID userId = getUserId(authentication);
         boolean isAdmin = "ADMIN".equals(getRole(authentication));
         byte[] data = reportExportService.downloadReport(id, userId, isAdmin);
+        ReportExportResponse meta = reportExportService.getReportStatus(id);
+        String extension = "CSV".equals(meta.format()) ? "csv" : "json";
+        String filename = "report-" + id + "." + extension;
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report-" + id + ".csv\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM).body(data);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType("CSV".equals(meta.format())
+                        ? MediaType.parseMediaType("text/csv; charset=UTF-8")
+                        : MediaType.APPLICATION_JSON)
+                .body(data);
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ReportExportResponse>>> getMyReports(
             Authentication authentication, @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(reportExportService.getReportsByUser(getUserId(authentication), pageable)));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteReport(@PathVariable UUID id, Authentication authentication) {
+        UUID userId = getUserId(authentication);
+        boolean isAdmin = "ADMIN".equals(getRole(authentication));
+        reportExportService.deleteReport(id, userId, isAdmin);
+        return ResponseEntity.noContent().build();
     }
 
     private UUID getUserId(Authentication authentication) {

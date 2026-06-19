@@ -4,6 +4,7 @@ import com.poliwise.metadata.dto.*;
 import com.poliwise.metadata.security.SecurityUtils;
 import com.poliwise.metadata.service.DocumentMetadataService;
 import com.poliwise.metadata.service.AccessRuleService;
+import com.poliwise.metadata.service.TagService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,12 +20,15 @@ public class DocumentMetadataController {
 
     private final DocumentMetadataService metadataService;
     private final AccessRuleService accessRuleService;
+    private final TagService tagService;
 
     public DocumentMetadataController(
             DocumentMetadataService metadataService,
-            AccessRuleService accessRuleService) {
+            AccessRuleService accessRuleService,
+            TagService tagService) {
         this.metadataService = metadataService;
         this.accessRuleService = accessRuleService;
+        this.tagService = tagService;
     }
 
     @PostMapping
@@ -53,6 +57,55 @@ public class DocumentMetadataController {
     public ResponseEntity<List<DocumentMetadataResponse>> getByCategory(@PathVariable UUID categoryId) {
         List<DocumentMetadataResponse> response = metadataService.findByCategory(categoryId);
         return ResponseEntity.ok(response);
+    }
+
+    // ===== Tag Endpoints (under /api/v1/metadata/tags/*) =====
+
+    @GetMapping("/tags")
+    public ResponseEntity<List<TagResponse>> getAllTags() {
+        return ResponseEntity.ok(tagService.getAll());
+    }
+
+    @GetMapping("/tags/active")
+    public ResponseEntity<List<TagResponse>> getActiveTags() {
+        return ResponseEntity.ok(tagService.getActive());
+    }
+
+    @GetMapping("/tags/popular")
+    public ResponseEntity<List<TagResponse>> getPopularTags() {
+        return ResponseEntity.ok(tagService.getPopular());
+    }
+
+    @PostMapping("/tags")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TagResponse> createTag(@Valid @RequestBody CreateTagRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(tagService.create(request));
+    }
+
+    @GetMapping("/tags/{id}")
+    public ResponseEntity<TagResponse> getTag(@PathVariable UUID id) {
+        return ResponseEntity.ok(tagService.getById(id));
+    }
+
+    @PutMapping("/tags/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TagResponse> updateTag(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateTagRequest request) {
+        return ResponseEntity.ok(tagService.update(id, request));
+    }
+
+    @DeleteMapping("/tags/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteTag(@PathVariable UUID id) {
+        tagService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/tags/resolve")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<ResolveTagsResponse> resolveTags(@Valid @RequestBody ResolveTagsRequest request) {
+        return ResponseEntity.ok(tagService.resolveTags(request.tagNames()));
     }
 
     @PostMapping("/{metadataId}/rules")
