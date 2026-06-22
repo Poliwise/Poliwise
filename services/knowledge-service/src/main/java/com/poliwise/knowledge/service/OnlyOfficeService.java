@@ -31,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.crypto.SecretKey;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -296,15 +297,13 @@ public class OnlyOfficeService {
         int actualVersion = targetVersion != null ? targetVersion : lock.getVersionAtLock();
 
         if (storageService.conflictFileExists(conflictFileKey)) {
-            fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
             documentKey = lock.getLockToken().toString() + "_conflict";
         } else if (actualVersion < document.getCurrentVersion()) {
-            fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
             documentKey = lock.getLockToken().toString() + "_v" + actualVersion;
         } else {
-            fileUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/file";
             documentKey = lock.getLockToken().toString();
         }
+        fileUrl = buildFileDownloadUrl(documentId, documentKey);
         String callbackToken = buildCallbackToken(documentId, documentKey, fileUrl);
         String callbackUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/save-callback";
 
@@ -374,8 +373,8 @@ public class OnlyOfficeService {
                 ? document.getFileType().toString().toLowerCase() : "docx";
         String documentType = mapToOnlyOfficeDocumentType(fileType);
 
-        String fileUrl = "blob:placeholder";
         String documentKey = lockToken + "_reedit_v" + targetVersion;
+        String fileUrl = buildFileDownloadUrl(documentId, documentKey);
         String callbackToken = buildCallbackToken(documentId, documentKey, fileUrl);
         String callbackUrl = properties.getCallbackPublicUrl() + "/" + documentId + "/save-callback";
 
@@ -445,6 +444,18 @@ public class OnlyOfficeService {
                 .claims(callbackTokenPayload)
                 .signWith(jwtSigningKey)
                 .compact();
+    }
+
+    private String buildFileDownloadUrl(UUID documentId, String documentKey) {
+        String token = Jwts.builder()
+                .claim("action", "download")
+                .claim("documentId", documentId.toString())
+                .claim("key", documentKey)
+                .expiration(Date.from(java.time.Instant.now().plusSeconds(3600)))
+                .signWith(jwtSigningKey)
+                .compact();
+        return properties.getCallbackPublicUrl() + "/" + documentId + "/file?token="
+                + URLEncoder.encode(token, StandardCharsets.UTF_8);
     }
 
     // ========== Save Callback ==========

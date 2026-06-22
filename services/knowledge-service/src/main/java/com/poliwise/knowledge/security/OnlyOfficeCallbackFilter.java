@@ -1,5 +1,6 @@
 package com.poliwise.knowledge.security;
 
+import com.poliwise.knowledge.config.OnlyOfficeProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -8,7 +9,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -38,10 +38,9 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
 
     private final SecretKey signingKey;
 
-    public OnlyOfficeCallbackFilter(
-            @Value("${poliwise.onlyoffice.jwt-secret}") String jwtSecret) {
+    public OnlyOfficeCallbackFilter(OnlyOfficeProperties properties) {
         this.signingKey = Keys.hmacShaKeyFor(
-                jwtSecret.getBytes(StandardCharsets.UTF_8));
+                properties.getJwtSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
@@ -64,6 +63,16 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
             String action = claims.get("action", String.class);
             String documentId = claims.get("documentId", String.class);
             String key = claims.get("key", String.class);
+
+            if (request.getServletPath().endsWith("/file")) {
+                UUID requestedDocumentId = extractDocumentId(request.getServletPath());
+                if (!"download".equals(action)
+                        || documentId == null
+                        || !requestedDocumentId.equals(UUID.fromString(documentId))) {
+                    sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid document download token");
+                    return;
+                }
+            }
 
             // OnlyOffice callback context — a lightweight auth principal for the callback endpoint
             OnlyOfficeCallbackPrincipal principal = new OnlyOfficeCallbackPrincipal(
@@ -96,7 +105,22 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
                 return Optional.of(token);
             }
         }
+        String queryToken = request.getParameter("token");
+        if (StringUtils.hasText(queryToken)) {
+            return Optional.of(queryToken.trim());
+        }
         return Optional.empty();
+    }
+
+    private UUID extractDocumentId(String path) {
+        String marker = "/api/v1/documents/";
+        int start = path.indexOf(marker);
+        if (start < 0) {
+            throw new IllegalArgumentException("Invalid document path");
+        }
+        String remainder = path.substring(start + marker.length());
+        int slash = remainder.indexOf('/');
+        return UUID.fromString(slash >= 0 ? remainder.substring(0, slash) : remainder);
     }
 
     private void sendError(HttpServletResponse response, int status, String message) throws IOException {
@@ -107,6 +131,7 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getServletPath().contains("/save-callback");
+        String path = request.getServletPath();
+        return !path.contains("/save-callback") && !path.endsWith("/file");
     }
 }
