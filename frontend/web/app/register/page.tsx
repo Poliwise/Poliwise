@@ -6,16 +6,12 @@ import { ArrowLeft, MessageSquare, UserPlus } from 'lucide-react';
 import { Button, Input, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { UserRole } from '@/types';
+import { useLanguage } from '@/providers';
 import styles from './register.module.css';
-
-const roleOptions = [
-  { value: UserRole.USER, label: 'Người dùng' },
-  { value: UserRole.MANAGER, label: 'Quản lý' },
-  { value: UserRole.ADMIN, label: 'Quản trị viên' },
-];
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -27,6 +23,12 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const roleOptions = [
+    { value: UserRole.USER, label: t('role.user') },
+    { value: UserRole.MANAGER, label: t('role.manager') },
+    { value: UserRole.ADMIN, label: t('role.admin') },
+  ];
+
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
     if (error) setError(null);
@@ -37,35 +39,35 @@ export default function RegisterPage() {
 
     // Inline validation
     if (!formData.username.trim()) {
-      setError('Tên đăng nhập không được để trống.');
+      setError('Username is required.');
       return;
     }
     if (formData.username.trim().length < 3) {
-      setError('Tên đăng nhập phải có ít nhất 3 ký tự.');
+      setError('Username must be at least 3 characters.');
       return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(formData.username.trim())) {
-      setError('Tên đăng nhập chỉ được chứa chữ cái, số và dấu gạch dưới.');
+      setError('Username can only contain letters, numbers, and underscores.');
       return;
     }
     if (!formData.email.trim()) {
-      setError('Email không được để trống.');
+      setError('Email is required.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      setError('Email không hợp lệ.');
+      setError('Email is invalid.');
       return;
     }
     if (!formData.password) {
-      setError('Mật khẩu không được để trống.');
+      setError('Password is required.');
       return;
     }
     if (formData.password.length < 8) {
-      setError('Mật khẩu phải có ít nhất 8 ký tự.');
+      setError(t('validation.passwordMinLength'));
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
+      setError(t('validation.passwordMismatch'));
       return;
     }
 
@@ -79,7 +81,7 @@ export default function RegisterPage() {
         password: formData.password,
         role: formData.role,
       });
-      setSuccess(`Tài khoản "${formData.username}" đã được tạo thành công. Người dùng có thể đăng nhập ngay.`);
+      setSuccess(t('register.success').replace('{username}', formData.username));
       setFormData({ username: '', email: '', password: '', confirmPassword: '', role: UserRole.USER });
     } catch (err: unknown) {
       const axiosError = err as {
@@ -89,7 +91,7 @@ export default function RegisterPage() {
       setError(
         axiosError.response?.data?.error?.message ||
         axiosError.message ||
-        'Đã xảy ra lỗi khi tạo tài khoản.'
+        'An error occurred while creating the account.'
       );
     } finally {
       setIsLoading(false);
@@ -105,15 +107,15 @@ export default function RegisterPage() {
           className={styles.backButton}
         >
           <ArrowLeft size={18} />
-          <span>Quay lại</span>
+          <span>{t('register.back')}</span>
         </button>
 
         <div className={styles.header}>
           <div className={styles.logo}>
             <MessageSquare size={28} />
           </div>
-          <h1 className={styles.title}>Tạo tài khoản mới</h1>
-          <p className={styles.subtitle}>Điền thông tin để tạo tài khoản cho người dùng mới</p>
+          <h1 className={styles.title}>{t('register.title')}</h1>
+          <p className={styles.subtitle}>{t('register.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -131,54 +133,54 @@ export default function RegisterPage() {
           )}
 
           <Input
-            label="Tên đăng nhập"
+            label={t('register.username')}
             type="text"
             value={formData.username}
             onChange={handleChange('username')}
-            placeholder="VD: nguyen.van.a"
+            placeholder={t('register.username.placeholder')}
             required
             autoComplete="username"
-            helperText="Chỉ chứa chữ cái, số và dấu gạch dưới"
+            helperText={t('register.username.helper')}
           />
 
           <Input
-            label="Email"
+            label={t('register.email')}
             type="email"
             value={formData.email}
             onChange={handleChange('email')}
-            placeholder="VD: nguyenvana@example.com"
+            placeholder={t('register.email.placeholder')}
             required
             autoComplete="email"
           />
 
           <Select
-            label="Vai trò"
+            label={t('register.role')}
             value={formData.role}
             onChange={handleChange('role')}
             options={roleOptions}
             required
-            helperText="Quyền hạn của tài khoản sẽ được áp dụng dựa trên vai trò"
+            helperText={t('register.role.helper')}
           />
 
           <Input
-            label="Mật khẩu"
+            label={t('register.password')}
             type="password"
             value={formData.password}
             onChange={handleChange('password')}
-            placeholder="Ít nhất 8 ký tự"
+            placeholder={t('register.password.placeholder')}
             required
             autoComplete="new-password"
           />
 
           <Input
-            label="Xác nhận mật khẩu"
+            label={t('register.confirm')}
             type="password"
             value={formData.confirmPassword}
             onChange={handleChange('confirmPassword')}
-            placeholder="Nhập lại mật khẩu"
+            placeholder={t('register.confirm.placeholder')}
             required
             autoComplete="new-password"
-            error={formData.confirmPassword && formData.password !== formData.confirmPassword ? 'Mật khẩu không khớp' : undefined}
+            error={formData.confirmPassword && formData.password !== formData.confirmPassword ? t('validation.passwordMismatch') : undefined}
           />
 
           <Button
@@ -189,7 +191,7 @@ export default function RegisterPage() {
             loading={isLoading}
             icon={<UserPlus size={18} />}
           >
-            {isLoading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
+            {isLoading ? t('register.submitting') : t('register.submit')}
           </Button>
         </form>
       </div>

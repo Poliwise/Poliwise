@@ -3,6 +3,7 @@ package com.poliwise.user.event;
 import com.poliwise.user.config.RabbitMQConfig;
 import com.poliwise.user.dto.event.UserRevokedEvent;
 import com.poliwise.user.dto.event.UserStatusChangedEvent;
+import com.poliwise.user.dto.event.ProfileUpdatedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -37,5 +38,15 @@ public class UserEventPublisher {
         );
         log.info("Published UserRevokedEvent: userId={}, revokedBy={}",
                 event.userId(), event.revokedBy());
+    }
+
+    public void publishProfileUpdated(ProfileUpdatedEvent event) {
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.USER_EXCHANGE,
+                RabbitMQConfig.USER_ROUTING_KEY_PROFILE,
+                event
+        );
+        log.info("Published ProfileUpdatedEvent: userId={}, updatedBy={}",
+                event.userId(), event.updatedBy());
     }
 }

@@ -11,9 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -25,18 +28,21 @@ public class AnalyticsService {
     private final PopularQuestionRepository popularQuestionRepository;
     private final DocumentPopularityRepository documentPopularityRepository;
     private final DepartmentDailyStatRepository departmentDailyStatRepository;
+    private final UsageStatRepository usageStatRepository;
 
     public AnalyticsService(
             DailyAggregateRepository dailyAggregateRepository,
             FeedbackRepository feedbackRepository,
             PopularQuestionRepository popularQuestionRepository,
             DocumentPopularityRepository documentPopularityRepository,
-            DepartmentDailyStatRepository departmentDailyStatRepository) {
+            DepartmentDailyStatRepository departmentDailyStatRepository,
+            UsageStatRepository usageStatRepository) {
         this.dailyAggregateRepository = dailyAggregateRepository;
         this.feedbackRepository = feedbackRepository;
         this.popularQuestionRepository = popularQuestionRepository;
         this.documentPopularityRepository = documentPopularityRepository;
         this.departmentDailyStatRepository = departmentDailyStatRepository;
+        this.usageStatRepository = usageStatRepository;
     }
 
     public AnalyticsSummaryResponse getSummary(AnalyticsRequest request) {
@@ -92,5 +98,21 @@ public class AnalyticsService {
                         agg.getTotalLikes() + agg.getTotalDislikes(), agg.getAvgResponseTimeMs(),
                         agg.getUniqueActiveUsers(), agg.getTotalLikes(), agg.getTotalDislikes(), List.of()))
                 .toList();
+    }
+
+    public Map<String, Object> getDocumentViewStats(int days) {
+        LocalDate to = LocalDate.now();
+        LocalDate from = to.minusDays(days);
+        Instant fromInstant = from.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant toInstant = to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+
+        Long viewCount = usageStatRepository.countByCreatedAtBetween(fromInstant, toInstant);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("periodDays", days);
+        result.put("periodFrom", from.toString());
+        result.put("periodTo", to.toString());
+        result.put("viewCount", viewCount != null ? viewCount : 0);
+        return result;
     }
 }

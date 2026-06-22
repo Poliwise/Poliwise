@@ -4,7 +4,9 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_ONLYOFFICE_URL=http://localhost:8888
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ONLYOFFICE_URL=$NEXT_PUBLIC_ONLYOFFICE_URL
 
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install

@@ -1,9 +1,7 @@
 package com.poliwise.knowledge.service;
 
 import com.poliwise.knowledge.config.MinioConfig;
-import com.poliwise.knowledge.enums.FileType;
 import io.minio.*;
-import io.minio.errors.MinioException;
 import io.minio.http.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,10 +19,12 @@ public class StorageService {
 
     private final MinioClient minioClient;
     private final String bucketName;
+    private final String minioPublicUrl;
 
-    public StorageService(MinioClient minioClient) {
+    public StorageService(MinioClient minioClient, MinioConfig minioConfig) {
         this.minioClient = minioClient;
         this.bucketName = MinioConfig.BUCKET_NAME;
+        this.minioPublicUrl = minioConfig.getPublicUrl();
     }
 
     public String uploadFile(MultipartFile file, UUID documentId) {
@@ -40,11 +40,80 @@ public class StorageService {
                             .contentType(file.getContentType())
                             .build()
             );
-            log.info("Uploaded file to MinIO: bucket={}, key={}", bucketName, fileKey);
+            log.debug("Uploaded file to MinIO: bucket={}, key={}", bucketName, fileKey);
             return fileKey;
         } catch (Exception e) {
             log.error("Failed to upload file to MinIO: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to upload file: " + e.getMessage(), e);
+        }
+    }
+
+    public String uploadFile(byte[] bytes, String filename, UUID documentId) {
+        String extension = getExtension(filename);
+        String fileKey = "documents/" + documentId + "/" + System.currentTimeMillis() + "." + extension;
+        String contentType = getContentType(extension);
+
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .stream(new java.io.ByteArrayInputStream(bytes), bytes.length, -1)
+                            .contentType(contentType)
+                            .build()
+            );
+            log.debug("Uploaded byte array to MinIO: bucket={}, key={}", bucketName, fileKey);
+            return fileKey;
+        } catch (Exception e) {
+            log.error("Failed to upload bytes to MinIO: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to upload file: " + e.getMessage(), e);
+        }
+    }
+
+    public void uploadConflictFile(byte[] bytes, String fileKey) {
+        String extension = getExtension(fileKey);
+        String contentType = getContentType(extension);
+
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .stream(new java.io.ByteArrayInputStream(bytes), bytes.length, -1)
+                            .contentType(contentType)
+                            .build()
+            );
+            log.debug("Uploaded conflict file to MinIO: bucket={}, key={}", bucketName, fileKey);
+        } catch (Exception e) {
+            log.error("Failed to upload conflict file to MinIO: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to upload conflict file: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean conflictFileExists(String fileKey) {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .build()
+            );
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public long getFileSize(String fileKey) {
+        try {
+            return minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileKey)
+                            .build()
+            ).size();
+        } catch (Exception e) {
+            return 0;
         }
     }
 
@@ -70,16 +139,16 @@ public class StorageService {
                             .object(fileKey)
                             .build()
             );
-            log.info("Deleted file from MinIO: bucket={}, key={}", bucketName, fileKey);
+            log.debug("Deleted file from MinIO: bucket={}, key={}", bucketName, fileKey);
         } catch (Exception e) {
             log.error("Failed to delete file from MinIO: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to delete file: " + e.getMessage(), e);
         }
     }
 
-    public String getFileUrl(String fileKey) {
+    private String getFileUrlInternal(String fileKey, String baseUrl) {
         try {
-            return minioClient.getPresignedObjectUrl(
+            String presigned = minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .bucket(bucketName)
                             .object(fileKey)
@@ -87,10 +156,27 @@ public class StorageService {
                             .expiry(3600) // 1 hour
                             .build()
             );
+            return presigned.replaceFirst(
+                    "http://[^/]+",
+                    baseUrl.replaceAll("/$", ""));
         } catch (Exception e) {
             log.error("Failed to generate presigned URL: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to generate file URL: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Public URL — for browser access (uses localhost:9000).
+     */
+    public String getFileUrl(String fileKey) {
+        return getFileUrlInternal(fileKey, minioPublicUrl);
+    }
+
+    /**
+     * Internal Docker URL — for OnlyOffice Document Server (uses minio:9000).
+     */
+    public String getFileUrlInternal(String fileKey) {
+        return getFileUrlInternal(fileKey, "http://minio:9000");
     }
 
     public String readFileContent(String fileKey) {
@@ -111,5 +197,16 @@ public class StorageService {
             return "bin";
         }
         return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private String getContentType(String extension) {
+        return switch (extension.toLowerCase()) {
+            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+            case "doc"  -> "application/msword";
+            case "pdf"  -> "application/pdf";
+            default      -> "application/octet-stream";
+        };
     }
 }

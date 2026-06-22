@@ -14,8 +14,10 @@ public class RabbitMQConfig {
     public static final String USER_EXCHANGE = "poliwise.user.exchange";
     public static final String USER_STATUS_CHANGED_QUEUE = "poliwise.user.status.changed";
     public static final String USER_REVOKED_QUEUE = "poliwise.user.revoked";
+    public static final String USER_PROFILE_UPDATED_QUEUE = "poliwise.user.profile.updated";
     public static final String USER_ROUTING_KEY_STATUS = "user.status.changed";
     public static final String USER_ROUTING_KEY_REVOKED = "user.revoked";
+    public static final String USER_ROUTING_KEY_PROFILE = "user.profile.updated";
 
     @Bean
     public TopicExchange userExchange() {
@@ -33,6 +35,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue userProfileUpdatedQueue() {
+        return QueueBuilder.durable(USER_PROFILE_UPDATED_QUEUE).build();
+    }
+
+    @Bean
     public Binding statusChangedBinding(Queue userStatusChangedQueue, TopicExchange userExchange) {
         return BindingBuilder.bind(userStatusChangedQueue)
                 .to(userExchange)
@@ -44,6 +51,13 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(userRevokedQueue)
                 .to(userExchange)
                 .with(USER_ROUTING_KEY_REVOKED);
+    }
+
+    @Bean
+    public Binding profileUpdatedBinding(Queue userProfileUpdatedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(userProfileUpdatedQueue)
+                .to(userExchange)
+                .with(USER_ROUTING_KEY_PROFILE);
     }
 
     @Bean

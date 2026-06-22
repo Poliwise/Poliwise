@@ -1,7 +1,39 @@
-.container {
-  padding: 2rem;
+/* Page wrapper — full viewport, light background */
+.pageWrapper {
+  min-height: 100vh;
+  background: var(--background);
+}
+
+/* Header bar */
+.pageHeader {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.pageHeaderInner {
   max-width: 1400px;
   margin: 0 auto;
+  padding: 1.5rem 2rem;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.pageSubtitle {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  margin: 0.25rem 0 0;
+}
+
+/* Content area */
+.pageBody {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
 }
 
 .loading {

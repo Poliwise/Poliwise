@@ -7,6 +7,7 @@ import { Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { Button, Input, Checkbox } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
+import { useLanguage } from '@/providers';
 import { AccountStatus } from '@/types';
 import styles from './login.module.css';
 
@@ -15,23 +16,24 @@ interface LoginError {
   message: string;
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  UNAUTHORIZED: 'Tên đăng nhập hoặc mật khẩu không đúng.',
-  ACCOUNT_DEACTIVATED: 'Tài khoản đã bị vô hiệu hóa. Liên hệ quản trị viên.',
-  ACCOUNT_REVOKED: 'Tài khoản đã bị thu hồi. Liên hệ quản trị viên.',
-  RATE_LIMIT_EXCEEDED: 'Quá nhiều lần đăng nhập sai. Vui lòng thử lại sau.',
-  VALIDATION_ERROR: 'Thông tin đăng nhập không hợp lệ.',
-};
-
 export default function LoginPage() {
   const router = useRouter();
   const { setUser, setTokens } = useAuthStore();
+  const { t } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<LoginError | null>(null);
+
+  const ERROR_MESSAGES: Record<string, string> = {
+    UNAUTHORIZED: t('login.error.unauthorized'),
+    ACCOUNT_DEACTIVATED: t('login.error.deactivated'),
+    ACCOUNT_REVOKED: t('login.error.revoked'),
+    RATE_LIMIT_EXCEEDED: t('login.error.rateLimit'),
+    VALIDATION_ERROR: t('login.error.validation'),
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +69,7 @@ export default function LoginPage() {
       };
       const errorCode = axiosError.response?.data?.error?.code;
       const errorMessage = axiosError.response?.data?.error?.message;
-      const fallbackMessage = axiosError.message || 'Đã xảy ra lỗi không xác định.';
+      const fallbackMessage = axiosError.message || t('login.error.unknown');
 
       setError({
         code: errorCode || 'UNKNOWN',
@@ -85,8 +87,8 @@ export default function LoginPage() {
           <div className={styles.logo}>
             <MessageSquare size={32} />
           </div>
-          <h1 className={styles.title}>Chào mừng bạn</h1>
-          <p className={styles.subtitle}>Đăng nhập để tiếp tục với Poliwise</p>
+          <h1 className={styles.title}>{t('login.title')}</h1>
+          <p className={styles.subtitle}>{t('login.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -97,11 +99,11 @@ export default function LoginPage() {
           )}
 
           <Input
-            label="Tên đăng nhập"
+            label={t('login.username')}
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Nhập tên đăng nhập"
+            placeholder={t('login.username.placeholder')}
             required
             autoComplete="username"
             leftIcon={<span className={styles.inputIcon}>@</span>}
@@ -109,11 +111,11 @@ export default function LoginPage() {
           />
 
           <Input
-            label="Mật khẩu"
+            label={t('login.password')}
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Nhập mật khẩu"
+            placeholder={t('login.password.placeholder')}
             required
             autoComplete="current-password"
             rightIcon={
@@ -121,7 +123,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className={styles.passwordToggle}
-                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -133,10 +135,10 @@ export default function LoginPage() {
               id="remember"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              label="Ghi nhớ tôi"
+              label={t('login.rememberMe')}
             />
             <Link href="/forgot-password" className={styles.forgotLink}>
-              Quên mật khẩu?
+              {t('login.forgotPassword')}
             </Link>
           </div>
 
@@ -148,14 +150,14 @@ export default function LoginPage() {
             loading={isLoading}
             disabled={isLoading || !username.trim() || !password}
           >
-            {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            {isLoading ? t('login.submitting') : t('login.submit')}
           </Button>
         </form>
 
         <p className={styles.footer}>
-          Cần tài khoản? Liên hệ{' '}
-          <span className={styles.adminContact}>Quản trị viên</span>{' '}
-          để được tạo tài khoản.
+          {t('login.footer')}{' '}
+          <span className={styles.adminContact}>{t('login.footer.admin')}</span>{' '}
+          {t('login.footer.account')}
         </p>
       </div>
 

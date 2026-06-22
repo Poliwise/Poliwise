@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
+import { useLanguage } from '@/providers';
 import { useRouter } from 'next/navigation';
 import { HierarchyTreeView } from '@/components/hierarchy-tree/HierarchyTreeView';
 import type {
@@ -55,6 +56,7 @@ interface DeptUser {
 export default function DepartmentsPage() {
   const isAdmin = useIsAdmin();
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [treeData, setTreeData] = useState<DepartmentTreeNode[]>([]);
@@ -215,7 +217,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         description: formData.description.trim() || undefined,
         parentId: formData.parentId || undefined,
       } as CreateDepartmentRequest);
-      setFormSuccess('Tạo phòng ban thành công!');
+      setFormSuccess(t('admin.depts.form.success.create'));
       setTimeout(() => {
         setModalMode(null);
         loadDepartments();
@@ -224,7 +226,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message
         : (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || 'Tạo phòng ban thất bại';
+        || t('admin.depts.form.failed.create');
       setFormError(msg);
     } finally {
       setFormLoading(false);
@@ -241,7 +243,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         description: formData.description.trim() || undefined,
         parentId: formData.parentId || undefined,
       } as UpdateDepartmentRequest);
-      setFormSuccess('Cập nhật phòng ban thành công!');
+      setFormSuccess(t('admin.depts.form.success.update'));
       setTimeout(() => {
         setModalMode(null);
         loadDepartments();
@@ -250,7 +252,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message
         : (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || 'Cập nhật phòng ban thất bại';
+        || t('admin.depts.form.failed.update');
       setFormError(msg);
     } finally {
       setFormLoading(false);
@@ -263,7 +265,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     setFormError('');
     try {
       await api.departments.delete(selectedDept.id);
-      setFormSuccess('Xóa phòng ban thành công!');
+      setFormSuccess(t('admin.depts.form.success.delete') || 'Xóa phòng ban thành công!');
       setTimeout(() => {
         setModalMode(null);
         loadDepartments();
@@ -272,7 +274,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message
         : (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || 'Xóa phòng ban thất bại';
+        || t('admin.depts.delete.failed');
       setFormError(msg);
     } finally {
       setFormLoading(false);
@@ -386,7 +388,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message
         : (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || 'Gán nhân viên thất bại';
+        || t('admin.depts.users.assignFailed');
       setAssignError(msg);
     } finally {
       setAssignLoadingSubmit(false);
@@ -429,13 +431,13 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <h1>Quản lý phòng ban</h1>
-            <p>Tổ chức cơ cấu công việc theo bộ phận, phòng ban</p>
+            <h1>{t('admin.depts.title')}</h1>
+            <p>{t('admin.depts.subtitle')}</p>
           </div>
           <div className={styles.headerActions}>
             <button className={`${styles.actionBtn} ${styles.primary}`} onClick={openCreateModal}>
               <Plus size={16} />
-              Tạo phòng ban
+              {t('admin.depts.create')}
             </button>
           </div>
         </div>
@@ -448,7 +450,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             </div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{totalCount}</span>
-              <span className={styles.statLabel}>Tổng phòng ban</span>
+              <span className={styles.statLabel}>{t('admin.depts.stats.total')}</span>
             </div>
           </div>
           <div className={styles.statCard}>
@@ -457,7 +459,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             </div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{activeCount}</span>
-              <span className={styles.statLabel}>Đang hoạt động</span>
+              <span className={styles.statLabel}>{t('admin.depts.status.active')}</span>
             </div>
           </div>
           <div className={styles.statCard}>
@@ -466,7 +468,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             </div>
             <div className={styles.statContent}>
               <span className={styles.statValue}>{childCount}</span>
-              <span className={styles.statLabel}>Phòng ban con</span>
+              <span className={styles.statLabel}>{t('admin.depts.stats.children')}</span>
             </div>
           </div>
           <div className={styles.statCard}>
@@ -477,7 +479,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
               <span className={styles.statValue}>
                 {departments.reduce((sum, d) => sum + d.userCount, 0)}
               </span>
-              <span className={styles.statLabel}>Nhân viên</span>
+              <span className={styles.statLabel}>{t('admin.depts.stats.staff')}</span>
             </div>
           </div>
         </div>
@@ -488,7 +490,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             <Search size={16} className={styles.searchIcon} />
             <input
               type="text"
-              placeholder="Tìm kiếm phòng ban..."
+              placeholder={t('admin.depts.search.placeholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className={styles.searchInput}
@@ -498,14 +500,14 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             <button
               className={`${styles.viewToggleBtn} ${viewMode === 'grid' ? styles.active : ''}`}
               onClick={() => setViewMode('grid')}
-              title="Lưới"
+              title={t('admin.depts.view.grid')}
             >
               <LayoutGrid size={16} />
             </button>
             <button
               className={`${styles.viewToggleBtn} ${viewMode === 'tree' ? styles.active : ''}`}
               onClick={() => setViewMode('tree')}
-              title="Cây"
+              title={t('admin.depts.view.tree')}
             >
               <TreeDeciduous size={16} />
             </button>
@@ -516,14 +518,14 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         {loading ? (
           <div className={styles.loading}>
             <Loader2 size={32} className={styles.spinner} />
-            <span>Đang tải danh sách phòng ban...</span>
+            <span>{t('admin.depts.loading')}</span>
           </div>
         ) : filteredGrid.length === 0 && viewMode === 'grid' ? (
           <div className={styles.empty}>
             <Building2 size={48} />
-            <p>Không tìm thấy phòng ban nào</p>
+            <p>{t('admin.depts.empty')}</p>
             <span className={styles.emptySub}>
-              {search ? 'Thử từ khóa khác' : 'Tạo phòng ban đầu tiên để bắt đầu'}
+              {search ? t('admin.depts.empty.search') : t('admin.depts.empty.start')}
             </span>
           </div>
         ) : viewMode === 'grid' ? (
@@ -546,45 +548,45 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   <div className={styles.deptMeta}>
                     <span className={styles.deptMetaItem}>
                       <Users size={13} />
-                      {dept.userCount} nhân viên
+                      {dept.userCount} {t('admin.depts.stats.employees')}
                     </span>
                     {dept.parent && (
                       <span className={styles.deptParent}>
-                        Thuộc: {dept.parent.name}
+                        {t('admin.depts.parent')} {dept.parent.name}
                       </span>
                     )}
                   </div>
                   <div className={styles.deptCardFooter}>
                     <span className={`${styles.deptStatus} ${dept.isActive ? styles.active : styles.inactive}`}>
                       <span className={`${styles.statDot} ${dept.isActive ? styles.active : styles.inactive}`} />
-                      {dept.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                      {dept.isActive ? t('admin.depts.status.active') : t('admin.depts.status.inactive')}
                     </span>
                     <div className={styles.deptActions}>
                       <button
                         className={`${styles.actionBtn} ${dept.isActive ? styles.success : ''}`}
                         onClick={e => handleToggleActive(dept, e)}
-                        title={dept.isActive ? 'Tắt hoạt động' : 'Bật hoạt động'}
+                        title={dept.isActive ? t('admin.depts.turnOff') : t('admin.depts.turnOn')}
                       >
                         {dept.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                       </button>
                       <button
                         className={styles.actionBtn}
                         onClick={() => openUsersModal(dept)}
-                        title="Nhân viên"
+                        title={t('admin.depts.employees')}
                       >
                         <Users size={15} />
                       </button>
                       <button
                         className={styles.actionBtn}
                         onClick={() => openEditModal(dept)}
-                        title="Chỉnh sửa"
+                        title={t('admin.depts.edit')}
                       >
                         <Edit2 size={15} />
                       </button>
                       <button
                         className={`${styles.actionBtn} ${styles.danger}`}
                         onClick={() => openDeleteModal(dept)}
-                        title="Xóa"
+                        title={t('admin.depts.delete')}
                         disabled={dept.userCount > 0}
                       >
                         <Trash2 size={15} />
@@ -598,7 +600,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             {totalPages > 1 && (
               <div className={styles.paginationWrapper}>
                 <span className={styles.paginationInfo}>
-                  Trang {page} / {totalPages} — {totalCount} phòng ban
+                  {t('admin.depts.pagination').replace('{page}', String(page)).replace('{totalPages}', String(totalPages)).replace('{total}', String(totalCount))}
                 </span>
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
                   <button
@@ -654,7 +656,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     <Building2 size={18} />
                   </div>
                   <h2 className={styles.modalTitle}>
-                    {modalMode === 'create' ? 'Tạo phòng ban mới' : 'Chỉnh sửa phòng ban'}
+                    {modalMode === 'create' ? t('admin.depts.create.title') : t('admin.depts.edit.title')}
                   </h2>
                 </div>
                 <button className={styles.modalClose} onClick={() => setModalMode(null)}>
@@ -678,48 +680,48 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
 
                 <div className={styles.formGrid}>
                   <div className={styles.formGroup}>
-                    <label>Tên phòng ban <span className={styles.required}>*</span></label>
+                    <label>{t('admin.depts.form.name.required')}</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
-                      placeholder="Ví dụ: Phòng Kỹ thuật"
+                      placeholder={t('admin.depts.form.name.placeholder')}
                       disabled={formLoading}
                     />
                   </div>
 
                   <div className={styles.formGroup}>
-                    <label>Mã phòng ban <span className={styles.required}>*</span></label>
+                    <label>{t('admin.depts.form.code.required')}</label>
                     <input
                       type="text"
                       value={formData.code}
                       onChange={e => setFormData(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                      placeholder="Ví dụ: ENG, HR, IT"
+                      placeholder={t('admin.depts.form.code.placeholder')}
                       disabled={formLoading}
                       style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}
                     />
-                    <span className={styles.formHint}>Mã duy nhất, không trùng lặp</span>
+                    <span className={styles.formHint}>{t('admin.depts.form.code.hint')}</span>
                   </div>
 
                   <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                    <label>Mô tả</label>
+                    <label>{t('admin.depts.form.description')}</label>
                     <textarea
                       value={formData.description}
                       onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
-                      placeholder="Mô tả ngắn về phòng ban..."
+                      placeholder={t('admin.depts.form.description.placeholder')}
                       rows={2}
                       disabled={formLoading}
                     />
                   </div>
 
                   <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                    <label>Phòng ban cha</label>
+                    <label>{t('admin.depts.form.parent')}</label>
                     <select
                       value={formData.parentId}
                       onChange={e => setFormData(f => ({ ...f, parentId: e.target.value }))}
                       disabled={formLoading}
                     >
-                      <option value="">-- Không có --</option>
+                      <option value="">{t('admin.depts.form.parent.none')}</option>
                       {departments
                         .filter(d => d.id !== selectedDept?.id && d.isActive)
                         .map(dept => (
@@ -728,7 +730,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                           </option>
                         ))}
                     </select>
-                    <span className={styles.formHint}>Chọn phòng ban cha nếu phòng ban này nằm trong một phòng ban khác</span>
+                    <span className={styles.formHint}>{t('admin.depts.form.parent.hint')}</span>
                   </div>
                 </div>
               </div>
@@ -739,7 +741,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   onClick={() => setModalMode(null)}
                   disabled={formLoading}
                 >
-                  Hủy
+                  {t('common.cancel')}
                 </button>
                 <button
                   className={styles.submitBtn}
@@ -747,7 +749,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   disabled={formLoading || !formData.name.trim() || !formData.code.trim()}
                 >
                   {formLoading ? <Loader2 size={16} className={styles.spinner} /> : <CheckCircle size={16} />}
-                  {modalMode === 'create' ? 'Tạo mới' : 'Lưu thay đổi'}
+                  {modalMode === 'create' ? t('admin.depts.form.submit.create') : t('admin.depts.form.submit.update')}
                 </button>
               </div>
             </div>
@@ -765,7 +767,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   <div className={styles.modalTitleIcon} style={{ background: 'rgba(220, 38, 38, 0.1)', color: '#dc2626' }}>
                     <AlertCircle size={18} />
                   </div>
-                  <h2 className={styles.modalTitle}>Xác nhận xóa phòng ban</h2>
+                  <h2 className={styles.modalTitle}>{t('admin.depts.delete.title')}</h2>
                 </div>
                 <button className={styles.modalClose} onClick={() => setModalMode(null)}>
                   <X size={18} />
@@ -785,11 +787,10 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   </div>
                 )}
                 <p style={{ margin: '0 0 0.5rem', color: 'var(--foreground)' }}>
-                  Bạn có chắc chắn muốn xóa phòng ban{' '}
-                  <strong>{selectedDept?.name}</strong> ({selectedDept?.code})?
+                  {t('admin.depts.delete.confirm').replace('{name}', selectedDept?.name || '').replace('{code}', selectedDept?.code || '')}
                 </p>
                 <p className={styles.warningText}>
-                  Hành động này sẽ vô hiệu hóa phòng ban (soft delete). Phòng ban sẽ không còn hiển thị trong danh sách nhưng dữ liệu vẫn được giữ lại.
+                  {t('admin.depts.delete.warning')}
                 </p>
               </div>
               <div className={styles.modalFooter}>
@@ -798,7 +799,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   onClick={() => setModalMode(null)}
                   disabled={formLoading}
                 >
-                  Hủy
+                  {t('common.cancel')}
                 </button>
                 <button
                   className={styles.deleteBtn}
@@ -806,7 +807,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   disabled={formLoading}
                 >
                   {formLoading ? <Loader2 size={16} className={styles.spinner} /> : <Trash2 size={16} />}
-                  Xóa phòng ban
+                  {t('admin.depts.delete.submit')}
                 </button>
               </div>
             </div>
@@ -825,7 +826,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     <Users size={18} />
                   </div>
                   <div>
-                    <h2 className={styles.modalTitle}>Nhân viên phòng ban</h2>
+                    <h2 className={styles.modalTitle}>{t('admin.depts.users.title')}</h2>
                     <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--muted-foreground)' }}>
                       {selectedDept?.name} ({selectedDept?.code})
                     </p>
@@ -837,7 +838,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     onClick={() => openAssignModal(selectedDept!)}
                   >
                     <UserPlus size={14} />
-                    Gán nhân viên
+                    {t('admin.depts.users.assign')}
                   </button>
                 </div>
                 <button className={styles.modalClose} onClick={() => setModalMode(null)}>
@@ -848,26 +849,26 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                 {usersLoading ? (
                   <div className={styles.loading}>
                     <Loader2 size={24} className={styles.spinner} />
-                    <span>Đang tải nhân viên...</span>
+                    <span>{t('admin.depts.users.loading')}</span>
                   </div>
                 ) : deptUsers.length === 0 ? (
                   <div className={styles.empty}>
                     <Users size={40} />
-                    <p>Chưa có nhân viên nào trong phòng ban này</p>
+                    <p>{t('admin.depts.users.empty')}</p>
                     <button
                       className={styles.assignBtn}
                       style={{ marginTop: '0.5rem' }}
                       onClick={() => openAssignModal(selectedDept!)}
                     >
                       <UserPlus size={14} />
-                      Gán nhân viên đầu tiên
+                      {t('admin.depts.users.assignFirst')}
                     </button>
                   </div>
                 ) : (
                   <>
                     <div className={styles.usersSectionHeader}>
-                      <span className={styles.usersSectionTitle}>Danh sách nhân viên</span>
-                      <span className={styles.usersSectionCount}>{deptUsers.length} người</span>
+                      <span className={styles.usersSectionTitle}>{t('admin.depts.users.list')}</span>
+                      <span className={styles.usersSectionCount}>{t('admin.depts.users.count').replace('{count}', String(deptUsers.length))}</span>
                     </div>
                     <div className={styles.usersList}>
                       {deptUsers.map(user => (
@@ -891,7 +892,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     {usersTotalPages > 1 && (
                       <div className={styles.usersListPagination}>
                         <span className={styles.usersListPaginationInfo}>
-                          Trang {usersPage} / {usersTotalPages}
+                          {t('admin.depts.users.pagination').replace('{page}', String(usersPage)).replace('{totalPages}', String(usersTotalPages))}
                         </span>
                         <div className={styles.usersListPaginationBtns}>
                           <button
@@ -916,7 +917,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
               </div>
               <div className={styles.modalFooter}>
                 <button className={styles.cancelBtn} onClick={() => setModalMode(null)}>
-                  Đóng
+                  {t('common.close')}
                 </button>
               </div>
             </div>
@@ -935,9 +936,9 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     <UserPlus size={18} />
                   </div>
                   <div>
-                    <h2 className={styles.modalTitle}>Gán nhân viên</h2>
+                    <h2 className={styles.modalTitle}>{t('admin.depts.users.assignTitle')}</h2>
                     <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--muted-foreground)' }}>
-                      Gán nhân viên vào {selectedDept?.name}
+                      {t('admin.depts.users.assignTo').replace('{name}', selectedDept?.name || '')}
                     </p>
                   </div>
                 </div>
@@ -961,12 +962,12 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                       <div className={styles.assignResultEmail}>{assignedUser.email}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span className={styles.assignResultBadge}>Sẽ được gán</span>
+                      <span className={styles.assignResultBadge}>{t('admin.depts.users.willAssign')}</span>
                       <button
                         className={styles.actionBtn}
                         style={{ border: '1px solid var(--border)', width: '1.75rem', height: '1.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.25rem', background: 'transparent', cursor: 'pointer' }}
                         onClick={() => setAssignedUser(null)}
-                        title="Hủy chọn"
+                        title={t('admin.depts.users.cancelSelect')}
                       >
                         <X size={14} />
                       </button>
@@ -979,7 +980,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                       <input
                         type="text"
                         className={styles.usersSearchInput}
-                        placeholder="Tìm kiếm nhân viên (tên, username, email)..."
+                        placeholder={t('admin.depts.users.search.placeholder')}
                         value={assignSearch}
                         onChange={e => handleAssignUserSearch(e.target.value)}
                         autoFocus
@@ -1016,7 +1017,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                       {assignSearch.trim() && assignResults.length === 0 && !assignLoading && (
                         <div className={styles.searchDropdown}>
                           <div className={styles.searchDropdownEmpty}>
-                            Không tìm thấy nhân viên nào
+                            {t('admin.depts.users.noResults')}
                           </div>
                         </div>
                       )}
@@ -1029,14 +1030,14 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                       <UserCheck2 size={16} style={{ color: '#059669' }} />
                       <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                        Nhân viên đã chọn: <strong>{assignedUser.fullName || assignedUser.username}</strong>
+                        {t('admin.depts.users.selected')} <strong>{assignedUser.fullName || assignedUser.username}</strong>
                       </span>
                     </div>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                      <span>Email:</span>
+                      <span>{t('admin.depts.users.assignEmail')}</span>
                       <span>{assignedUser.email}</span>
                       <span style={{ margin: '0 0.25rem' }}>•</span>
-                      <span>Vai trò:</span>
+                      <span>{t('admin.depts.users.assignRole')}</span>
                       <span className={`${styles.userRoleBadge} ${getRoleClass(assignedUser.role)}`}>
                         {assignedUser.role}
                       </span>
@@ -1044,7 +1045,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     {assignedUser.departmentId && (
                       <div style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         <span style={{ color: '#d97706' }}>
-                          Cảnh báo: Nhân viên này đã thuộc phòng ban khác và sẽ được chuyển sang phòng ban mới.
+                          {t('admin.depts.users.warningTransfer')}
                         </span>
                       </div>
                     )}
@@ -1053,7 +1054,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
               </div>
               <div className={styles.modalFooter}>
                 <button className={styles.cancelBtn} onClick={() => setModalMode(null)}>
-                  Hủy
+                  {t('common.cancel')}
                 </button>
                 <button
                   className={styles.confirmAssignBtn}
@@ -1065,7 +1066,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   ) : (
                     <CheckCircle size={16} />
                   )}
-                  Xác nhận gán
+                  {t('admin.depts.users.confirm')}
                 </button>
               </div>
             </div>
@@ -1075,4 +1076,3 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
       </div>
   );
 }
-

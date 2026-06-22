@@ -13,8 +13,12 @@ import {
 import { tagService } from '@/services/document.service';
 import type { Tag } from '@/types/document';
 import { IconPicker, getIconByName } from '@/components/common/IconPicker';
+import { useLanguage } from '@/providers';
+import { Translator } from '@/lib/i18n';
 
 export default function TagsPage() {
+  const { t } = useLanguage();
+
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +52,7 @@ export default function TagsPage() {
   };
 
   const handleDelete = async (tag: Tag) => {
-    if (!confirm(`Bạn có chắc muốn xóa tag "${tag.name}"?`)) return;
+    if (!confirm(t('admin.tags.confirm.delete').replace('{name}', tag.name))) return;
     try {
       await tagService.deleteTag(tag.id);
       loadTags();
@@ -92,9 +96,9 @@ export default function TagsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý Tags</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('admin.tags.title')}</h1>
               <p className="mt-1 text-sm text-gray-500">
-                {tags.length} tags
+                {t('admin.tags.count').replace('{count}', String(tags.length))}
               </p>
             </div>
             <button
@@ -102,7 +106,7 @@ export default function TagsPage() {
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Thêm tag
+              {t('admin.tags.add')}
             </button>
           </div>
 
@@ -111,7 +115,7 @@ export default function TagsPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm tags..."
+              placeholder={t('admin.tags.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -133,12 +137,12 @@ export default function TagsPage() {
           {filteredTags.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               <TagIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p>Không có tag nào</p>
+              <p>{t('admin.tags.empty')}</p>
               <button
                 onClick={handleCreate}
                 className="mt-4 text-indigo-600 hover:text-indigo-800"
               >
-                Tạo tag đầu tiên
+                {t('admin.tags.empty.start')}
               </button>
             </div>
           ) : (
@@ -199,6 +203,7 @@ export default function TagsPage() {
           tag={editingTag}
           onClose={() => setShowModal(false)}
           onSuccess={handleSuccess}
+          t={t}
         />
       )}
     </div>
@@ -210,10 +215,12 @@ function TagModal({
   tag,
   onClose,
   onSuccess,
+  t,
 }: {
   tag: Tag | null;
   onClose: () => void;
   onSuccess: () => void;
+  t: Translator;
 }) {
   const [formData, setFormData] = useState({
     name: tag?.name || '',
@@ -254,24 +261,24 @@ function TagModal({
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
         <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {tag ? 'Sửa tag' : 'Thêm tag mới'}
+            {tag ? t('admin.tags.modal.edit') : t('admin.tags.modal.create')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tên <span className="text-red-500">*</span>
+                {t('admin.tags.modal.name')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
-                placeholder="Nhập tên tag"
+                placeholder={t('admin.tags.modal.name.placeholder')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Màu sắc</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.tags.modal.color')}</label>
               <div className="flex flex-wrap gap-2">
                 {presetColors.map((color) => (
                   <button
@@ -318,14 +325,14 @@ function TagModal({
                 onClick={onClose}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Hủy
+                {t('admin.tags.modal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
-                {saving ? 'Đang lưu...' : 'Lưu'}
+                {saving ? t('admin.tags.modal.saving') : t('admin.tags.modal.save')}
               </button>
             </div>
           </form>

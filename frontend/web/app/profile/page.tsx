@@ -22,6 +22,7 @@ import {
 import { Button, Input } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
+import { useLanguage } from '@/providers';
 import { LoginHistoryModal } from '@/components/profile/LoginHistoryModal';
 import styles from './profile.module.css';
 
@@ -72,6 +73,7 @@ interface PasswordForm {
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('profile');
@@ -123,18 +125,18 @@ export default function ProfilePage() {
   const validateEditForm = (): boolean => {
     const errors: Partial<Record<keyof EditFormData, string>> = {};
     if (!editForm.fullName.trim()) {
-      errors.fullName = 'Họ tên là bắt buộc';
+      errors.fullName = t('validation.fullNameRequired');
     } else if (editForm.fullName.trim().length > 200) {
-      errors.fullName = 'Họ tên không được vượt quá 200 ký tự';
+      errors.fullName = t('validation.fullNameMaxLength');
     }
     if (editForm.phone && !/^\+?[0-9]{7,15}$/.test(editForm.phone.replace(/\s/g, ''))) {
-      errors.phone = 'Số điện thoại không hợp lệ';
+      errors.phone = t('validation.phoneInvalid');
     }
     if (editForm.bio && editForm.bio.length > 1000) {
-      errors.bio = 'Giới thiệu không được vượt quá 1000 ký tự';
+      errors.bio = t('validation.bioMaxLength');
     }
     if (editForm.position && editForm.position.length > 200) {
-      errors.position = 'Chức danh không được vượt quá 200 ký tự';
+      errors.position = t('validation.positionMaxLength');
     }
     setEditErrors(errors);
     return Object.keys(errors).length === 0;
@@ -162,7 +164,7 @@ export default function ProfilePage() {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err as Error)?.message ||
-        'Đã xảy ra lỗi khi lưu thông tin';
+        t('validation.saveError');
       setEditError(msg);
     } finally {
       setIsSaving(false);
@@ -175,11 +177,11 @@ export default function ProfilePage() {
     setPasswordSuccess(false);
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      setPasswordError(t('validation.passwordNewMismatch'));
       return;
     }
     if (passwordForm.newPassword.length < 8) {
-      setPasswordError('Mật khẩu mới phải có ít nhất 8 ký tự');
+      setPasswordError(t('validation.passwordMinLength'));
       return;
     }
 
@@ -199,7 +201,7 @@ export default function ProfilePage() {
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
       setPasswordError(
-        axiosError.response?.data?.message || axiosError.message || 'Đã xảy ra lỗi khi đổi mật khẩu'
+        axiosError.response?.data?.message || axiosError.message || t('validation.passwordChangeError')
       );
     } finally {
       setIsChangingPassword(false);
@@ -214,18 +216,22 @@ export default function ProfilePage() {
     if (/[A-Z]/.test(password)) strength++;
     if (/[0-9]/.test(password)) strength++;
     if (/[^a-zA-Z0-9]/.test(password)) strength++;
-    if (strength <= 2) return { label: 'Yếu', color: '#ef4444', strength };
-    if (strength <= 4) return { label: 'Trung bình', color: '#f59e0b', strength };
-    return { label: 'Mạnh', color: '#22c55e', strength };
+    if (strength <= 2) return { label: t('profile.security.strength.weak'), color: '#ef4444', strength };
+    if (strength <= 4) return { label: t('profile.security.strength.medium'), color: '#f59e0b', strength };
+    return { label: t('profile.security.strength.strong'), color: '#22c55e', strength };
   };
 
   const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = { ADMIN: 'Quản trị viên', MANAGER: 'Quản lý', USER: 'Người dùng' };
+    const labels: Record<string, string> = {
+      ADMIN: t('role.admin'),
+      MANAGER: t('role.manager'),
+      USER: t('role.user'),
+    };
     return labels[role] || role;
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return 'Chưa có';
+    if (!dateStr) return t('profile.notSet');
     return new Date(dateStr).toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: 'long',
@@ -234,7 +240,7 @@ export default function ProfilePage() {
   };
 
   const formatDateTime = (dateStr: string | null) => {
-    if (!dateStr) return 'Chưa có';
+    if (!dateStr) return t('profile.notSet');
     return new Date(dateStr).toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: 'long',
@@ -248,7 +254,7 @@ export default function ProfilePage() {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.spinner} />
-        <p>Đang tải thông tin...</p>
+        <p>{t('profile.loading')}</p>
       </div>
     );
   }
@@ -256,8 +262,8 @@ export default function ProfilePage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>Hồ sơ cá nhân</h1>
-        <p className={styles.pageSubtitle}>Quản lý thông tin tài khoản và bảo mật của bạn</p>
+        <h1 className={styles.pageTitle}>{t('profile.title')}</h1>
+        <p className={styles.pageSubtitle}>{t('profile.subtitle')}</p>
       </div>
 
       <div className={styles.tabs}>
@@ -270,9 +276,9 @@ export default function ProfilePage() {
             {tab === 'profile' && <User size={18} />}
             {tab === 'edit' && <FileText size={18} />}
             {tab === 'security' && <Lock size={18} />}
-            {tab === 'profile' && 'Thông tin cá nhân'}
-            {tab === 'edit' && 'Chỉnh sửa'}
-            {tab === 'security' && 'Bảo mật'}
+            {tab === 'profile' && t('profile.tabs.info')}
+            {tab === 'edit' && t('profile.tabs.edit')}
+            {tab === 'security' && t('profile.tabs.security')}
           </button>
         ))}
       </div>
@@ -297,7 +303,7 @@ export default function ProfilePage() {
               <div className={styles.infoItem}>
                 <div className={styles.infoIcon}><User size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Tên đăng nhập</span>
+                  <span className={styles.infoLabel}>{t('profile.username')}</span>
                   <span className={styles.infoValue}>{profile.username}</span>
                 </div>
               </div>
@@ -305,7 +311,7 @@ export default function ProfilePage() {
               <div className={styles.infoItem}>
                 <div className={styles.infoIcon}><Mail size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Email</span>
+                  <span className={styles.infoLabel}>{t('profile.email')}</span>
                   <span className={styles.infoValue}>{profile.email}</span>
                 </div>
               </div>
@@ -314,7 +320,7 @@ export default function ProfilePage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoIcon}><User size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Họ tên đầy đủ</span>
+                    <span className={styles.infoLabel}>{t('profile.fullName')}</span>
                     <span className={styles.infoValue}>{profile.fullName}</span>
                   </div>
                 </div>
@@ -324,7 +330,7 @@ export default function ProfilePage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoIcon}><Shield size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Mã nhân viên</span>
+                    <span className={styles.infoLabel}>{t('profile.employeeCode')}</span>
                     <span className={styles.infoValue}>{profile.employeeCode}</span>
                   </div>
                 </div>
@@ -334,7 +340,7 @@ export default function ProfilePage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoIcon}><Briefcase size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Chức danh</span>
+                    <span className={styles.infoLabel}>{t('profile.position')}</span>
                     <span className={styles.infoValue}>{profile.position}</span>
                   </div>
                 </div>
@@ -344,7 +350,7 @@ export default function ProfilePage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoIcon}><Phone size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Số điện thoại</span>
+                    <span className={styles.infoLabel}>{t('profile.phone')}</span>
                     <span className={styles.infoValue}>{profile.phone}</span>
                   </div>
                 </div>
@@ -354,7 +360,7 @@ export default function ProfilePage() {
                 <div className={`${styles.infoItem} ${styles.infoItemWide}`}>
                   <div className={styles.infoIcon}><FileText size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Giới thiệu</span>
+                    <span className={styles.infoLabel}>{t('profile.bio')}</span>
                     <span className={styles.infoValue}>{profile.bio}</span>
                   </div>
                 </div>
@@ -364,7 +370,7 @@ export default function ProfilePage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoIcon}><Calendar size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Ngày sinh</span>
+                    <span className={styles.infoLabel}>{t('profile.dateOfBirth')}</span>
                     <span className={styles.infoValue}>{formatDate(profile.dateOfBirth)}</span>
                   </div>
                 </div>
@@ -374,7 +380,7 @@ export default function ProfilePage() {
                 <div className={styles.infoItem}>
                   <div className={styles.infoIcon}><Calendar size={18} /></div>
                   <div className={styles.infoContent}>
-                    <span className={styles.infoLabel}>Ngày vào làm</span>
+                    <span className={styles.infoLabel}>{t('profile.joinedDate')}</span>
                     <span className={styles.infoValue}>{formatDate(profile.joinedDate)}</span>
                   </div>
                 </div>
@@ -383,7 +389,7 @@ export default function ProfilePage() {
               <div className={styles.infoItem}>
                 <div className={styles.infoIcon}><Shield size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Vai trò</span>
+                  <span className={styles.infoLabel}>{t('profile.role')}</span>
                   <span className={styles.infoValue}>{getRoleLabel(profile.role)}</span>
                 </div>
               </div>
@@ -391,15 +397,15 @@ export default function ProfilePage() {
               <div className={styles.infoItem}>
                 <div className={styles.infoIcon}><Building size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Phòng ban</span>
-                  <span className={styles.infoValue}>{profile.departmentName || 'Chưa phân phòng ban'}</span>
+                  <span className={styles.infoLabel}>{t('profile.department')}</span>
+                  <span className={styles.infoValue}>{profile.departmentName || t('profile.department.none')}</span>
                 </div>
               </div>
 
               <div className={styles.infoItem}>
                 <div className={styles.infoIcon}><Calendar size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Ngày tạo tài khoản</span>
+                  <span className={styles.infoLabel}>{t('profile.createdAt')}</span>
                   <span className={styles.infoValue}>{formatDateTime(profile.createdAt)}</span>
                 </div>
               </div>
@@ -407,7 +413,7 @@ export default function ProfilePage() {
               <div className={styles.infoItem}>
                 <div className={styles.infoIcon}><Lock size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Đổi mật khẩu lần cuối</span>
+                  <span className={styles.infoLabel}>{t('profile.passwordChanged')}</span>
                   <span className={styles.infoValue}>{formatDateTime(profile.passwordChangedAt)}</span>
                 </div>
               </div>
@@ -415,12 +421,12 @@ export default function ProfilePage() {
               <div className={`${styles.infoItem} ${styles.infoItemSmall}`}>
                 <div className={styles.infoIcon}><Clock size={18} /></div>
                 <div className={styles.infoContent}>
-                  <span className={styles.infoLabel}>Lịch sử đăng nhập</span>
+                  <span className={styles.infoLabel}>{t('profile.loginHistory')}</span>
                   <button
                     className={styles.textButton}
                     onClick={() => setShowLoginHistory(true)}
                   >
-                    Xem chi tiết
+                    {t('profile.viewDetail')}
                   </button>
                 </div>
               </div>
@@ -432,16 +438,16 @@ export default function ProfilePage() {
         {activeTab === 'edit' && (
           <div className={styles.editCard}>
             <div className={styles.editHeader}>
-              <h2 className={styles.sectionTitle}>Chỉnh sửa hồ sơ</h2>
+              <h2 className={styles.sectionTitle}>{t('profile.edit.title')}</h2>
               <p className={styles.sectionDescription}>
-                Cập nhật thông tin cá nhân của bạn. Một số trường có thể chỉ được thay đổi bởi quản trị viên.
+                {t('profile.edit.description')}
               </p>
             </div>
 
             {editSuccess && (
               <div className={styles.successMessage}>
                 <CheckCircle size={18} />
-                <span>Lưu thông tin thành công!</span>
+                <span>{t('profile.edit.success')}</span>
               </div>
             )}
             {editError && (
@@ -453,14 +459,14 @@ export default function ProfilePage() {
 
             <form onSubmit={handleEditSubmit} className={styles.editForm}>
               <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Thông tin cơ bản</h3>
+                <h3 className={styles.formSectionTitle}>{t('profile.edit.basicInfo')}</h3>
                 <div className={styles.formGrid}>
                   <div className={styles.formGroup}>
                     <Input
-                      label="Họ tên đầy đủ"
+                      label={t('profile.fullName')}
                       value={editForm.fullName}
                       onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                      placeholder="Nhập họ tên đầy đủ"
+                      placeholder={t('register.fullName.placeholder')}
                       error={editErrors.fullName}
                       required
                     />
@@ -468,29 +474,29 @@ export default function ProfilePage() {
 
                   <div className={styles.formGroup}>
                     <Input
-                      label="Số điện thoại"
+                      label={t('profile.phone')}
                       type="tel"
                       value={editForm.phone}
                       onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      placeholder="Ví dụ: 0912345678"
+                      placeholder="0912345678"
                       error={editErrors.phone}
-                      helperText="7-15 chữ số, có thể bắt đầu bằng +"
+                      helperText="7-15 digits, can start with +"
                     />
                   </div>
 
                   <div className={styles.formGroup}>
                     <Input
-                      label="Chức danh / Vị trí công tác"
+                      label={t('profile.position')}
                       value={editForm.position}
                       onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
-                      placeholder="Ví dụ: Kỹ sư phần mềm"
+                      placeholder="Software Engineer"
                       error={editErrors.position}
                     />
                   </div>
 
                   <div className={styles.formGroup}>
                     <Input
-                      label="Ngày sinh"
+                      label={t('profile.dateOfBirth')}
                       type="date"
                       value={editForm.dateOfBirth}
                       onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
@@ -501,10 +507,10 @@ export default function ProfilePage() {
               </div>
 
               <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Giới thiệu bản thân</h3>
+                <h3 className={styles.formSectionTitle}>{t('profile.edit.bioSection')}</h3>
                 <div className={styles.formGroupFull}>
                   <label className={styles.textareaLabel}>
-                    Mô tả / Bio
+                    {t('profile.edit.bioLabel')}
                     <span className={styles.charCount}>
                       {editForm.bio.length} / 1000
                     </span>
@@ -513,7 +519,7 @@ export default function ProfilePage() {
                     className={`${styles.textarea} ${editErrors.bio ? styles.textareaError : ''}`}
                     value={editForm.bio}
                     onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                    placeholder="Viết vài dòng giới thiệu về bản thân, sở thích, kinh nghiệm làm việc..."
+                    placeholder={t('profile.edit.bioPlaceholder')}
                     rows={4}
                     maxLength={1000}
                   />
@@ -542,7 +548,7 @@ export default function ProfilePage() {
                     setEditSuccess(false);
                   }}
                 >
-                  Đặt lại
+                  {t('profile.edit.reset')}
                 </Button>
                 <Button
                   type="submit"
@@ -551,7 +557,7 @@ export default function ProfilePage() {
                   disabled={isSaving}
                 >
                   <CheckCircle size={16} />
-                  Lưu thay đổi
+                  {t('profile.edit.save')}
                 </Button>
               </div>
             </form>
@@ -561,15 +567,15 @@ export default function ProfilePage() {
         {/* ── Tab: Security ── */}
         {activeTab === 'security' && (
           <div className={styles.securityCard}>
-            <h2 className={styles.sectionTitle}>Đổi mật khẩu</h2>
+            <h2 className={styles.sectionTitle}>{t('profile.security.changePassword')}</h2>
             <p className={styles.sectionDescription}>
-              Cập nhật mật khẩu để bảo vệ tài khoản của bạn. Mật khẩu phải có ít nhất 8 ký tự.
+              {t('profile.security.description')}
             </p>
 
             {passwordSuccess && (
               <div className={styles.successMessage}>
                 <CheckCircle size={18} />
-                <span>Đổi mật khẩu thành công!</span>
+                <span>{t('profile.security.success')}</span>
               </div>
             )}
             {passwordError && (
@@ -581,11 +587,11 @@ export default function ProfilePage() {
 
             <form onSubmit={handlePasswordChange} className={styles.passwordForm}>
               <Input
-                label="Mật khẩu hiện tại"
+                label={t('profile.security.currentPassword')}
                 type={showPasswords.old ? 'text' : 'password'}
                 value={passwordForm.oldPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                placeholder="Nhập mật khẩu hiện tại"
+                placeholder={t('profile.security.currentPassword.placeholder')}
                 required
                 autoComplete="current-password"
                 rightIcon={
@@ -613,11 +619,11 @@ export default function ProfilePage() {
               </div>
 
               <Input
-                label="Mật khẩu mới"
+                label={t('profile.security.newPassword')}
                 type={showPasswords.new ? 'text' : 'password'}
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                placeholder="Nhập mật khẩu mới"
+                placeholder={t('profile.security.newPassword.placeholder')}
                 required
                 autoComplete="new-password"
                 rightIcon={
@@ -628,16 +634,16 @@ export default function ProfilePage() {
               />
 
               <Input
-                label="Xác nhận mật khẩu mới"
+                label={t('profile.security.confirmPassword')}
                 type={showPasswords.confirm ? 'text' : 'password'}
                 value={passwordForm.confirmPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                placeholder="Nhập lại mật khẩu mới"
+                placeholder={t('profile.security.confirmPassword.placeholder')}
                 required
                 autoComplete="new-password"
                 error={
                   passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword
-                    ? 'Mật khẩu không khớp'
+                    ? t('validation.passwordMismatch')
                     : undefined
                 }
                 rightIcon={
@@ -648,13 +654,13 @@ export default function ProfilePage() {
               />
 
               <div className={styles.passwordRequirements}>
-                <p>Mật khẩu phải có:</p>
+                <p>{t('profile.security.requirements')}</p>
                 <ul>
-                  <li className={passwordForm.newPassword.length >= 8 ? styles.met : ''}>Ít nhất 8 ký tự</li>
-                  <li className={/[A-Z]/.test(passwordForm.newPassword) ? styles.met : ''}>Ít nhất 1 chữ hoa</li>
-                  <li className={/[a-z]/.test(passwordForm.newPassword) ? styles.met : ''}>Ít nhất 1 chữ thường</li>
-                  <li className={/[0-9]/.test(passwordForm.newPassword) ? styles.met : ''}>Ít nhất 1 số</li>
-                  <li className={/[^a-zA-Z0-9]/.test(passwordForm.newPassword) ? styles.met : ''}>Ít nhất 1 ký tự đặc biệt</li>
+                  <li className={passwordForm.newPassword.length >= 8 ? styles.met : ''}>{t('profile.security.req.length')}</li>
+                  <li className={/[A-Z]/.test(passwordForm.newPassword) ? styles.met : ''}>{t('profile.security.req.uppercase')}</li>
+                  <li className={/[a-z]/.test(passwordForm.newPassword) ? styles.met : ''}>{t('profile.security.req.lowercase')}</li>
+                  <li className={/[0-9]/.test(passwordForm.newPassword) ? styles.met : ''}>{t('profile.security.req.number')}</li>
+                  <li className={/[^a-zA-Z0-9]/.test(passwordForm.newPassword) ? styles.met : ''}>{t('profile.security.req.special')}</li>
                 </ul>
               </div>
 
@@ -670,7 +676,7 @@ export default function ProfilePage() {
                   passwordForm.newPassword !== passwordForm.confirmPassword
                 }
               >
-                Đổi mật khẩu
+                {t('profile.security.submit')}
               </Button>
             </form>
           </div>

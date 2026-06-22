@@ -61,9 +61,9 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  logger.log(`API Gateway is running on port ${port}`);
+  logger.log(`API Gateway is running on 0.0.0.0:${port}`);
   logger.log(`Environment: ${nodeEnv}`);
   logger.log(`CORS origin: ${configService.get<string>('cors.origin')}`);
 }

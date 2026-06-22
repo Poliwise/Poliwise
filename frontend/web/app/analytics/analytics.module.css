@@ -46,7 +46,7 @@
 /* Stats Grid */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
@@ -86,6 +86,20 @@
   line-height: 1.2;
 }
 
+.statValueRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.changeBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(0,0,0,0.05);
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+}
+
 .statMeta {
   font-size: 0.75rem;
   color: var(--muted-foreground);
@@ -115,6 +129,17 @@
 
 .chartEmpty span {
   font-size: 0.875rem;
+}
+
+/* Trend metrics */
+.trendMetrics {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
 }
 
 /* Top Lists */
@@ -185,6 +210,18 @@
   text-align: center;
   padding: 2rem;
   margin: 0;
+}
+
+@media (max-width: 1400px) {
+  .statsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 1024px) {

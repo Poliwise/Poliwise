@@ -4,7 +4,11 @@ import com.poliwise.feedback.dto.response.*;
 import com.poliwise.feedback.entity.DailyAggregate;
 import com.poliwise.feedback.entity.PopularQuestion;
 import com.poliwise.feedback.entity.UnansweredQuestion;
+import com.poliwise.feedback.feign.KnowledgeServiceClient;
+import com.poliwise.feedback.feign.UserServiceClient;
 import com.poliwise.feedback.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,12 +26,16 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class DashboardService {
 
+    private static final Logger log = LoggerFactory.getLogger(DashboardService.class);
+
     private final DailyAggregateRepository dailyAggregateRepository;
     private final FeedbackRepository feedbackRepository;
     private final UnansweredQuestionRepository unansweredQuestionRepository;
     private final PopularQuestionRepository popularQuestionRepository;
     private final DocumentPopularityRepository documentPopularityRepository;
     private final UsageStatRepository usageStatRepository;
+    private final UserServiceClient userServiceClient;
+    private final KnowledgeServiceClient knowledgeServiceClient;
 
     public DashboardService(
             DailyAggregateRepository dailyAggregateRepository,
@@ -35,13 +43,17 @@ public class DashboardService {
             UnansweredQuestionRepository unansweredQuestionRepository,
             PopularQuestionRepository popularQuestionRepository,
             DocumentPopularityRepository documentPopularityRepository,
-            UsageStatRepository usageStatRepository) {
+            UsageStatRepository usageStatRepository,
+            UserServiceClient userServiceClient,
+            KnowledgeServiceClient knowledgeServiceClient) {
         this.dailyAggregateRepository = dailyAggregateRepository;
         this.feedbackRepository = feedbackRepository;
         this.unansweredQuestionRepository = unansweredQuestionRepository;
         this.popularQuestionRepository = popularQuestionRepository;
         this.documentPopularityRepository = documentPopularityRepository;
         this.usageStatRepository = usageStatRepository;
+        this.userServiceClient = userServiceClient;
+        this.knowledgeServiceClient = knowledgeServiceClient;
     }
 
     public DashboardOverviewResponse getOverview() {
@@ -81,8 +93,34 @@ public class DashboardService {
                 .findTop10ByOrderByTotalCitationsDesc(PageRequest.of(0, 5))
                 .stream().map(DocumentPopularityResponse::fromEntity).toList();
 
-        return new DashboardOverviewResponse(todayQuestions, weekQuestions, totalLikes + totalDislikes,
-                satisfactionRate, activeUsersToday, unansweredCount, topQuestions, topDocuments);
+        long monthQuestions = 0;
+        LocalDate monthAgo = today.minusDays(30);
+        for (LocalDate d = monthAgo; !d.isAfter(today); d = d.plusDays(1)) {
+            DailyAggregate agg = dailyAggregateRepository.findByDate(d).orElse(null);
+            if (agg != null) monthQuestions += agg.getTotalQuestions();
+        }
+
+        long totalQuestions = monthQuestions;
+
+        long totalUsers = 0, activeUsers = 0, totalDocuments = 0, activeDocuments = 0;
+        try {
+            var userStats = userServiceClient.getStats();
+            totalUsers = userStats.totalUsers();
+            activeUsers = userStats.activeUsers();
+        } catch (Exception e) {
+            log.warn("Failed to fetch user stats: {}", e.getMessage());
+        }
+        try {
+            var docStats = knowledgeServiceClient.getStats();
+            totalDocuments = docStats.totalDocuments();
+            activeDocuments = docStats.activeDocuments();
+        } catch (Exception e) {
+            log.warn("Failed to fetch document stats: {}", e.getMessage());
+        }
+
+        return new DashboardOverviewResponse(todayQuestions, weekQuestions, monthQuestions, totalLikes + totalDislikes,
+                satisfactionRate, activeUsersToday, totalUsers, activeUsers, totalDocuments, activeDocuments,
+                unansweredCount, topQuestions, topDocuments);
     }
 
     public List<TrendResponse> getTrends(int days) {

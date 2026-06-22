@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -27,7 +27,11 @@ import {
   accessRuleService,
   categoryService,
 } from '@/services/document.service';
+import { onlyOfficeService, isEditableFileType } from '@/services/onlyoffice.service';
 import { AccessRuleModal } from '@/components/documents/AccessRuleModal';
+import OnlyOfficeEditor, { OnlyOfficeEditorHandle } from '@/components/onlyoffice/OnlyOfficeEditor';
+import { ConflictResolver } from '@/components/onlyoffice/ConflictResolver';
+import { EditOldVersionModal } from '@/components/onlyoffice/EditOldVersionModal';
 import type {
   Document,
   DocumentDetail,
@@ -103,6 +107,37 @@ export default function DocumentDetailPage() {
   const [auditTotalPages, setAuditTotalPages] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
+  // OnlyOffice editor state — client-only to prevent SSR hydration mismatch
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorTargetVersion, setEditorTargetVersion] = useState<number | undefined>(undefined);
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictData, setConflictData] = useState<{
+    lock: import('@/services/onlyoffice.service').LockInfo;
+    currentVersion: number;
+  } | null>(null);
+  const [editOldVersionOpen, setEditOldVersionOpen] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<import('@/types/document').DocumentVersion | null>(null);
+  const [mergeDiffData, setMergeDiffData] = useState<{
+    diffLines: Array<{ type: 'UNCHANGED' | 'ADDED' | 'DELETED'; lineNumber: number; content: string }>;
+    baseVersion: number;
+    currentVersion: number;
+  } | null>(null);
+
+  // Ref to access the editor's imperative API (downloadCurrentFile)
+  const editorRef = useRef<OnlyOfficeEditorHandle>(null);
+
+  // Holds the user's current editor content when a conflict is detected,
+  // so ConflictResolver can offer "Lấy bản hiện tại" and re-edit with it.
+  const [currentFileAtConflict, setCurrentFileAtConflict] = useState<File | null>(null);
+
+  // Passed to OnlyOfficeEditor when re-opening after conflict
+  const [editorCurrentFile, setEditorCurrentFile] = useState<File | null>(null);
+  const [editorLatestVersionPreview, setEditorLatestVersionPreview] = useState<{ versionNumber: number } | null>(null);
+
+  // Ensure client-only components never SSR — prevents React #418 hydration mismatch
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     loadDocument();
@@ -239,6 +274,30 @@ export default function DocumentDetailPage() {
 
   const handlePreview = () => setPreviewOpen(true);
 
+  const openEditor = (targetVersion?: number) => {
+    setEditorTargetVersion(targetVersion);
+    setEditorOpen(true);
+  };
+
+  const handleEditorConflict = (data: {
+    lock: import('@/services/onlyoffice.service').LockInfo;
+    currentVersion: number;
+    currentFile: File | null;
+  }) => {
+    // currentFile: user's editor content (captured before editor was destroyed).
+    // ConflictResolver shows "mine" preview from this file and can upload it.
+    setCurrentFileAtConflict(data.currentFile);
+    // Keep a copy so we can re-open the editor with the same in-progress file.
+    setEditorCurrentFile(data.currentFile);
+    // Always show preview of the latest version (if known) when re-editing.
+    // If backend status fetch failed (0), fall back to the current document version.
+    const latest = data.currentVersion && data.currentVersion > 0 ? data.currentVersion : (document?.currentVersion || 1);
+    setEditorLatestVersionPreview({ versionNumber: latest });
+    setConflictData({ lock: data.lock, currentVersion: latest });
+    setConflictOpen(true);
+    setEditorOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -295,6 +354,15 @@ export default function DocumentDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {isEditableFileType((document.fileType as unknown as string) || '') && (
+                <button
+                  onClick={() => openEditor()}
+                  className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-lg text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Chỉnh sửa với OnlyOffice
+                </button>
+              )}
               {(() => {
                 const ft = (document.fileType as unknown as string) || '';
                 return ['PDF', 'DOCX', 'DOC'].includes(ft.toUpperCase());
@@ -480,7 +548,7 @@ export default function DocumentDetailPage() {
                     <Clock className="w-4 h-4 text-gray-400 mt-0.5 mr-2" />
                     <div>
                       <dt className="text-sm font-medium text-gray-500">Ngày tạo</dt>
-                      <dd className="mt-0.5 text-sm text-gray-900">
+                      <dd className="mt-0.5 text-sm text-gray-900" suppressHydrationWarning>
                         {formatDate(document.createdAt)}
                       </dd>
                     </div>
@@ -489,7 +557,7 @@ export default function DocumentDetailPage() {
                     <Clock className="w-4 h-4 text-gray-400 mt-0.5 mr-2" />
                     <div>
                       <dt className="text-sm font-medium text-gray-500">Cập nhật lần cuối</dt>
-                      <dd className="mt-0.5 text-sm text-gray-900">
+                      <dd className="mt-0.5 text-sm text-gray-900" suppressHydrationWarning>
                         {formatDate(document.updatedAt)}
                       </dd>
                     </div>
@@ -588,17 +656,34 @@ export default function DocumentDetailPage() {
                       <p className="text-sm font-medium text-gray-900">
                         {version.changelog || version.changesDescription || `Phiên bản ${version.versionNumber || version.version}`}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate((version.createdAt || version.uploadedAt || ''))} •{' '}
+                      <p className="text-xs text-gray-500" suppressHydrationWarning>
+                        {formatDate((version.createdAt || version.uploadedAt || ''))} •
                         {formatFileSize(version.fileSizeBytes || version.fileSize || 0)}
+                        {version.uploadedByName || version.createdBy ? ` • ${version.uploadedByName || version.createdBy}` : ''}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                     {version.versionNumber === document.currentVersion && (
                       <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
                         Hiện tại
                       </span>
+                    )}
+                    {isEditableFileType((document.fileType as unknown as string) || '') && (
+                      <button
+                        onClick={() => {
+                          if (version.versionNumber === document.currentVersion) {
+                            openEditor();
+                          } else {
+                            setSelectedVersion(version);
+                            setEditOldVersionOpen(true);
+                          }
+                        }}
+                        className="p-2 text-gray-400 hover:text-indigo-600"
+                        title={version.versionNumber === document.currentVersion ? 'Chỉnh sửa với OnlyOffice' : 'Chỉnh sửa phiên bản này'}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
                     )}
                     <button
                       onClick={() => documentService.downloadVersion(documentId, version.versionNumber || version.version!, document.originalFilename)}
@@ -607,6 +692,23 @@ export default function DocumentDetailPage() {
                     >
                       <Download className="w-4 h-4" />
                     </button>
+                    {isAdmin && version.versionNumber !== document.currentVersion && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Xóa phiên bản v${version.versionNumber}? Hành động này có thể khôi phục được.`)) return;
+                          try {
+                            await onlyOfficeService.deleteVersion(documentId, version.versionNumber || version.version!);
+                            loadDocument();
+                          } catch (err: any) {
+                            alert(err.message || 'Xóa thất bại');
+                          }
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-600"
+                        title="Xóa phiên bản (ADMIN)"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -889,7 +991,7 @@ export default function DocumentDetailPage() {
                   </div>
                   <div className="ml-4 flex-1">
                     <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500" suppressHydrationWarning>
                       {log.actorUsername || log.actorId} • {formatDate(log.createdAt)}
                     </p>
                     {log.ipAddress && (
@@ -948,6 +1050,111 @@ export default function DocumentDetailPage() {
           }}
           categories={categories}
           initialDocument={document as any}
+        />
+      )}
+
+      {/* OnlyOffice Editor — client-only, never SSR, to prevent hydration mismatch */}
+      {mounted && document && (
+        <OnlyOfficeEditor
+          ref={editorRef}
+          open={editorOpen}
+          onClose={() => {
+            setEditorOpen(false);
+            setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            setEditorCurrentFile(null);
+            setEditorLatestVersionPreview(null);
+            loadDocument();
+          }}
+          documentId={documentId}
+          documentTitle={document.title || document.originalFilename || 'Tài liệu'}
+          fileType={(document.fileType as unknown as string) || 'DOCX'}
+          currentVersion={document.currentVersion || 1}
+          targetVersion={editorTargetVersion}
+          mergeDiffData={mergeDiffData ?? undefined}
+          currentFile={editorCurrentFile}
+          latestVersionPreview={editorLatestVersionPreview}
+          onSaveSuccess={(newVersion: number) => {
+            setEditorOpen(false);
+            setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            setEditorCurrentFile(null);
+            setEditorLatestVersionPreview(null);
+            loadDocument();
+          }}
+          onConflictDetected={handleEditorConflict}
+          conflictResolverActive={conflictOpen}
+        />
+      )}
+
+      {/* Conflict Resolver — client-only, never SSR */}
+      {mounted && document && conflictData && (
+        <ConflictResolver
+          open={conflictOpen}
+          onClose={() => {
+            setConflictOpen(false);
+            setConflictData(null);
+            setCurrentFileAtConflict(null);
+            setEditorOpen(false);
+            setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            // Release the lock since user chose not to resolve the conflict.
+            // The lock was preserved during the conflict resolution session.
+            if (conflictData) {
+              onlyOfficeService.releaseLock(documentId, conflictData.lock.lockToken).catch(() => {});
+            }
+          }}
+          documentId={documentId}
+          documentTitle={document.title || document.originalFilename || 'Tài liệu'}
+          conflictData={conflictData!}
+          currentFile={currentFileAtConflict}
+          onResolved={(strategy, newVersion) => {
+            setConflictOpen(false);
+            setConflictData(null);
+            setCurrentFileAtConflict(null);
+            setEditorOpen(false);
+            setEditorTargetVersion(undefined);
+            setMergeDiffData(null);
+            // Release the lock after conflict resolution.
+            // After merge_as_new, backend extends the lock, so we must release it here.
+            if (conflictData) {
+              onlyOfficeService.releaseLock(documentId, conflictData.lock.lockToken).catch(() => {});
+            }
+            loadDocument();
+          }}
+          onReEdit={() => {
+            setConflictOpen(false);
+            setConflictData(null);
+            // Pass current file blob + latest version preview to the editor
+            setEditorCurrentFile(currentFileAtConflict);
+            // Keep the latest preview already computed on conflict detection.
+            // (ConflictResolver may not have the latest version number if status call failed.)
+            setEditorLatestVersionPreview((prev) => prev || { versionNumber: document.currentVersion || 1 });
+            // Upgrade the lock to the latest version so it doesn't trigger another conflict on save
+            setEditorTargetVersion(conflictData.currentVersion);
+            setMergeDiffData(null);
+            setEditorOpen(true);
+          }}
+        />
+      )}
+
+      {/* Edit Old Version Modal */}
+      {mounted && document && selectedVersion && (
+        <EditOldVersionModal
+          open={editOldVersionOpen}
+          onClose={() => {
+            setEditOldVersionOpen(false);
+            setSelectedVersion(null);
+          }}
+          documentId={documentId}
+          documentTitle={document.title || document.originalFilename || 'Tài liệu'}
+          version={selectedVersion}
+          currentVersion={document.currentVersion || 1}
+          onOpenEditor={(targetVersion) => {
+            setEditOldVersionOpen(false);
+            setSelectedVersion(null);
+            openEditor(targetVersion);
+          }}
         />
       )}
     </div>

@@ -186,6 +186,13 @@
 			<version>3.9.0</version>
 		</dependency>
 
+		<!-- java-diff-utils for text diffing (OnlyOffice conflict resolution) -->
+		<dependency>
+			<groupId>io.github.java-diff-utils</groupId>
+			<artifactId>java-diff-utils</artifactId>
+			<version>4.12</version>
+		</dependency>
+
 	</dependencies>
 
 	<!-- Build plugin -->

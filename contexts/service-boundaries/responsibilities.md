@@ -32,7 +32,7 @@ Consult this file before implementing any feature to determine:
 | `feedback-service` | `analytics` | Usage stats, unanswered questions, reports, feedback | Spring Boot 3.4.3 | 8085 |
 | `ingestion-service` | `knowledge` (writes only) | File extraction, standardization, chunking, embedding generation | FastAPI (Python) | 8088 |
 | `ai-qa-service` | `conversation`, `analytics` (writes) | Query processing, retrieval orchestration, LLM generation, conversation management | FastAPI (Python) | 8086 |
-| `api-gateway` | None (routing only) | JWT validation, RBAC, rate limiting, proxy, tracing, circuit breaking | NestJS 11.x | 3000 |
+| `api-gateway` | None (routing only) | JWT validation, RBAC, rate limiting, proxy, tracing, circuit breaking, API metrics | NestJS 11.x | 3000 |
 
 ---
 
@@ -172,7 +172,30 @@ GET    /api/v1/documents
 GET    /api/v1/documents/{id}
 POST   /api/v1/documents/upload
 DELETE /api/v1/documents/{id}
+
+# OnlyOffice Document Editing Integration
+POST   /api/v1/documents/{id}/lock           # Acquire edit lock
+DELETE /api/v1/documents/{id}/lock           # Release edit lock
+GET    /api/v1/documents/{id}/editor-config  # Get OnlyOffice editor config (JWT-signed)
+POST   /api/v1/documents/{id}/save-callback  # OnlyOffice save callback (JWT auth)
+GET    /api/v1/documents/{id}/conflict-status # Check conflict status
+GET    /api/v1/documents/{id}/versions/diff  # Get diff between versions
+POST   /api/v1/documents/{id}/resolve-conflict # Resolve version conflict
+POST   /api/v1/documents/{id}/force-push     # Force-push version (ADMIN)
+DELETE /api/v1/documents/{id}/versions/{n}   # Delete specific version (ADMIN)
+GET    /api/v1/documents/{id}/fetch-latest   # Get latest version metadata + presigned URL
+POST   /api/v1/documents/{id}/save-callback/autocomplete  # Autocomplete callback placeholder
 ```
+
+OnlyOffice audit actions logged to `poliwise_knowledge.document_audit_logs`:
+- `ONLYOFFICE_LOCK_ACQUIRED` — user started editing (versionAtLock captured)
+- `ONLYOFFICE_LOCK_EXTENDED` — lock auto-renewed (e.g., periodic refresh)
+- `ONLYOFFICE_LOCK_EXPIRED` — expired lock auto-removed during acquire attempt
+- `ONLYOFFICE_LOCK_RELEASED` — user closed editor or released lock manually
+- `ONLYOFFICE_CONFLICT_DETECTED` — save callback found newer version on server
+- `ONLYOFFICE_SAVE_SUCCESS` — editor save completed without conflict
+- `ONLYOFFICE_CONFLICT_RESOLVED` — conflict resolved (strategy: merge/discard/force-push)
+- `ONLYOFFICE_VERSION_DELETED` — ADMIN deleted a historical version
 
 **metadata-service** (`:8084`):
 ```
@@ -215,6 +238,18 @@ GET    /api/v1/ai/history
 POST   /api/v1/feedback
 GET    /api/v1/ai/unanswered      # Manager+
 PUT    /api/v1/ai/unanswered/{id}/resolve
+```
+
+**API Gateway** (`:3000`):
+```
+# Public health endpoints
+GET    /health                    # Basic status
+GET    /health/live               # Liveness probe
+GET    /health/ready              # Readiness probe (checks downstream services)
+GET    /health/circuit-breakers   # Circuit breaker status per service
+
+# Authenticated endpoints (MANAGER/ADMIN)
+GET    /health/api-metrics        # API request metrics: success rate, per-endpoint stats, daily error trends
 ```
 
 **ai-qa-service** (`:8086`):
@@ -465,6 +500,6 @@ services:
 
 ---
 
-**Last Updated**: 2026-05-05
+**Last Updated**: 2026-05-19
 **Maintained By**: Architecture Team
 **Critical**: Any changes to service boundaries require team-wide review.

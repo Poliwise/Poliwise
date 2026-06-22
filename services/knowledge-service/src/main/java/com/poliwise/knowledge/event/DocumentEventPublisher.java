@@ -25,7 +25,14 @@ public class DocumentEventPublisher {
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.KNOWLEDGE_EXCHANGE,
                     RabbitMQConfig.DOCUMENT_ROUTING_KEY_UPLOADED,
-                    Map.of("payload", event)
+                    Map.of(
+                            "routingKey", RabbitMQConfig.DOCUMENT_ROUTING_KEY_UPLOADED,
+                            "documentId", event.documentId(),
+                            "documentName", event.fileName(),
+                            "uploadedBy", event.uploadedBy(),
+                            "fileSizeBytes", event.fileSizeBytes(),
+                            "fileKey", event.fileKey()
+                    )
             );
             log.info("Published DocumentUploadedEvent: documentId={}, fileName={}",
                     event.documentId(), event.fileName());
@@ -39,7 +46,12 @@ public class DocumentEventPublisher {
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.KNOWLEDGE_EXCHANGE,
                     RabbitMQConfig.DOCUMENT_ROUTING_KEY_DELETED,
-                    Map.of("payload", event)
+                    Map.of(
+                            "routingKey", RabbitMQConfig.DOCUMENT_ROUTING_KEY_DELETED,
+                            "documentId", event.documentId(),
+                            "documentName", event.documentName(),
+                            "deletedBy", event.deletedBy()
+                    )
             );
             log.info("Published DocumentDeletedEvent: documentId={}", event.documentId());
         } catch (Exception e) {

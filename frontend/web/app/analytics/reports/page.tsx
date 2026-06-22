@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +26,17 @@ import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsManager } from '@/store';
 import styles from './reports.module.css';
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+}
 
 type ReportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 type ReportType = 'USAGE_SUMMARY' | 'QUESTION_ANALYTICS' | 'FEEDBACK_ANALYSIS' | 'USER_ENGAGEMENT' | 'DOCUMENT_POPULARITY' | 'UNANSWERED_QUESTIONS' | 'DEPARTMENT_BREAKDOWN';
@@ -59,7 +71,12 @@ const STATUS_CONFIG: Record<ReportStatus, { label: string; variant: 'warning' | 
   FAILED: { label: 'Thất bại', variant: 'destructive' },
 };
 
-export default function ReportsPage() {
+export default dynamic(
+  () => Promise.resolve(ReportsPage),
+  { ssr: false },
+);
+
+function ReportsPage() {
   const router = useRouter();
   const isManager = useIsManager();
   const [reports, setReports] = useState<Report[]>([]);
@@ -111,7 +128,7 @@ export default function ReportsPage() {
       await api.reports.create({
         type: selectedType,
         format: selectedFormat,
-        // Backend API doesn't seem to take 'name' in create, but we'll send it if needed
+        title: reportName || undefined,
       });
       setModalOpen(false);
       setReportName('');
@@ -142,9 +159,11 @@ export default function ReportsPage() {
     setDeleting(true);
     setError(null);
     try {
-      // Reports API doesn't have delete, just remove from UI list
+      await api.reports.delete(deleteTarget.id);
       setReports((prev) => prev.filter((r) => r.id !== deleteTarget.id));
       setDeleteTarget(null);
+    } catch {
+      setError('Xóa báo cáo thất bại');
     } finally {
       setDeleting(false);
     }
@@ -188,7 +207,7 @@ export default function ReportsPage() {
     {
       key: 'createdAt',
       header: 'Ngày tạo',
-      render: (r) => new Date(r.createdAt).toLocaleString('vi-VN'),
+      render: (r) => formatDate(r.createdAt),
     },
     {
       key: 'actions',

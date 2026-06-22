@@ -21,6 +21,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { useUserRole, useAuthStore } from '@/store';
+import { useLanguage } from '@/providers';
 import { UserRole } from '@/types';
 import styles from './Sidebar.module.css';
 
@@ -29,87 +30,29 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  roles?: UserRole[];
-  dividerBefore?: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    label: 'Hỏi đáp AI',
-    href: '/',
-    icon: <MessageSquare size={20} />,
-  },
-  {
-    label: 'Tài liệu',
-    href: '/documents',
-    icon: <BookOpen size={20} />,
-  },
-  {
-    label: 'Báo cáo phân tích',
-    href: '/analytics',
-    icon: <BarChart3 size={20} />,
-    roles: [UserRole.MANAGER, UserRole.ADMIN],
-  },
-];
-
-const ADMIN_ITEMS: NavItem[] = [
-  {
-    label: 'Quản lý người dùng',
-    href: '/admin/users',
-    icon: <Users size={20} />,
-    roles: [UserRole.ADMIN],
-    dividerBefore: true,
-  },
-  {
-    label: 'Phòng ban',
-    href: '/admin/departments',
-    icon: <Building2 size={20} />,
-    roles: [UserRole.ADMIN],
-  },
-  {
-    label: 'Danh mục',
-    href: '/admin/metadata/categories',
-    icon: <FolderOpen size={20} />,
-    roles: [UserRole.ADMIN],
-  },
-  {
-    label: 'Nhãn',
-    href: '/admin/metadata/tags',
-    icon: <Tags size={20} />,
-    roles: [UserRole.ADMIN],
-  },
-  {
-    label: 'Nhật ký hệ thống',
-    href: '/admin/audit-logs',
-    icon: <ScrollText size={20} />,
-    roles: [UserRole.ADMIN],
-    dividerBefore: true,
-  },
-  {
-    label: 'Câu hỏi chưa trả lời',
-    href: '/admin/unanswered',
-    icon: <Brain size={20} />,
-    roles: [UserRole.ADMIN, UserRole.MANAGER],
-    dividerBefore: true,
-  },
-  {
-    label: 'Xuất báo cáo',
-    href: '/analytics/reports',
-    icon: <FileBarChart size={20} />,
-    roles: [UserRole.ADMIN, UserRole.MANAGER],
-  },
-];
-
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const userRole = useUserRole();
+  const { t } = useLanguage();
 
-  const filterByRole = (items: NavItem[]) =>
+  const filterByRole = (items: { label: string; href: string; icon: React.ReactNode; roles?: UserRole[]; dividerBefore?: boolean }[]) =>
     items.filter((item) => !item.roles || item.roles.includes(userRole as UserRole));
+
+  const NAV_ITEMS = [
+    { label: t('nav.ask'), href: '/', icon: <MessageSquare size={20} /> },
+    { label: t('nav.documents'), href: '/documents', icon: <BookOpen size={20} /> },
+    { label: t('nav.analytics'), href: '/analytics', icon: <BarChart3 size={20} />, roles: [UserRole.MANAGER, UserRole.ADMIN] as UserRole[] },
+  ];
+
+  const ADMIN_ITEMS = [
+    { label: t('admin.users.title'), href: '/admin/users', icon: <Users size={20} />, roles: [UserRole.ADMIN] as UserRole[], dividerBefore: true },
+    { label: t('admin.depts.title'), href: '/admin/departments', icon: <Building2 size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
+    { label: t('admin.categories.title'), href: '/admin/metadata/categories', icon: <FolderOpen size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
+    { label: t('admin.tags.title'), href: '/admin/metadata/tags', icon: <Tags size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
+    { label: t('admin.audit.title'), href: '/admin/audit-logs', icon: <ScrollText size={20} />, roles: [UserRole.ADMIN] as UserRole[], dividerBefore: true },
+    { label: t('admin.unanswered.title'), href: '/admin/unanswered', icon: <Brain size={20} />, roles: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[], dividerBefore: true },
+    { label: t('analytics.export'), href: '/analytics/reports', icon: <FileBarChart size={20} />, roles: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[] },
+  ];
 
   const filteredNav = filterByRole(NAV_ITEMS);
   const filteredAdmin = filterByRole(ADMIN_ITEMS);
@@ -120,7 +63,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     window.location.href = '/login';
   };
 
-  const renderNavItem = (item: NavItem) => (
+  const renderNavItem = (item: { label: string; href: string; icon: React.ReactNode; roles?: UserRole[]; dividerBefore?: boolean }) => (
     <Link
       key={item.href}
       href={item.href}
@@ -153,7 +96,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <nav className={styles.nav}>
           {/* Main navigation */}
           <div className={styles.section}>
-            <span className={styles.sectionTitle}>Chính</span>
+            <span className={styles.sectionTitle}>{t('nav.admin')}</span>
             {filteredNav.map(renderNavItem)}
           </div>
 
@@ -162,7 +105,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className={styles.section}>
               <span className={styles.sectionTitle}>
                 <Shield size={14} />
-                Quản trị
+                {t('nav.admin')}
               </span>
               {filteredAdmin.map((item) => (
                 <div key={item.href}>
@@ -178,15 +121,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className={styles.footer}>
           <Link href="/profile" className={styles.navItem} onClick={onClose}>
             <User size={20} />
-            <span>Trang cá nhân</span>
+            <span>{t('nav.profile')}</span>
           </Link>
           <Link href="/admin/settings" className={styles.navItem} onClick={onClose}>
             <Settings size={20} />
-            <span>Cài đặt</span>
+            <span>{t('nav.settings')}</span>
           </Link>
           <button className={styles.navItem} onClick={handleLogout}>
             <LogOut size={20} />
-            <span>Đăng xuất</span>
+            <span>{t('nav.logout')}</span>
           </button>
         </div>
       </aside>

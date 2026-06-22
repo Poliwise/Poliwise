@@ -19,6 +19,9 @@ public class MinioConfig {
     @Value("${minio.endpoint:http://localhost:9000}")
     private String endpoint;
 
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String publicUrl;
+
     @Value("${minio.access-key:minioadmin}")
     private String accessKey;
 
@@ -39,6 +42,10 @@ public class MinioConfig {
         return client;
     }
 
+    public String getPublicUrl() {
+        return publicUrl;
+    }
+
     private void initBucket(MinioClient client) {
         try {
             boolean exists = client.bucketExists(
@@ -46,9 +53,6 @@ public class MinioConfig {
             );
             if (!exists) {
                 client.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-                log.info("Created MinIO bucket: {}", bucketName);
-            } else {
-                log.info("MinIO bucket already exists: {}", bucketName);
             }
         } catch (Exception e) {
             log.warn("Could not initialize MinIO bucket (may not be available): {}", e.getMessage());

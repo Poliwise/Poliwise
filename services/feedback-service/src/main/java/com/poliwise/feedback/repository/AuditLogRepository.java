@@ -25,6 +25,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID>, JpaSp
 
     Page<AuditLog> findByCreatedAtBetween(Instant from, Instant to, Pageable pageable);
 
+    Page<AuditLog> findByUsernameContainingIgnoreCase(String keyword, Pageable pageable);
+
     @Query("SELECT COUNT(a) FROM AuditLog a WHERE a.createdAt < :before")
     long countByCreatedAtBefore(@Param("before") Instant before);
 

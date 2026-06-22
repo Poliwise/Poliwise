@@ -158,6 +158,7 @@ export class ProxyService {
     params?: Record<string, string>;
     timeout: number;
     isStream?: boolean;
+    isBinary?: boolean;
   }): Promise<unknown> {
     const authHeader = context.headers['authorization'] || context.headers['Authorization'];
     const hasAuth = !!authHeader;
@@ -167,17 +168,15 @@ export class ProxyService {
       `| Headers: ${JSON.stringify(context.headers).substring(0, 200)}`,
     );
 
-    // Detect binary responses (download/preview endpoints) to prevent Axios from JSON-parsing them
-    const isDownloadRequest = context.url.includes('/download') || context.url.includes('/preview');
-    
-    let responseType: AxiosRequestConfig['responseType'] = isDownloadRequest
+    // Detect binary responses (download/preview/file endpoints) to prevent Axios from JSON-parsing them
+    const isDownloadRequest = context.url.includes('/download') || context.url.includes('/preview') || context.url.includes('/file');
+    let responseType: AxiosRequestConfig['responseType'] = isDownloadRequest || context.isBinary
       ? 'arraybuffer'
       : 'json';
 
     if (context.isStream) {
       responseType = 'stream';
     }
-
     const config: AxiosRequestConfig = {
       method: context.method as any,
       url: context.url,
@@ -195,6 +194,19 @@ export class ProxyService {
         `Response from ${context.url}: status=${response.status}, ` +
         `auth-received=${response.headers['authorization'] || 'none'}`,
       );
+
+      // For binary streams/file downloads, pass data through without JSON wrapping.
+      // OnlyOffice DS expects raw binary content from the file endpoint.
+      if (context.isBinary || isDownloadRequest) {
+        return {
+          _proxied: true,
+          data: response.data,
+          statusCode: response.status,
+          headers: this.extractProxyHeaders(response.headers as Record<string, string>),
+          isBinary: true,
+        };
+      }
+
       return {
         _proxied: true,
         data: response.data,
@@ -217,21 +229,24 @@ export class ProxyService {
     request: Request,
     path: string,
     isStream = false,
+    isBinary = false,
   ): Observable<unknown> {
     const serviceConfig = this.services[service];
     if (!serviceConfig) {
       return throwError(() => new Error(`Unknown service: ${service}`));
     }
-    
+
     const targetUrl = `${serviceConfig.baseUrl}${path}`;
     const user = request.user as IUserContext | undefined;
     const traceId =
       (request.headers[TRACE_ID_HEADER.toLowerCase()] as string) || undefined;
 
+    const contentType = (request.headers['content-type'] as string) || '';
+    const isMultipart = contentType.toLowerCase().includes('multipart/form-data');
     const headers = this.buildForwardHeaders(request, user, traceId);
     const method = request.method.toLowerCase();
     const data = ['post', 'put', 'patch'].includes(method)
-      ? request.body
+      ? (isMultipart ? request : request.body)
       : undefined;
     const params = request.query as Record<string, string>;
 
@@ -243,6 +258,7 @@ export class ProxyService {
       params,
       timeout: isStream ? 0 : serviceConfig.timeout,
       isStream,
+      isBinary,
     };
 
     const breaker = this.circuitBreakers.get(service);
@@ -269,9 +285,10 @@ export class ProxyService {
     params?: Record<string, string>;
     timeout: number;
     isStream?: boolean;
+    isBinary?: boolean;
   }): Observable<unknown> {
     const isDownloadRequest =
-      context.url.includes('/download') || context.url.includes('/preview');
+      context.url.includes('/download') || context.url.includes('/preview') || context.url.includes('/file');
     
     let responseType: AxiosRequestConfig['responseType'] = isDownloadRequest
       ? 'arraybuffer'
@@ -293,12 +310,16 @@ export class ProxyService {
     };
 
     return from(this.axiosInstance.request(config)).pipe(
-      map((response) => ({
-        _proxied: true,
-        data: response.data,
-        statusCode: response.status,
-        headers: this.extractProxyHeaders(response.headers as Record<string, string>),
-      })),
+      map((response) => {
+        const isBinaryResponse = context.isBinary || isDownloadRequest;
+        return {
+          _proxied: true,
+          data: response.data,
+          statusCode: response.status,
+          headers: this.extractProxyHeaders(response.headers as Record<string, string>),
+          isBinary: isBinaryResponse,
+        };
+      }),
       catchError((error: AxiosError) => {
         const traceId = context.headers[TRACE_ID_HEADER] || undefined;
         if (

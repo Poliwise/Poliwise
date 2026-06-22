@@ -18,8 +18,12 @@ import {
 } from '@/services/document.service';
 import type { Category, CategoryTree } from '@/types/document';
 import { IconPicker, getIconByName } from '@/components/common/IconPicker';
+import { useLanguage } from '@/providers';
+import { Translator } from '@/lib/i18n';
 
 export default function CategoriesPage() {
+  const { t } = useLanguage();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryTree, setCategoryTree] = useState<CategoryTree[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +64,7 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (category: Category) => {
-    if (!confirm(`Bạn có chắc muốn xóa danh mục "${category.name}"?`)) return;
+    if (!confirm(t('admin.categories.confirm.delete').replace('{name}', category.name))) return;
     try {
       await categoryService.deleteCategory(category.id);
       loadCategories();
@@ -106,9 +110,9 @@ export default function CategoriesPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý danh mục</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('admin.categories.title')}</h1>
               <p className="mt-1 text-sm text-gray-500">
-                {categories.length} danh mục
+                {t('admin.categories.count').replace('{count}', String(categories.length))}
               </p>
             </div>
             <button
@@ -116,7 +120,7 @@ export default function CategoriesPage() {
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Thêm danh mục
+              {t('admin.categories.add')}
             </button>
           </div>
 
@@ -125,7 +129,7 @@ export default function CategoriesPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm danh mục..."
+              placeholder={t('admin.categories.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -147,12 +151,12 @@ export default function CategoriesPage() {
           {filteredTree.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p>Không có danh mục nào</p>
+              <p>{t('admin.categories.empty')}</p>
               <button
                 onClick={handleCreate}
                 className="mt-4 text-indigo-600 hover:text-indigo-800"
               >
-                Tạo danh mục đầu tiên
+                {t('admin.categories.empty.start')}
               </button>
             </div>
           ) : searchQuery ? (
@@ -212,6 +216,7 @@ export default function CategoriesPage() {
           categories={categories.filter((c) => c.id !== editingCategory?.id)}
           onClose={() => setShowModal(false)}
           onSuccess={handleSuccess}
+          t={t}
         />
       )}
     </div>
@@ -312,11 +317,13 @@ function CategoryModal({
   categories,
   onClose,
   onSuccess,
+  t,
 }: {
   category: Category | null;
   categories: Category[];
   onClose: () => void;
   onSuccess: () => void;
+  t: Translator;
 }) {
   const [formData, setFormData] = useState({
     name: category?.name || '',
@@ -352,12 +359,12 @@ function CategoryModal({
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
         <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {category ? 'Sửa danh mục' : 'Thêm danh mục mới'}
+            {category ? t('admin.categories.modal.edit') : t('admin.categories.modal.create')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tên <span className="text-red-500">*</span>
+                {t('admin.categories.modal.name.required')}
               </label>
               <input
                 type="text"
@@ -368,7 +375,7 @@ function CategoryModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.categories.modal.description')}</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -377,13 +384,13 @@ function CategoryModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục cha</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.categories.modal.parent')}</label>
               <select
                 value={formData.parentId}
                 onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">Không có (Danh mục gốc)</option>
+                <option value="">{t('admin.categories.modal.parent.none')}</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
@@ -393,12 +400,12 @@ function CategoryModal({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <IconPicker
-                label="Icon"
+                label={t('admin.categories.modal.icon')}
                 value={formData.icon}
                 onChange={(icon) => setFormData({ ...formData, icon })}
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.categories.modal.order')}</label>
                 <input
                   type="number"
                   value={formData.displayOrder}
@@ -418,14 +425,14 @@ function CategoryModal({
                 onClick={onClose}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Hủy
+                {t('admin.categories.modal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
-                {saving ? 'Đang lưu...' : 'Lưu'}
+                {saving ? t('admin.categories.modal.saving') : t('admin.categories.modal.save')}
               </button>
             </div>
           </form>

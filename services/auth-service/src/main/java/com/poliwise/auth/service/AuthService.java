@@ -7,6 +7,7 @@ import com.poliwise.auth.dto.auth.LoginRequest;
 import com.poliwise.auth.dto.auth.RegisterRequest;
 import com.poliwise.auth.dto.auth.TokenResponse;
 import com.poliwise.auth.dto.event.UserRegisteredEvent;
+import com.poliwise.auth.dto.event.LoginAuditEvent;
 import com.poliwise.auth.entity.LoginHistory;
 import com.poliwise.auth.entity.User;
 import com.poliwise.auth.enums.AccountStatus;
@@ -180,6 +181,14 @@ public class AuthService {
         if (rawAccessToken != null && !rawAccessToken.isBlank()) {
             jwtTokenProvider.blacklistToken(rawAccessToken, userId, "LOGOUT");
         }
+
+        try {
+            authEventPublisher.publishLogout(
+                    LoginAuditEvent.logout(userId, null, null, null)
+            );
+        } catch (Exception e) {
+            log.warn("Failed to publish logout audit event for userId={}: {}", userId, e.getMessage());
+        }
     }
 
     @Transactional
@@ -249,6 +258,7 @@ public class AuthService {
                 .createdAt(Instant.now())
                 .build();
         loginHistoryRepository.save(history);
+        publishLoginAuditEvent(user.getId(), user.getUsername(), "SUCCESS", null, metadata);
     }
 
     private void saveFailedHistory(UUID userId, String username, ClientMetadata metadata, LoginStatus status, String reason) {
@@ -264,6 +274,31 @@ public class AuthService {
                 .createdAt(Instant.now())
                 .build();
         loginHistoryRepository.save(history);
+        publishLoginAuditEvent(userId, username, "FAILED", reason, metadata);
+    }
+
+    private void publishLoginAuditEvent(UUID userId, String username, String status, String reason, ClientMetadata metadata) {
+        try {
+            LoginAuditEvent event = new LoginAuditEvent(
+                    UUID.randomUUID(),
+                    userId,
+                    username,
+                    status,
+                    reason,
+                    metadata.ipAddress(),
+                    metadata.userAgent(),
+                    OffsetDateTime.now()
+            );
+            if ("SUCCESS".equals(status)) {
+                authEventPublisher.publishLoginSuccess(event);
+            } else if ("LOGOUT".equals(status)) {
+                authEventPublisher.publishLogout(event);
+            } else {
+                authEventPublisher.publishLoginFailed(event);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish login audit event for user {}: {}", username, e.getMessage());
+        }
     }
 
     private AuthUserView toUserView(User user, UUID registeredBy) {

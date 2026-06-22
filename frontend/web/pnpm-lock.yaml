@@ -6007,6 +6007,7 @@ snapshots:
       react-markdown: 10.1.0(@types/react@19.2.14)(react@19.2.3)
       react-query: 3.39.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       recharts: 3.8.1(@types/react@19.2.14)(react-dom@19.2.3(react@19.2.3))(react-is@16.13.1)(react@19.2.3)(redux@5.0.1)
+      rehype-raw: 7.0.0
       remark-gfm: 4.0.1
       sass: 1.98.0
       zustand: 5.0.11(@types/react@19.2.14)(immer@11.1.4)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))

@@ -252,7 +252,7 @@ public class DocumentManagementService {
 
         // Publish deletion event
         eventPublisher.publishDocumentDeleted(
-                com.poliwise.knowledge.dto.event.DocumentDeletedEvent.create(documentId, deletedBy)
+                com.poliwise.knowledge.dto.event.DocumentDeletedEvent.create(documentId, document.getOriginalFilename(), deletedBy)
         );
 
         log.info("Document soft deleted: id={}", documentId);
@@ -335,6 +335,21 @@ public class DocumentManagementService {
                     .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
             return storageService.readFileContent(document.getFileKey());
         }
+    }
+
+    // ========== Stats ==========
+
+    public DocumentStatsResponse getStats() {
+        long total = documentRepository.countByDeletedAtIsNull();
+
+        Collection<ProcessingStatus> activeStatuses = List.of(
+                ProcessingStatus.PARSED, ProcessingStatus.CHUNKED,
+                ProcessingStatus.EMBEDDED, ProcessingStatus.INDEXED,
+                ProcessingStatus.READY
+        );
+        long active = documentRepository.countActiveByStatuses(activeStatuses);
+
+        return new DocumentStatsResponse(total, active);
     }
 
     // ========== Audit Logs ==========

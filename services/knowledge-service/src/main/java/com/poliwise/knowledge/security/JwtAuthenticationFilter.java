@@ -145,7 +145,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/actuator/")
                 || path.equals("/api/v1/auth/login")
                 || path.equals("/api/v1/auth/register")
-                || path.equals("/api/v1/auth/refresh");
+                || path.equals("/api/v1/auth/refresh")
+                || path.contains("/save-callback") // OnlyOffice Document Server callback
+                || path.contains("/file") // OnlyOffice Document Server file download
+                || path.equals("/api/v1/documents/stats"); // internal service stats
     }
 
     private UUID parseDepartment(String value) {

@@ -117,6 +117,12 @@ public class DocumentController {
         return ResponseEntity.ok(response);
     }
 
+    // ===== Stats (internal service) =====
+    @GetMapping("/stats")
+    public ResponseEntity<DocumentStatsResponse> getStats() {
+        return ResponseEntity.ok(documentManagementService.getStats());
+    }
+
     // ===== 3. List Documents (Search + Filter + Pagination) =====
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")

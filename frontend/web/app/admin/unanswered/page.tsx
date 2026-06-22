@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   HelpCircle,
@@ -17,12 +17,12 @@ import {
   Column,
   Modal,
   ConfirmDialog,
-  PageHeader,
   EmptyState,
 } from '@/components/ui';
-import { MainLayout } from '@/components/layout';
 import { api } from '@/lib/api';
 import { useIsManager } from '@/store';
+import { Translator } from '@/lib/i18n';
+import { useLanguage } from '@/providers';
 import styles from './unanswered.module.css';
 
 type UnansweredStatus = 'PENDING' | 'REVIEWING' | 'ANSWERED' | 'REJECTED';
@@ -39,16 +39,20 @@ interface UnansweredQuestion {
   suggestedAnswer?: string;
 }
 
-const STATUS_CONFIG: Record<UnansweredStatus, { label: string; variant: 'warning' | 'neutral' | 'success' | 'destructive' }> = {
-  PENDING: { label: 'Chưa xử lý', variant: 'warning' },
-  REVIEWING: { label: 'Đang xem xét', variant: 'neutral' },
-  ANSWERED: { label: 'Đã trả lời', variant: 'success' },
-  REJECTED: { label: 'Từ chối', variant: 'destructive' },
-};
+function getStatusConfig(t: Translator) {
+  return {
+    PENDING: { label: t('admin.unanswered.status.pending'), variant: 'warning' as const },
+    REVIEWING: { label: t('admin.unanswered.status.reviewing'), variant: 'neutral' as const },
+    ANSWERED: { label: t('admin.unanswered.status.answered'), variant: 'success' as const },
+    REJECTED: { label: t('admin.unanswered.status.rejected'), variant: 'destructive' as const },
+  };
+}
 
 export default function UnansweredQuestionsPage() {
   const router = useRouter();
   const isManager = useIsManager();
+  const { t } = useLanguage();
+  const STATUS_CONFIG = getStatusConfig(t);
 
   const [questions, setQuestions] = useState<UnansweredQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,14 +60,15 @@ export default function UnansweredQuestionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Resolve modal
   const [resolveTarget, setResolveTarget] = useState<UnansweredQuestion | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [resolving, setResolving] = useState(false);
 
-  // Reject modal
   const [rejectTarget, setRejectTarget] = useState<UnansweredQuestion | null>(null);
   const [rejecting, setRejecting] = useState(false);
+
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const loadQuestions = useCallback(async () => {
     setLoading(true);
@@ -72,7 +77,7 @@ export default function UnansweredQuestionsPage() {
       const data = await api.analytics.getUnansweredQuestions();
       setQuestions(data as unknown as UnansweredQuestion[]);
     } catch {
-      setError('Không thể tải danh sách câu hỏi chưa trả lời.');
+      setError(tRef.current('admin.unanswered.loadError'));
     } finally {
       setLoading(false);
     }
@@ -96,7 +101,7 @@ export default function UnansweredQuestionsPage() {
       setAnswerText('');
       loadQuestions();
     } catch {
-      setError('Không thể đánh dấu đã trả lời.');
+      setError(tRef.current('admin.unanswered.answerError'));
     } finally {
       setResolving(false);
     }
@@ -111,7 +116,7 @@ export default function UnansweredQuestionsPage() {
       setRejectTarget(null);
       loadQuestions();
     } catch {
-      setError('Không thể từ chối câu hỏi.');
+      setError(tRef.current('admin.unanswered.rejectError'));
     } finally {
       setRejecting(false);
     }
@@ -124,17 +129,17 @@ export default function UnansweredQuestionsPage() {
   });
 
   const statusOptions = [
-    { value: '', label: 'Tất cả trạng thái' },
-    { value: 'PENDING', label: 'Chưa xử lý' },
-    { value: 'REVIEWING', label: 'Đang xem xét' },
-    { value: 'ANSWERED', label: 'Đã trả lời' },
-    { value: 'REJECTED', label: 'Từ chối' },
+    { value: '', label: t('admin.unanswered.filter.allStatuses') },
+    { value: 'PENDING', label: t('admin.unanswered.status.pending') },
+    { value: 'REVIEWING', label: t('admin.unanswered.status.reviewing') },
+    { value: 'ANSWERED', label: t('admin.unanswered.status.answered') },
+    { value: 'REJECTED', label: t('admin.unanswered.status.rejected') },
   ];
 
   const columns: Column<UnansweredQuestion>[] = [
     {
       key: 'question',
-      header: 'Câu hỏi',
+      header: t('admin.unanswered.table.question'),
       render: (q) => (
         <div className={styles.questionCell}>
           <HelpCircle size={14} />
@@ -144,25 +149,25 @@ export default function UnansweredQuestionsPage() {
     },
     {
       key: 'askCount',
-      header: 'Số lần',
+      header: t('admin.unanswered.table.count'),
       align: 'center',
       render: (q) => <Badge variant="neutral">{q.askCount}</Badge>,
     },
     {
       key: 'departmentName',
-      header: 'Phòng ban',
+      header: t('admin.unanswered.table.department'),
       render: (q) => <span className={styles.deptText}>{q.departmentName || '-'}</span>,
     },
     {
       key: 'lastAskedAt',
-      header: 'Hỏi lần cuối',
+      header: t('admin.unanswered.table.lastAsked'),
       render: (q) => new Date(q.lastAskedAt).toLocaleDateString('vi-VN'),
     },
     {
       key: 'status',
-      header: 'Trạng thái',
+      header: t('admin.unanswered.table.status'),
       render: (q) => {
-        const s = STATUS_CONFIG[q.status];
+        const s = STATUS_CONFIG[q.status as keyof typeof STATUS_CONFIG];
         return <Badge variant={s.variant}>{s.label}</Badge>;
       },
     },
@@ -175,10 +180,10 @@ export default function UnansweredQuestionsPage() {
         q.status !== 'ANSWERED' && q.status !== 'REJECTED' ? (
           <div className={styles.rowActions}>
             <Button variant="ghost" size="sm" onClick={() => setResolveTarget(q)}>
-              Trả lời
+              {t('admin.unanswered.action.answer')}
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setRejectTarget(q)}>
-              Từ chối
+              {t('admin.unanswered.action.reject')}
             </Button>
           </div>
         ) : null,
@@ -186,18 +191,24 @@ export default function UnansweredQuestionsPage() {
   ];
 
   return (
-    <MainLayout>
-      <div className={styles.container}>
-        <PageHeader
-          title="Câu hỏi chưa trả lời"
-          description="Theo dõi và xử lý các câu hỏi chưa được trả lời."
-        />
+    <div className={styles.pageWrapper}>
+      {/* Page Header */}
+      <div className={styles.pageHeader}>
+        <div className={styles.pageHeaderInner}>
+          <div>
+            <h1 className={styles.pageTitle}>{t('admin.unanswered.title')}</h1>
+            <p className={styles.pageSubtitle}>{t('admin.unanswered.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
+      {/* Content */}
+      <div className={styles.pageBody}>
         {error && <div className={styles.error}>{error}</div>}
 
         <div className={styles.filters}>
           <Input
-            placeholder="Tìm kiếm câu hỏi..."
+            placeholder={t('admin.unanswered.search.placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             leftIcon={<Search size={16} />}
@@ -220,8 +231,8 @@ export default function UnansweredQuestionsPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<CheckCircle size={32} />}
-            title="Không có câu hỏi chưa trả lời"
-            description="Tất cả câu hỏi đã được xử lý."
+            title={t('admin.unanswered.empty.title')}
+            description={t('admin.unanswered.empty.description')}
           />
         ) : (
           <Table columns={columns} data={filtered} keyExtractor={(q) => q.id} />
@@ -231,13 +242,13 @@ export default function UnansweredQuestionsPage() {
         <Modal
           open={!!resolveTarget}
           onClose={() => { setResolveTarget(null); setAnswerText(''); }}
-          title="Trả lời câu hỏi"
+          title={t('admin.unanswered.modal.answer.title')}
           size="md"
           footer={
             <>
-              <Button variant="secondary" onClick={() => { setResolveTarget(null); setAnswerText(''); }}>Hủy</Button>
+              <Button variant="secondary" onClick={() => { setResolveTarget(null); setAnswerText(''); }}>{t('admin.unanswered.modal.answer.cancel')}</Button>
               <Button variant="primary" loading={resolving} onClick={handleResolve} disabled={!answerText.trim()}>
-                Gửi câu trả lời
+                {t('admin.unanswered.modal.answer.submit')}
               </Button>
             </>
           }
@@ -249,7 +260,7 @@ export default function UnansweredQuestionsPage() {
             </div>
             {resolveTarget?.suggestedAnswer && (
               <div className={styles.suggested}>
-                <span>Gợi ý:</span>
+                <span>{t('admin.unanswered.modal.answer.suggested')}</span>
                 <p>{resolveTarget.suggestedAnswer}</p>
               </div>
             )}
@@ -257,7 +268,7 @@ export default function UnansweredQuestionsPage() {
               className={styles.answerInput}
               value={answerText}
               onChange={(e) => setAnswerText(e.target.value)}
-              placeholder="Nhập câu trả lời..."
+              placeholder={t('admin.unanswered.modal.answer.placeholder')}
               rows={5}
             />
           </div>
@@ -269,13 +280,13 @@ export default function UnansweredQuestionsPage() {
           onClose={() => setRejectTarget(null)}
           onConfirm={handleReject}
           loading={rejecting}
-          title="Từ chối câu hỏi?"
-          message={`Từ chối câu hỏi "${rejectTarget?.question}"? Câu hỏi sẽ được đánh dấu là đã xử lý.`}
-          confirmLabel="Từ chối"
-          cancelLabel="Hủy"
+          title={t('admin.unanswered.modal.reject.title')}
+          message={t('admin.unanswered.modal.reject.message').replace('{question}', rejectTarget?.question || '')}
+          confirmLabel={t('admin.unanswered.modal.reject.confirm')}
+          cancelLabel={t('admin.unanswered.modal.reject.cancel')}
           variant="warning"
         />
       </div>
-    </MainLayout>
+    </div>
   );
 }

@@ -269,3 +269,28 @@ COMMENT ON TABLE knowledge.document_versions IS 'Immutable version history with 
 COMMENT ON TABLE knowledge.chunks IS 'Text chunks with VECTOR(1024) embeddings for RAG';
 COMMENT ON TABLE knowledge.processing_jobs IS 'ETL pipeline job tracking';
 COMMENT ON TABLE knowledge.embedding_cache IS 'Cache for embedding vectors to reduce API costs';
+
+-- ============================================================
+-- TABLE: knowledge.document_audit_logs
+-- Audit trail for document-specific operations (OnlyOffice editing, version changes, etc.)
+-- Owned by: knowledge-service
+-- ============================================================
+CREATE TABLE knowledge.document_audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    actor_id UUID,
+    actor_username VARCHAR(50),
+    old_values JSONB,
+    new_values JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_document_audit_logs_document_id ON knowledge.document_audit_logs(document_id);
+CREATE INDEX idx_document_audit_logs_actor_id ON knowledge.document_audit_logs(actor_id);
+CREATE INDEX idx_document_audit_logs_action ON knowledge.document_audit_logs(action);
+CREATE INDEX idx_document_audit_logs_created_at ON knowledge.document_audit_logs(created_at DESC);
+
+COMMENT ON TABLE knowledge.document_audit_logs IS 'Audit trail for document operations including OnlyOffice editing and conflict resolution';

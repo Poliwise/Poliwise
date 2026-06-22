@@ -3,12 +3,14 @@ package com.poliwise.feedback.controller;
 import com.poliwise.feedback.dto.request.AnalyticsRequest;
 import com.poliwise.feedback.dto.response.*;
 import com.poliwise.feedback.service.AnalyticsService;
+import com.poliwise.feedback.service.DashboardService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -16,9 +18,33 @@ import java.util.UUID;
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final DashboardService dashboardService;
 
-    public AnalyticsController(AnalyticsService analyticsService) {
+    public AnalyticsController(AnalyticsService analyticsService, DashboardService dashboardService) {
         this.analyticsService = analyticsService;
+        this.dashboardService = dashboardService;
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<ApiResponse<DashboardOverviewResponse>> getDashboard() {
+        return ResponseEntity.ok(ApiResponse.success(dashboardService.getOverview()));
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<ApiResponse<DashboardOverviewResponse>> getOverview() {
+        return ResponseEntity.ok(ApiResponse.success(dashboardService.getOverview()));
+    }
+
+    @GetMapping("/top-questions")
+    public ResponseEntity<ApiResponse<List<PopularQuestionResponse>>> getTopQuestions(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(analyticsService.getTopQuestions(limit, null, null)));
+    }
+
+    @GetMapping("/top-documents")
+    public ResponseEntity<ApiResponse<List<DocumentPopularityResponse>>> getTopDocuments(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(analyticsService.getTopDocuments(limit)));
     }
 
     @GetMapping("/summary")
@@ -30,7 +56,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/questions")
-    public ResponseEntity<ApiResponse<List<PopularQuestionResponse>>> getTopQuestions(
+    public ResponseEntity<ApiResponse<List<PopularQuestionResponse>>> getTopQuestionsFull(
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -38,7 +64,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/documents")
-    public ResponseEntity<ApiResponse<List<DocumentPopularityResponse>>> getTopDocuments(
+    public ResponseEntity<ApiResponse<List<DocumentPopularityResponse>>> getTopDocumentsFull(
             @RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(ApiResponse.success(analyticsService.getTopDocuments(limit)));
     }
@@ -56,6 +82,13 @@ public class AnalyticsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate targetDate = date != null ? date : LocalDate.now();
         return ResponseEntity.ok(ApiResponse.success(analyticsService.getDepartmentStats(deptId, targetDate)));
+    }
+
+    @GetMapping("/document-views")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDocumentViewStats(
+            @RequestParam(defaultValue = "30") int days) {
+        Map<String, Object> stats = analyticsService.getDocumentViewStats(days);
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
     @GetMapping("/trends")

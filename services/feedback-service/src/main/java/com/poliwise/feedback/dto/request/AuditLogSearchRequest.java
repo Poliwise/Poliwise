@@ -12,5 +12,6 @@ public record AuditLogSearchRequest(
         ResourceType resourceType,
         UUID resourceId,
         LocalDateTime fromDate,
-        LocalDateTime toDate
+        LocalDateTime toDate,
+        String search
 ) {}

@@ -20,6 +20,8 @@ public interface LoginHistoryRepository extends JpaRepository<LoginHistory, UUID
 
     long countByUserIdAndStatusAndCreatedAtAfter(UUID userId, LoginStatus status, Instant since);
 
+    long countByStatusAndCreatedAtBetween(LoginStatus status, Instant from, Instant to);
+
     Optional<LoginHistory> findFirstByUserIdOrderByCreatedAtDesc(UUID userId);
 
     Optional<LoginHistory> findFirstByUsernameIgnoreCaseOrderByCreatedAtDesc(String username);

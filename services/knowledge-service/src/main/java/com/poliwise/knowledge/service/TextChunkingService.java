@@ -71,8 +71,6 @@ public class TextChunkingService {
             }
         }
 
-        log.info("Created {} chunks using RECURSIVE strategy (size={}, overlap={})",
-                chunks.size(), chunkSize, overlap);
         return chunks;
     }
 
@@ -99,7 +97,7 @@ public class TextChunkingService {
             }
         }
 
-        log.info("Created {} chunks using FIXED_SIZE strategy", chunks.size());
+        log.debug("Created {} chunks using FIXED_SIZE strategy", chunks.size());
         return chunks;
     }
 
@@ -141,7 +139,7 @@ public class TextChunkingService {
             chunks.add(new Chunk(chunkIndex, chunkStart, finalChunkEnd, remaining));
         }
 
-        log.info("Created {} chunks using SENTENCE strategy", chunks.size());
+        log.debug("Created {} chunks using SENTENCE strategy", chunks.size());
         return chunks;
     }
 
@@ -187,7 +185,7 @@ public class TextChunkingService {
             chunks.add(new Chunk(chunkIndex, charPosition, finalChunkEnd, remaining));
         }
 
-        log.info("Created {} chunks using SEMANTIC strategy", chunks.size());
+        log.debug("Created {} chunks using SEMANTIC strategy", chunks.size());
         return chunks;
     }
 
