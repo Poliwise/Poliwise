@@ -191,6 +191,22 @@ CREATE TABLE knowledge.processing_jobs (
 );
 
 -- ============================================================
+-- TABLE: knowledge.document_audit_logs
+-- ============================================================
+CREATE TABLE knowledge.document_audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID,
+    action VARCHAR(100) NOT NULL,
+    actor_id UUID,
+    actor_username VARCHAR(100),
+    old_values JSONB,
+    new_values JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
 -- TABLE: knowledge.embedding_cache
 -- ============================================================
 CREATE TABLE knowledge.embedding_cache (

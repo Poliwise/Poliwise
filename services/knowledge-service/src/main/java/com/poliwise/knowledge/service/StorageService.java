@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @Service
@@ -176,6 +177,19 @@ public class StorageService {
      */
     public String getFileUrlInternal(String fileKey) {
         return getFileUrlInternal(fileKey, "http://minio:9000");
+    }
+
+    public String readFileContent(String fileKey) {
+        try (InputStream is = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(fileKey)
+                        .build())) {
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.error("Failed to read file content from MinIO: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to read file content: " + e.getMessage(), e);
+        }
     }
 
     private String getExtension(String filename) {

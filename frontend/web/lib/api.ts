@@ -36,6 +36,7 @@ import type {
   DashboardStats,
   AnalyticsOverview,
   ApiMetricsResponse,
+  ModelInfo,
   // Department types
   Department,
   DepartmentTreeNode,
@@ -220,6 +221,61 @@ function coerceSingleObject<T>(
   if (root) return root as unknown as T;
 
   return null;
+}
+
+function mapBackendSourceToFrontend(s: any): SourceDocument {
+  if (!s) return s;
+
+  // Map chunks array (new schema) or synthesise a single chunk from the old flat excerpt
+  const rawChunks: any[] = s.chunks ?? [];
+  const chunks = rawChunks.length > 0
+    ? rawChunks.map((c: any) => ({
+      chunkId: c.chunk_id ?? c.chunkId ?? c.id ?? '',
+      sectionTitle: c.section_title ?? c.sectionTitle ?? undefined,
+      excerpt: c.excerpt ?? '',
+      fullContent: c.full_content ?? c.fullContent ?? c.content ?? c.excerpt ?? '',
+      similarityScore: c.similarity_score ?? c.similarityScore ?? 0,
+      startCharIndex: c.start_char_index ?? c.startCharIndex ?? undefined,
+      endCharIndex: c.end_char_index ?? c.endCharIndex ?? undefined,
+    }))
+    : s.excerpt
+      ? [{
+        chunkId: s.chunk_id ?? s.chunkId ?? '',
+        sectionTitle: undefined,
+        excerpt: s.excerpt,
+        fullContent: s.full_content ?? s.fullContent ?? s.content ?? s.excerpt ?? '',
+        similarityScore: s.relevance_score ?? s.relevanceScore ?? s.similarity_score ?? s.similarity ?? 0,
+      }]
+      : [];
+
+  return {
+    documentId: s.document_id ?? s.documentId ?? s.id ?? '',
+    documentName: s.document_name ?? s.documentName ?? s.document_title ?? s.documentTitle ?? s.title ?? '',
+    relevanceScore: s.relevance_score ?? s.relevanceScore ?? s.similarity_score ?? s.similarity ?? 0,
+    chunks,
+  };
+}
+
+function mapBackendMessageToFrontend(m: any): Message {
+  if (!m) return m;
+  return {
+    id: m.id,
+    conversationId: m.conversation_id ?? m.conversationId,
+    role: m.role,
+    content: m.content,
+    sources: Array.isArray(m.sources) ? m.sources.map(mapBackendSourceToFrontend) : undefined,
+    modelUsed: m.model_used ?? m.modelUsed ?? undefined,
+    modelRequested: m.metadata?.model_requested ?? undefined,
+    tokensPrompt: m.tokens_prompt ?? m.tokensPrompt ?? undefined,
+    tokensCompletion: m.tokens_completion ?? m.tokensCompletion ?? undefined,
+    tokensTotal: m.tokens_total ?? m.tokensTotal ?? undefined,
+    latencyMs: m.latency_ms ?? m.latencyMs ?? undefined,
+    confidence: m.confidence,
+    hasSources: m.has_sources ?? m.hasSources ?? false,
+    isStreaming: m.is_streaming ?? m.isStreaming ?? false,
+    streamingCompleted: m.streaming_completed ?? m.streamingCompleted ?? true,
+    createdAt: m.created_at ?? m.createdAt,
+  };
 }
 
 // ============================================================================
@@ -953,19 +1009,19 @@ class ApiClient {
       const stream = new ReadableStream<StreamEvent>({
         async start(controller) {
           try {
-          const streamUrl = API_BASE_URL.startsWith('http') 
-            ? `${API_BASE_URL}/api/v1/ai/chat/stream`
-            : '/api/v1/ai/chat/stream';
+            const streamUrl = API_BASE_URL.startsWith('http')
+              ? `${API_BASE_URL}/api/v1/ai/chat/stream`
+              : '/api/v1/ai/chat/stream';
 
-          const response = await fetch(streamUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token ? `Bearer ${token}` : '',
-            },
-            body: JSON.stringify(data),
-            signal,
-          });
+            const response = await fetch(streamUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '',
+              },
+              body: JSON.stringify({ ...data, modelId: data.modelId || 'default' }),
+              signal,
+            });
 
             if (!response.body) {
               controller.enqueue({ type: 'error', error: 'No response body' });
@@ -996,7 +1052,12 @@ class ApiClient {
                       if (parsed.conversationId) {
                         controller.enqueue({ type: 'conversationId', conversationId: parsed.conversationId });
                       } else if (parsed.sources) {
-                        controller.enqueue({ type: 'sources', sources: parsed.sources });
+                        const mappedSources = Array.isArray(parsed.sources)
+                          ? parsed.sources.map(mapBackendSourceToFrontend)
+                          : [];
+                        controller.enqueue({ type: 'sources', sources: mappedSources });
+                      } else if (parsed.modelUsed !== undefined) {
+                        controller.enqueue({ type: 'modelUsed', modelUsed: parsed.modelUsed });
                       } else if (parsed.content !== undefined) {
                         controller.enqueue({ type: 'content', content: parsed.content });
                       } else if (parsed.error) {
@@ -1015,6 +1076,28 @@ class ApiClient {
         },
       });
       return stream;
+    },
+
+    getModels: async (): Promise<ModelInfo[]> => {
+      const res = await this.client.get<unknown>('/api/v1/ai/models');
+      const root = res.data as Record<string, unknown> | null;
+      let rawModels: any[] = [];
+      if (root && 'data' in root && typeof root.data === 'object' && root.data !== null) {
+        const data = root.data as { models?: any[] };
+        rawModels = data.models ?? [];
+      } else if (root && 'models' in root && Array.isArray(root.models)) {
+        rawModels = root.models;
+      }
+      return rawModels.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        provider: m.provider,
+        description: m.description ?? null,
+        contextWindow: m.context_window ?? m.contextWindow ?? 8192,
+        isDefault: m.is_default ?? m.isDefault ?? false,
+        status: m.status,
+        rateLimitedUntil: m.rate_limited_until ?? m.rateLimitedUntil ?? null,
+      }));
     },
 
     getConversations: async (params?: {
@@ -1054,7 +1137,8 @@ class ApiClient {
       const res = await this.client.get<ApiResponse<Message[]>>(
         `/api/v1/ai/conversations/${conversationId}/messages`
       );
-      return coercePaginated<Message>(res.data as unknown as Record<string, unknown>, 'data').data;
+      const coerced = coercePaginated<any>(res.data as unknown as Record<string, unknown>, 'data');
+      return coerced.data.map(mapBackendMessageToFrontend);
     },
 
     deleteConversation: async (id: string): Promise<void> => {

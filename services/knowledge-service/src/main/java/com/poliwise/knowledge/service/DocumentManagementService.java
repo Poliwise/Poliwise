@@ -329,11 +329,11 @@ public class DocumentManagementService {
         if (versionNumber != null) {
             DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
                     .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
-            return version.getExtractedText() != null ? version.getExtractedText() : "";
+            return storageService.readFileContent(version.getFileKey());
         } else {
             Document document = documentRepository.findById(documentId)
                     .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
-            return document.getExtractedText() != null ? document.getExtractedText() : "";
+            return storageService.readFileContent(document.getFileKey());
         }
     }
 

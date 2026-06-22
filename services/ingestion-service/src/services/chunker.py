@@ -1,4 +1,5 @@
 import structlog
+import uuid
 from typing import Optional
 from uuid import UUID
 from src.models.extraction import Chunk, StructuredText
@@ -28,6 +29,25 @@ class ParentChildChunker:
             self._tokenizer = tiktoken.get_encoding("cl100k_base")
         return self._tokenizer
 
+    def _build_token_char_index(self, text: str, enc) -> list[int]:
+        """Build mapping from token index to character position in original text.
+
+        Uses cumulative decoding to accurately track character boundaries,
+        since tiktoken tokens don't align 1:1 with characters.
+        """
+        tokens = enc.encode(text)
+        if not tokens:
+            return []
+
+        char_index = [0] * len(tokens)
+        current_pos = 0
+        for i in range(len(tokens)):
+            char_index[i] = current_pos
+            current_text = enc.decode(tokens[:i + 1])
+            current_pos = len(current_text)
+
+        return char_index
+
     def chunk(self, structured_text: StructuredText, metadata: dict) -> list[Chunk]:
         """Chunk document based on its structure."""
         if structured_text.headings:
@@ -39,7 +59,11 @@ class ParentChildChunker:
         """Create parent-child chunks based on document heading structure."""
         chunks = []
         enc = self._get_tokenizer()
-        
+
+        # Track position in normalized_text to compute character offsets
+        search_start = 0
+        normalized_text = structured_text.normalized_text
+
         for section in structured_text.sections:
             section_text = section.get("text", "")
             section_title = section.get("title", "")
@@ -49,49 +73,45 @@ class ParentChildChunker:
             if not section_text:
                 continue
 
+            # Find section position in normalized text
+            start_char = normalized_text.find(section_text, search_start)
+            if start_char == -1:
+                start_char = 0
+            end_char = start_char + len(section_text)
+            search_start = end_char
+
             token_count = len(enc.encode(section_text))
+            parent_id = uuid.uuid4()
 
-            if token_count <= self.parent_size:
-                chunks.append(
-                    Chunk(
-                        document_id=metadata.get("document_id"),
-                        document_version_id=metadata.get("version_id"),
-                        document_version=metadata.get("document_version"),
-                        chunk_type="parent",
-                        content=section_text,
-                        section_title=section_title,
-                        section_level=section_level,
-                        section_path=section_path,
-                        chunk_index=len(chunks),
-                        token_count=token_count,
-                        allowed_roles=metadata.get("allowed_roles"),
-                        allowed_departments=metadata.get("allowed_departments"),
-                        allowed_users=metadata.get("allowed_users"),
-                        access_level=metadata.get("access_level", "PUBLIC"),
-                    )
-                )
-            else:
-                parent_chunk = Chunk(
-                    document_id=metadata.get("document_id"),
-                    document_version_id=metadata.get("version_id"),
-                    document_version=metadata.get("document_version"),
-                    chunk_type="parent",
-                    content=section_text[: self.parent_size * 4],
-                    section_title=section_title,
-                    section_level=section_level,
-                    section_path=section_path,
-                    chunk_index=len(chunks),
-                    token_count=self.parent_size,
-                    allowed_roles=metadata.get("allowed_roles"),
-                    allowed_departments=metadata.get("allowed_departments"),
-                    allowed_users=metadata.get("allowed_users"),
-                    access_level=metadata.get("access_level", "PUBLIC"),
-                )
-                chunks.append(parent_chunk)
+            # Always create a parent chunk
+            parent_chunk = Chunk(
+                chunk_id=parent_id,
+                document_id=metadata.get("document_id"),
+                document_version_id=metadata.get("document_version_id"),
+                document_version=metadata.get("document_version"),
+                chunk_type="parent",
+                content=section_text,
+                section_title=section_title,
+                section_level=section_level,
+                section_path=section_path,
+                chunk_index=len(chunks),
+                token_count=token_count,
+                start_char_index=start_char,
+                end_char_index=end_char,
+                allowed_roles=metadata.get("allowed_roles"),
+                allowed_departments=metadata.get("allowed_departments"),
+                allowed_users=metadata.get("allowed_users"),
+                access_level=metadata.get("access_level", "PUBLIC"),
+                metadata=metadata,
+            )
+            chunks.append(parent_chunk)
 
+            # Create child chunks if section is large enough or always if we want consistent strategy
+            # For now, create children if token_count > child_size or if we want better retrieval
+            if token_count > self.child_size:
                 child_chunks = self._create_child_chunks(
                     section_text, section_title, section_level, section_path,
-                    parent_chunk.chunk_index, metadata, enc
+                    parent_id, metadata, enc, start_char
                 )
                 chunks.extend(child_chunks)
 
@@ -109,27 +129,48 @@ class ParentChildChunker:
         if not tokens:
             return chunks
 
+        # Build token-to-character index for accurate offset tracking
+        char_index = self._build_token_char_index(text, enc)
+
         start = 0
         chunk_index = 0
 
         while start < len(tokens):
             end = min(start + self.parent_size, len(tokens))
             chunk_tokens = tokens[start:end]
+            parent_id = uuid.uuid4()
+            parent_text = enc.decode(chunk_tokens)
 
-            chunk = Chunk(
+            # Convert token boundaries to character boundaries
+            start_char = char_index[start] if start < len(char_index) else 0
+            end_char = char_index[end - 1] + len(enc.decode([tokens[end - 1]])) if end <= len(char_index) else len(text)
+
+            parent_chunk = Chunk(
+                chunk_id=parent_id,
                 document_id=metadata.get("document_id"),
-                document_version_id=metadata.get("version_id"),
+                document_version_id=metadata.get("document_version_id"),
                 document_version=metadata.get("document_version"),
                 chunk_type="parent",
-                content=enc.decode(chunk_tokens),
+                content=parent_text,
                 chunk_index=chunk_index,
                 token_count=len(chunk_tokens),
+                start_char_index=start_char,
+                end_char_index=end_char,
                 allowed_roles=metadata.get("allowed_roles"),
                 allowed_departments=metadata.get("allowed_departments"),
                 allowed_users=metadata.get("allowed_users"),
                 access_level=metadata.get("access_level", "PUBLIC"),
+                metadata=metadata,
             )
-            chunks.append(chunk)
+            chunks.append(parent_chunk)
+
+            # Create child chunks for this parent
+            child_chunks = self._create_child_chunks(
+                parent_text, None, 1, [],
+                parent_id, metadata, enc, start_char
+            )
+            chunks.extend(child_chunks)
+
             chunk_index += 1
 
             # Ensure we always move forward, even if overlap is large
@@ -145,36 +186,51 @@ class ParentChildChunker:
         return chunks
 
     def _create_child_chunks(
-        self, text: str, section_title: str, section_level: int, section_path: list,
-        parent_index: int, metadata: dict, enc
+        self, text: str, section_title: Optional[str], section_level: int, section_path: list,
+        parent_id: UUID, metadata: dict, enc, parent_start_char: int = 0
     ) -> list[Chunk]:
         """Create child chunks from parent text."""
         child_chunks = []
         tokens = enc.encode(text)
 
+        # Build token-to-character index for accurate offset tracking
+        char_index = self._build_token_char_index(text, enc)
+
         start = 0
-        parent_idx = parent_index
+        child_idx = 0
 
         while start < len(tokens):
             end = min(start + self.child_size, len(tokens))
             chunk_tokens = tokens[start:end]
 
+            # Convert token boundaries to character boundaries
+            child_start_char = parent_start_char + (char_index[start] if start < len(char_index) else 0)
+            if end <= len(char_index):
+                last_token_text = enc.decode([tokens[end - 1]])
+                child_end_char = parent_start_char + char_index[end - 1] + len(last_token_text)
+            else:
+                child_end_char = parent_start_char + len(text)
+
             child_chunks.append(
                 Chunk(
                     document_id=metadata.get("document_id"),
-                    document_version_id=metadata.get("version_id"),
+                    document_version_id=metadata.get("document_version_id"),
                     document_version=metadata.get("document_version"),
                     chunk_type="child",
+                    parent_chunk_id=parent_id,
                     content=enc.decode(chunk_tokens),
                     section_title=section_title,
                     section_level=section_level,
                     section_path=section_path,
-                    chunk_index=parent_idx,
+                    chunk_index=child_idx, # Local index within parent
                     token_count=len(chunk_tokens),
+                    start_char_index=child_start_char,
+                    end_char_index=child_end_char,
                     allowed_roles=metadata.get("allowed_roles"),
                     allowed_departments=metadata.get("allowed_departments"),
                     allowed_users=metadata.get("allowed_users"),
                     access_level=metadata.get("access_level", "PUBLIC"),
+                    metadata=metadata,
                 )
             )
 
@@ -185,6 +241,6 @@ class ParentChildChunker:
             else:
                 start = new_start
 
-            parent_idx += 1
+            child_idx += 1
 
         return child_chunks

@@ -6,10 +6,12 @@ Answer the user's question based ONLY on the provided context from the knowledge
 
 ## Instructions
 - Answer based only on the provided context
+- Respond in the same language as the user's query (e.g., respond in Vietnamese if the query is in Vietnamese or uses Vietnamese slang/typos/phrases like 'la gi', 'lla gi')
 - If the context doesn't contain enough information to answer the question, say "I don't have enough information to answer this question based on the available documents."
 - Cite sources by mentioning document titles when relevant
-- Keep answers concise and helpful
-- If unsure, acknowledge uncertainty rather than hallucinating"""
+- Provide detailed, comprehensive, and well-structured answers using bullet points or steps when necessary
+- If unsure, acknowledge uncertainty rather than hallucinating
+- Do NOT output any thinking, reasoning, or `` tags. Return only the final answer."""
 
 
 class PromptBuilder:
@@ -47,7 +49,7 @@ class PromptBuilder:
         formatted = []
         for i, chunk in enumerate(chunks[:5], 1):
             doc_name = chunk.document_name or "Unknown Document"
-            content = chunk.content[:500] + "..." if len(chunk.content) > 500 else chunk.content
+            content = chunk.content[:1500] + "..." if len(chunk.content) > 1500 else chunk.content
             formatted.append(f"### Document {i}: {doc_name}\n{content}\n")
 
         return "\n\n".join(formatted)

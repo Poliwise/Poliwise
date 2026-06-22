@@ -106,7 +106,7 @@ public class AuthService {
             }
             authEventPublisher.publishUserRegistered(event);
         } catch (Exception e) {
-            // Log but don't fail the registration if event publishing fails
+            log.error("Failed to publish UserRegisteredEvent for user {}: {}", user.getId(), e.getMessage(), e);
         }
     }
 

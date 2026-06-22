@@ -21,10 +21,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
+          cpus: "0.5"
           memory: 512M
+        reservations:
+          memory: 256M
     networks:
       - poliwise
 
@@ -57,7 +57,7 @@ services:
       - poliwise
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2024-05-10T01-41-38Z
     container_name: poliwise-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -190,7 +190,7 @@ services:
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
-      JAVA_OPTS: "-Xmx512m -Xms256m"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     ports:
       - "8081:8081"
     depends_on:
@@ -208,7 +208,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 512M
     networks:
       - poliwise
 
@@ -230,7 +230,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      JAVA_OPTS: "-Xmx512m -Xms256m"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     ports:
       - "8082:8082"
     depends_on:
@@ -250,7 +250,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 512M
     networks:
       - poliwise
 
@@ -289,7 +289,7 @@ services:
       #   poliwise-network) use port 3001 to reach the gateway.
       ONLYOFFICE_CALLBACK_PUBLIC_URL: ${ONLYOFFICE_CALLBACK_PUBLIC_URL:-http://api-gateway:3001/api/v1/documents}
       ONLYOFFICE_LOCK_DURATION_MINUTES: ${ONLYOFFICE_LOCK_DURATION_MINUTES:-30}
-      JAVA_OPTS: "-Xmx512m -Xms256m"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     ports:
       - "8083:8083"
     depends_on:
@@ -311,7 +311,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 512M
     networks:
       - poliwise
 
@@ -334,7 +334,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      JAVA_OPTS: "-Xmx512m -Xms256m"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     ports:
       - "8084:8084"
     depends_on:
@@ -354,7 +354,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 512M
     networks:
       - poliwise
 
@@ -376,7 +376,7 @@ services:
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
       SPRING_RABBITMQ_VIRTUAL_HOST: /
-      JAVA_OPTS: "-Xmx512m -Xms256m"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     ports:
       - "8085:8085"
     depends_on:
@@ -394,7 +394,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 512M
     networks:
       - poliwise
 
@@ -431,6 +431,9 @@ services:
       RERANKER_URL: ${RERANKER_URL:-http://host.docker.internal:8002}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    volumes:
+      - ./base_dataset:/app/base_dataset:ro
+      - ./services/ingestion-service/src:/app/src
     ports:
       - "8088:8088"
     depends_on:
@@ -451,10 +454,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
+          cpus: "0.75"
           memory: 512M
+        reservations:
+          memory: 384M
     networks:
       - poliwise
 
@@ -466,7 +469,7 @@ services:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
     container_name: poliwise-bge-m3
     restart: unless-stopped
-    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 16384 --max-client-batch-size 32 --payload-limit 10485760
+    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 2048 --max-client-batch-size 8 --payload-limit 512000
     volumes:
       - ./data/hf_cache:/data
     ports:
@@ -480,10 +483,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.0"
-          memory: 4G
+          cpus: "1.5"
+          memory: 3G
         reservations:
-          memory: 2G
+          memory: 1.5G
     networks:
       - poliwise
 
@@ -511,11 +514,16 @@ services:
       LLM_API_KEY: ${GROQ_API_KEY}
       LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen3-8b}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
-      GATEWAY_API_KEY: ${GATEWAY_API_KEY}
-      GATEWAY_MODEL: ${GATEWAY_MODEL:-gemini-1.5-flash}
-      GATEWAY_ENABLED: ${GATEWAY_ENABLED:-true}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      LAYER1_MODEL: ${LAYER1_MODEL:-meta-llama/llama-prompt-guard-2-86m}
+      LAYER2_MODEL: ${LAYER2_MODEL:-llama-3.1-8b-instant}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.3}
+      TITLE_GENERATION_ENABLED: ${TITLE_GENERATION_ENABLED:-true}
+      TITLE_DEFAULT_PATTERNS: ${TITLE_DEFAULT_PATTERNS:-New Conversation,}
+      CONTEXT_LAYER3_ONLY: ${CONTEXT_LAYER3_ONLY:-true}
+      MAX_LAYER3_CONTEXT_PAIRS: ${MAX_LAYER3_CONTEXT_PAIRS:-5}
     ports:
       - "8086:8086"
     depends_on:
@@ -536,10 +544,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
+          cpus: "0.75"
           memory: 512M
+        reservations:
+          memory: 384M
     networks:
       - poliwise
 

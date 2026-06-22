@@ -170,6 +170,13 @@ export class ProxyService {
 
     // Detect binary responses (download/preview/file endpoints) to prevent Axios from JSON-parsing them
     const isDownloadRequest = context.url.includes('/download') || context.url.includes('/preview') || context.url.includes('/file');
+    let responseType: AxiosRequestConfig['responseType'] = isDownloadRequest || context.isBinary
+      ? 'arraybuffer'
+      : 'json';
+
+    if (context.isStream) {
+      responseType = 'stream';
+    }
     const config: AxiosRequestConfig = {
       method: context.method as any,
       url: context.url,
@@ -178,7 +185,7 @@ export class ProxyService {
       params: context.params,
       timeout: context.timeout,
       validateStatus: () => true,
-      responseType: isDownloadRequest || context.isBinary ? 'arraybuffer' : 'json',
+      responseType,
     };
 
     try {

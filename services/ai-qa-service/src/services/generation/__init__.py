@@ -1,12 +1,12 @@
-from .llm_client import llm_client, LLMClient, model_registry, ModelRegistry, ModelProfile
+from .model_registry import model_registry, ModelRegistry, ModelProfile, ModelStatus, RateLimitError
 from .prompt_builder import prompt_builder, PromptBuilder
 
 __all__ = [
-    "llm_client",
-    "LLMClient",
     "model_registry",
     "ModelRegistry",
     "ModelProfile",
+    "ModelStatus",
+    "RateLimitError",
     "prompt_builder",
     "PromptBuilder",
 ]

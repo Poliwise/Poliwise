@@ -43,3 +43,6 @@ environment_setup/
 local_llm_server/
 
 node_modules/
+
+# Base dataset (large files, local only)
+base_dataset/

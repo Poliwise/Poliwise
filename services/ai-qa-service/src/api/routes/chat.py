@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -5,7 +6,6 @@ from uuid import UUID
 from typing import Optional, List
 from datetime import datetime
 import json
-import asyncio
 import time
 import structlog
 
@@ -14,17 +14,63 @@ logger = structlog.get_logger()
 from ..dependencies import get_user_context, UserContext
 from ..dependencies.rate_limit import rate_limit
 from ...services.conversation.manager import conversation_service
-from ...services.input_processing.gateway import input_gateway_service
 from ...services.retrieval.hybrid_search import hybrid_search_service
 from ...services.retrieval.reranker import reranker_service
 from ...services.generation.llm_client import llm_client
 from ...services.generation.prompt_builder import prompt_builder
 from ...services.knowledge_gap import knowledge_gap_detector
+from ...services.pipeline.layer1_toxic_filter import ToxicFilterService
+from ...services.pipeline.layer2_intent_classifier import IntentClassifierService
+from ...services.pipeline.layer2_responder import Layer2Responder
+from ...services.pipeline.query_refiner import QueryRefiner
+from ...services.pipeline.pipeline_orchestrator import PipelineOrchestrator
 from ...db.repositories.message_repo import message_repository
 from ...models.retrieval import RetrievalFilters, RetrievalChunk
 from ...config.settings import settings
 
-router = APIRouter(prefix="/chat", tags=["Chat"])
+toxic_filter = ToxicFilterService(
+    groq_api_key=settings.groq_api_key,
+    model=settings.layer1_model,
+    fail_open=settings.layer1_fail_open
+)
+
+intent_classifier = IntentClassifierService(
+    groq_api_key=settings.groq_api_key,
+    model=settings.layer2_model,
+    max_tokens=settings.layer2_max_tokens_classify
+)
+
+layer2_responder = Layer2Responder(
+    groq_api_key=settings.groq_api_key,
+    model=settings.layer2_model_respond,
+    max_tokens=settings.layer2_max_tokens_respond
+)
+
+query_refiner = QueryRefiner(
+    groq_api_key=settings.groq_api_key,
+    model=settings.query_refiner_model,
+    max_tokens=settings.query_refiner_max_tokens
+)
+
+orchestrator = PipelineOrchestrator(
+    toxic_filter=toxic_filter,
+    intent_classifier=intent_classifier,
+    layer2_responder=layer2_responder,
+    query_refiner=query_refiner,
+    hybrid_search=hybrid_search_service,
+    llm_client=llm_client,
+    prompt_builder=prompt_builder,
+    conversation_service=conversation_service,
+    message_repository=message_repository,
+    knowledge_gap_detector=knowledge_gap_detector,
+    reranker_service=reranker_service,
+    settings=settings,
+)
+
+router = APIRouter(
+    prefix="/chat",
+    tags=["Chat"]
+)
 
 
 class ChatContext(BaseModel):
@@ -35,7 +81,7 @@ class ChatContext(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(..., alias="question")
     conversation_id: Optional[UUID] = Field(None, alias="conversationId")
-    model_id: str = "default"
+    model_id: str = Field("default", alias="modelId")
     context: Optional[ChatContext] = None
 
     model_config = {
@@ -43,11 +89,21 @@ class ChatRequest(BaseModel):
     }
 
 
+class ChunkRef(BaseModel):
+    chunk_id: UUID
+    section_title: Optional[str] = None
+    excerpt: str
+    full_content: str
+    similarity_score: float
+    start_char_index: Optional[int] = None
+    end_char_index: Optional[int] = None
+
+
 class SourceDocument(BaseModel):
     document_id: UUID
     document_name: str
     relevance_score: float
-    excerpt: str
+    chunks: List[ChunkRef]
 
 
 class MessageResponse(BaseModel):
@@ -55,7 +111,7 @@ class MessageResponse(BaseModel):
     conversation_id: UUID
     role: str
     content: str
-    sources: Optional[dict] = None
+    sources: Optional[list] = None
     model_used: Optional[str] = None
     tokens_prompt: Optional[int] = None
     tokens_completion: Optional[int] = None
@@ -87,16 +143,75 @@ class ChatResponse(BaseModel):
 
 
 async def build_sources(chunks: List[RetrievalChunk]) -> List[SourceDocument]:
-    sources = []
-    for chunk in chunks[:5]:
+    """Group retrieval chunks by document and build a hierarchical sources list."""
+    from collections import OrderedDict
+    doc_map: OrderedDict[UUID, dict] = OrderedDict()
+
+    for chunk in chunks[:10]:
+        doc_id = chunk.document_id
+        doc_name = chunk.document_name or "Unknown"
         excerpt = chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content
-        sources.append(SourceDocument(
-            document_id=chunk.document_id,
-            document_name=chunk.document_name or "Unknown",
-            relevance_score=chunk.similarity_score,
-            excerpt=excerpt
-        ))
+
+        chunk_ref = ChunkRef(
+            chunk_id=chunk.id,
+            section_title=chunk.section_title,
+            excerpt=excerpt,
+            full_content=chunk.content,
+            similarity_score=chunk.similarity_score,
+            start_char_index=chunk.start_char_index,
+            end_char_index=chunk.end_char_index,
+        )
+
+        if doc_id not in doc_map:
+            doc_map[doc_id] = {
+                "document_id": doc_id,
+                "document_name": doc_name,
+                "relevance_score": chunk.similarity_score,
+                "chunks": [chunk_ref],
+            }
+        else:
+            doc_map[doc_id]["chunks"].append(chunk_ref)
+            if chunk.similarity_score > doc_map[doc_id]["relevance_score"]:
+                doc_map[doc_id]["relevance_score"] = chunk.similarity_score
+
+    sources = [SourceDocument(**data) for data in list(doc_map.values())[:5]]
     return sources
+
+
+def strip_thinking_tags(content: str) -> str:
+    return re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+
+
+def _build_chat_response(result, request, conv, assistant_msg, sources_data):
+    """Format PipelineResult into ChatResponse."""
+    return ChatResponse(
+        answer=assistant_msg.content,
+        conversationId=conv.id,
+        message=MessageResponse(
+            id=assistant_msg.id,
+            conversation_id=assistant_msg.conversation_id,
+            role=assistant_msg.role.value,
+            content=assistant_msg.content,
+            sources=assistant_msg.sources,
+            model_used=assistant_msg.model_used,
+            tokens_prompt=assistant_msg.tokens_prompt,
+            tokens_completion=assistant_msg.tokens_completion,
+            tokens_total=assistant_msg.tokens_total,
+            latency_ms=assistant_msg.latency_ms,
+            confidence=assistant_msg.confidence.value if assistant_msg.confidence else None,
+            has_sources=assistant_msg.has_sources,
+            created_at=assistant_msg.created_at,
+        ),
+        conversation=ConversationResponse(
+            id=conv.id,
+            user_id=conv.user_id,
+            title=conv.title,
+            message_count=conv.message_count,
+            created_at=conv.created_at,
+            updated_at=conv.updated_at,
+        ),
+        sources=sources_data,
+    )
 
 
 @router.post("", response_model=ChatResponse, dependencies=[Depends(rate_limit)])
@@ -116,142 +231,45 @@ async def chat(request: ChatRequest, user: UserContext = Depends(get_user_contex
         request.conversation_id,
         role="USER",
         content=request.message,
-        has_sources=False
+        has_sources=False,
     )
 
-    history = []
-    messages = await message_repository.get_by_conversation(request.conversation_id, user.user_id, limit=20)
-    history = [{"role": "user" if m.role.value == "USER" else "assistant", "content": m.content} for m in messages]
+    result = await orchestrator.process(request, user)
 
-    gateway_result = await input_gateway_service.process_input(
-        request.message,
-        [{"role": h["role"], "content": h["content"]} for h in history] if history else None
-    )
-
-    if gateway_result.action == "reject":
-        raise HTTPException(status_code=400, detail="Query rejected by safety filter")
-
-    if gateway_result.action == "respond_directly":
-        answer_msg = await conversation_service.add_message(
+    if result.status == "BLOCKED":
+        assistant_msg = await conversation_service.add_message(
             request.conversation_id,
             role="ASSISTANT",
-            content=gateway_result.explanation or "Hello! How can I help you today?",
-            has_sources=False
+            content=result.response,
+            has_sources=False,
         )
-        return ChatResponse(
-            answer=answer_msg.content,
-            conversationId=answer_msg.conversation_id,
-            message=MessageResponse(
-                id=answer_msg.id,
-                conversation_id=answer_msg.conversation_id,
-                role=answer_msg.role.value,
-                content=answer_msg.content,
-                created_at=answer_msg.created_at,
-                has_sources=False
-            ),
-            conversation=ConversationResponse(
-                id=conv.id,
-                user_id=conv.user_id,
-                title=conv.title,
-                message_count=conv.message_count,
-                created_at=conv.created_at,
-                updated_at=conv.updated_at
-            )
-        )
+        return _build_chat_response(result, request, conv, assistant_msg, None)
 
-    refined_query = gateway_result.refined_query or request.message
-
-    filters = None
-    if request.context and (request.context.document_ids or request.context.category_ids):
-        filters = RetrievalFilters(
-            document_ids=request.context.document_ids,
-            category_ids=request.context.category_ids
-        )
-
-    chunks = await hybrid_search_service.search(
-        query=refined_query,
-        user_id=str(user.user_id),
-        user_role=user.role,
-        user_department_id=str(user.department_id) if user.department_id else None,
-        filters=filters,
-        limit=settings.retrieval_limit
-    )
-
-    if settings.use_reranker and settings.reranker_url:
-        chunks = await reranker_service.rerank(refined_query, chunks, settings.rerank_limit)
-
-    gap_result = await knowledge_gap_detector.evaluate(refined_query, chunks)
-
-    messages_for_llm = prompt_builder.build(
-        query=refined_query,
-        context_chunks=chunks,
-        history=history
-    )
-
-    content, prompt_tokens, completion_tokens, total_tokens, latency = await llm_client.generate(
-        messages=messages_for_llm,
-        model_id=request.model_id
-    )
-
-    has_sources = len(chunks) > 0
-    sources_data = await build_sources(chunks) if has_sources else None
-
-    assistant_msg = await conversation_service.add_message(
-        request.conversation_id,
-        role="ASSISTANT",
-        content=content,
-        sources=[s.model_dump() for s in sources_data] if sources_data else [],
-        model_used=request.model_id,
-        tokens_prompt=prompt_tokens,
-        tokens_completion=completion_tokens,
-        tokens_total=total_tokens,
-        latency_ms=latency,
-        has_sources=has_sources,
-        confidence="HIGH" if gap_result.top_similarity >= 0.7 else ("MEDIUM" if gap_result.top_similarity >= 0.4 else "LOW")
-    )
-
-    if gap_result.is_unanswered:
-        await knowledge_gap_detector.publish_unanswered(
-            gap_result,
-            user.user_id,
+    if result.layer_stopped == 2:
+        conv = await conversation_service.get_conversation(request.conversation_id, user.user_id)
+        assistant_msg = await conversation_service.add_message(
             request.conversation_id,
-            request.message,
-            message_id=assistant_msg.id,
-            user_department_id=user.department_id,
-            user_role=user.role
+            role="ASSISTANT",
+            content=result.response,
+            model_used=result.model_used,
+            latency_ms=result.latency_ms,
+            has_sources=False,
         )
+        return _build_chat_response(result, request, conv, assistant_msg, None)
 
-    # Re-fetch conversation to get updated message_count
+    # Layer 3: RAG response
     conv = await conversation_service.get_conversation(request.conversation_id, user.user_id)
+    assistant_msg = await message_repository.get_by_id(
+        conv.id, user.user_id
+    ) if conv else None
 
-    return ChatResponse(
-        answer=assistant_msg.content,
-        conversationId=conv.id,
-        message=MessageResponse(
-            id=assistant_msg.id,
-            conversation_id=assistant_msg.conversation_id,
-            role=assistant_msg.role.value,
-            content=assistant_msg.content,
-            sources=assistant_msg.sources,
-            model_used=assistant_msg.model_used,
-            tokens_prompt=assistant_msg.tokens_prompt,
-            tokens_completion=assistant_msg.tokens_completion,
-            tokens_total=assistant_msg.tokens_total,
-            latency_ms=assistant_msg.latency_ms,
-            confidence=assistant_msg.confidence.value if assistant_msg.confidence else None,
-            has_sources=assistant_msg.has_sources,
-            created_at=assistant_msg.created_at
-        ),
-        conversation=ConversationResponse(
-            id=conv.id,
-            user_id=conv.user_id,
-            title=conv.title,
-            message_count=conv.message_count,
-            created_at=conv.created_at,
-            updated_at=conv.updated_at
-        ),
-        sources=sources_data
+    # Re-fetch to get the latest message
+    messages = await message_repository.get_by_conversation(
+        request.conversation_id, user.user_id, limit=1
     )
+    assistant_msg = messages[-1] if messages else None
+
+    return _build_chat_response(result, request, conv, assistant_msg, result.sources)
 
 
 @router.post("/stream", dependencies=[Depends(rate_limit)])
@@ -271,123 +289,10 @@ async def chat_stream(request: ChatRequest, user: UserContext = Depends(get_user
         request.conversation_id,
         role="USER",
         content=request.message,
-        has_sources=False
+        has_sources=False,
     )
 
-    history = []
-    messages = await message_repository.get_by_conversation(request.conversation_id, user.user_id, limit=20)
-    history = [{"role": "user" if m.role.value == "USER" else "assistant", "content": m.content} for m in messages]
-
-    gateway_result = await input_gateway_service.process_input(
-        request.message,
-        [{"role": h["role"], "content": h["content"]} for h in history] if history else None
+    return StreamingResponse(
+        orchestrator.process_stream(request, user),
+        media_type="text/event-stream",
     )
-
-    if gateway_result.action == "reject":
-        raise HTTPException(status_code=400, detail="Query rejected by safety filter")
-
-    if gateway_result.action == "respond_directly":
-        direct_content = gateway_result.explanation or "Hello! How can I help you today?"
-        await conversation_service.add_message(
-            request.conversation_id,
-            role="ASSISTANT",
-            content=direct_content,
-            has_sources=False
-        )
-
-        async def generate_direct():
-            yield f"data: {json.dumps({'conversationId': str(request.conversation_id)})}\n\n"
-            yield f"data: {json.dumps({'content': direct_content})}\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(generate_direct(), media_type="text/event-stream")
-
-    refined_query = gateway_result.refined_query or request.message
-
-    filters = None
-    if request.context and (request.context.document_ids or request.context.category_ids):
-        filters = RetrievalFilters(
-            document_ids=request.context.document_ids,
-            category_ids=request.context.category_ids
-        )
-
-    chunks = await hybrid_search_service.search(
-        query=refined_query,
-        user_id=str(user.user_id),
-        user_role=user.role,
-        user_department_id=str(user.department_id) if user.department_id else None,
-        filters=filters,
-        limit=settings.retrieval_limit
-    )
-
-    if settings.use_reranker and settings.reranker_url:
-        chunks = await reranker_service.rerank(refined_query, chunks, settings.rerank_limit)
-
-    gap_result = await knowledge_gap_detector.evaluate(refined_query, chunks)
-
-    has_sources = len(chunks) > 0
-    sources_data = await build_sources(chunks) if has_sources else None
-
-    messages_for_llm = prompt_builder.build(
-        query=refined_query,
-        context_chunks=chunks,
-        history=history
-    )
-
-    profile = llm_client.registry.get_profile(request.model_id)
-
-    async def generate():
-        full_content = ""
-        start_time = time.time()
-
-        # Send conversationId as first event so frontend can track it
-        yield f"data: {json.dumps({'conversationId': str(request.conversation_id)})}\n\n"
-
-        # Send sources metadata before streaming content
-        if sources_data:
-            yield f"data: {json.dumps({'sources': [s.model_dump(mode='json') for s in sources_data]})}\n\n"
-
-        try:
-            # Use the unified streaming generator from llm_client
-            async for chunk_content in llm_client.generate_streaming(
-                messages=messages_for_llm,
-                model_id=request.model_id,
-                temperature=0.3,
-                max_tokens=1024
-            ):
-                full_content += chunk_content
-                yield f"data: {json.dumps({'content': chunk_content})}\n\n"
-
-            latency_ms = int((time.time() - start_time) * 1000)
-
-            # Persist the assistant message after streaming completes
-            confidence = "HIGH" if gap_result.top_similarity >= 0.7 else ("MEDIUM" if gap_result.top_similarity >= 0.4 else "LOW")
-            assistant_msg = await conversation_service.add_message(
-                request.conversation_id,
-                role="ASSISTANT",
-                content=full_content,
-                sources=[s.model_dump() for s in sources_data] if sources_data else [],
-                model_used=request.model_id,
-                latency_ms=latency_ms,
-                has_sources=has_sources,
-                confidence=confidence
-            )
-
-            # Publish unanswered question event if needed
-            if gap_result.is_unanswered:
-                await knowledge_gap_detector.publish_unanswered(
-                    gap_result,
-                    user.user_id,
-                    request.conversation_id,
-                    request.message,
-                    message_id=assistant_msg.id,
-                    user_department_id=user.department_id,
-                    user_role=user.role
-                )
-
-            yield "data: [DONE]\n\n"
-        except Exception as e:
-            logger.error("streaming_generation_failed", error=str(e))
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-
-    return StreamingResponse(generate(), media_type="text/event-stream")

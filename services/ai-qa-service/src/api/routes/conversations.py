@@ -6,18 +6,9 @@ from datetime import datetime
 
 from ..dependencies import get_user_context, UserContext
 from ...services.conversation.manager import conversation_service
+from ...models.conversation import ConversationResponse
 
 router = APIRouter(prefix="/conversations", tags=["Conversations"])
-
-
-class ConversationResponse(BaseModel):
-    id: UUID
-    user_id: UUID
-    title: str
-    message_count: int
-    last_message_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
 
 
 class PaginatedConversations(BaseModel):

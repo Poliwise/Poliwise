@@ -17,7 +17,17 @@ async function bootstrap() {
   const nodeEnv = configService.get<string>('app.nodeEnv') || 'development';
 
   app.use(helmet());
-  app.use(compression());
+  app.use(
+    compression({
+      filter: (req, res) => {
+        const contentType = res.getHeader('content-type');
+        if (contentType && String(contentType).includes('text/event-stream')) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   app.enableCors({
     origin: configService.get<string>('cors.origin') || 'http://localhost:3000',

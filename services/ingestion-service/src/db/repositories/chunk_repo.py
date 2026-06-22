@@ -1,4 +1,4 @@
-from typing import Optional
+import uuid
 from uuid import UUID
 from sqlalchemy import select, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,6 +50,7 @@ class ChunkRepository:
                 return [to_uuid(x) for x in l if x]
 
             values.append({
+                "id": to_uuid(c.chunk_id) if hasattr(c, 'chunk_id') and c.chunk_id else uuid.uuid4(),
                 "document_id": to_uuid(c.document_id),
                 "document_version_id": to_uuid(c.document_version_id),
                 "document_version": int(c.document_version) if c.document_version is not None else 0,
@@ -78,14 +79,14 @@ class ChunkRepository:
         # Use raw SQL for bulk insert with ON CONFLICT
         await self.session.execute(text("""
             INSERT INTO knowledge.chunks (
-                document_id, document_version_id, document_version, chunk_type, parent_chunk_id,
+                id, document_id, document_version_id, document_version, chunk_type, parent_chunk_id,
                 content, content_length, section_title, section_level, section_path,
                 chunk_index, start_char_index, end_char_index, token_count,
                 embedding_vector, embedding_model, embedding_dimension,
                 allowed_roles, allowed_departments, allowed_users, access_level,
                 is_latest, metadata
             ) VALUES (
-                :document_id, :document_version_id, :document_version, :chunk_type, :parent_chunk_id,
+                :id, :document_id, :document_version_id, :document_version, :chunk_type, :parent_chunk_id,
                 :content, :content_length, :section_title, :section_level, :section_path,
                 :chunk_index, :start_char_index, :end_char_index, :token_count,
                 :embedding_vector, :embedding_model, :embedding_dimension,
@@ -102,3 +103,13 @@ class ChunkRepository:
             .where(Chunk.document_id == document_id, Chunk.is_latest == True)
             .values(is_latest=False)
         )
+
+    async def soft_delete_chunks(self, document_id: UUID) -> int:
+        """Soft-delete all chunks for a document by setting deleted_at."""
+        from datetime import datetime
+        result = await self.session.execute(
+            update(Chunk)
+            .where(Chunk.document_id == document_id, Chunk.deleted_at == None)
+            .values(deleted_at=datetime.utcnow())
+        )
+        return result.rowcount
