@@ -1,6 +1,7 @@
 package com.poliwise.user.config;
 
 import com.poliwise.user.security.JwtAuthenticationFilter;
+import com.poliwise.user.security.InternalStatsTokenFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,9 +24,13 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalStatsTokenFilter internalStatsTokenFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            InternalStatsTokenFilter internalStatsTokenFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.internalStatsTokenFilter = internalStatsTokenFilter;
     }
 
     @Bean
@@ -37,8 +42,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/stats").hasRole("INTERNAL")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(internalStatsTokenFilter, JwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

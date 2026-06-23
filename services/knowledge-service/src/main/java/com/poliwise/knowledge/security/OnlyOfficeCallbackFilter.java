@@ -64,10 +64,19 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
             String documentId = claims.get("documentId", String.class);
             String key = claims.get("key", String.class);
 
+            if (!StringUtils.hasText(action) || !StringUtils.hasText(documentId) || !StringUtils.hasText(key)) {
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid OnlyOffice callback token claims");
+                return;
+            }
+
+            if (!isAllowedAction(action, request.getServletPath())) {
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "OnlyOffice callback action does not match the request");
+                return;
+            }
+
             if (request.getServletPath().endsWith("/file")) {
                 UUID requestedDocumentId = extractDocumentId(request.getServletPath());
                 if (!"download".equals(action)
-                        || documentId == null
                         || !requestedDocumentId.equals(UUID.fromString(documentId))) {
                     sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid document download token");
                     return;
@@ -89,7 +98,7 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
             request.setAttribute("onlyoffice.documentId", documentId);
             request.setAttribute("onlyoffice.key", key);
 
-        } catch (JwtException | IllegalArgumentException ex) {
+            } catch (JwtException | IllegalArgumentException ex) {
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid OnlyOffice callback token: " + ex.getMessage());
             return;
         }
@@ -133,5 +142,12 @@ public class OnlyOfficeCallbackFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         return !path.contains("/save-callback") && !path.endsWith("/file");
+    }
+
+    private boolean isAllowedAction(String action, String path) {
+        if (path.endsWith("/file")) {
+            return "download".equals(action);
+        }
+        return "save".equals(action) || "forcesave".equals(action);
     }
 }

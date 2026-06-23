@@ -12,9 +12,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -33,23 +30,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
-        RequestMatcher publicMatcher = new OrRequestMatcher(List.of(
-                new AntPathRequestMatcher("/actuator/**"),
-                new AntPathRequestMatcher("/**", "OPTIONS")
-        ));
-        return http
-                .securityMatcher(publicMatcher)
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(a -> a.anyRequest().permitAll())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
-    }
-
-    @Bean
-    public SecurityFilterChain authenticatedSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -67,12 +48,14 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(a -> a
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/v1/analytics/audit-logs/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/feedback/**").hasAnyRole("USER", "MANAGER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/feedback/**").hasAnyRole("USER", "MANAGER", "ADMIN")
                         .requestMatchers("/api/v1/analytics/**").hasAnyRole("MANAGER", "ADMIN")
                         .requestMatchers("/api/v1/dashboard/**").hasAnyRole("MANAGER", "ADMIN")
                         .requestMatchers("/api/v1/reports/**").hasAnyRole("MANAGER", "ADMIN")
-                        .requestMatchers("/api/v1/audit-logs/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

@@ -1,3 +1,6 @@
+﻿-- ====================================================================
+-- Source: 009_document_locks.sql
+-- ====================================================================
 -- ============================================================
 -- FILE: 009_document_locks.sql
 -- SCHEMA: KNOWLEDGE
@@ -19,9 +22,9 @@ CREATE TABLE IF NOT EXISTS knowledge.document_locks (
     locked_by_username VARCHAR(255)
 );
 
-COMMENT ON TABLE knowledge.document_locks IS 'Edit locks for OnlyOffice document editor — prevents concurrent edits and detects version conflicts';
+COMMENT ON TABLE knowledge.document_locks IS 'Edit locks for OnlyOffice document editor â€” prevents concurrent edits and detects version conflicts';
 COMMENT ON COLUMN knowledge.document_locks.lock_token IS 'UUID token returned to the editor; must be passed back on save callback to verify ownership';
-COMMENT ON COLUMN knowledge.document_locks.version_at_lock IS 'The document version that was locked — used to detect if newer versions were uploaded by others';
+COMMENT ON COLUMN knowledge.document_locks.version_at_lock IS 'The document version that was locked â€” used to detect if newer versions were uploaded by others';
 
 -- Auto-expire stale locks
 CREATE INDEX IF NOT EXISTS idx_locks_expires ON knowledge.document_locks(expires_at);
@@ -46,4 +49,5 @@ CREATE TABLE IF NOT EXISTS knowledge.document_version_deletions (
     CONSTRAINT uq_version_deletion UNIQUE (document_id, version_number)
 );
 
-COMMENT ON TABLE knowledge.document_version_deletions IS 'Soft-delete archive for document versions — allows recovery of accidentally deleted versions';
+COMMENT ON TABLE knowledge.document_version_deletions IS 'Soft-delete archive for document versions â€” allows recovery of accidentally deleted versions';
+

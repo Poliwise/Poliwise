@@ -567,17 +567,19 @@ public class OnlyOfficeService {
                     documentId, lock.getVersionAtLock(), document.getCurrentVersion());
 
             // Download and save conflict file for preview/merging
-            String downloadUrl = savedFileUrl
-                    .replace("localhost:8888", "onlyoffice-document-server:80")
-                    .replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+            String downloadUrl = normalizeOnlyOfficeDownloadUrl(savedFileUrl);
+            Path tempFile = null;
             try {
-                byte[] fileBytes = downloadFromUrl(downloadUrl);
+                tempFile = downloadFromUrl(downloadUrl);
+                byte[] fileBytes = Files.readAllBytes(tempFile);
                 String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
                 String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
                 storageService.uploadConflictFile(fileBytes, conflictFileKey);
                 log.info("Saved conflict preview file on version conflict: key={}", conflictFileKey);
             } catch (Exception ex) {
                 log.error("Failed to download and save conflict preview file: {}", ex.getMessage(), ex);
+            } finally {
+                cleanupTempFile(tempFile);
             }
 
             return OnlyOfficeCallbackResponse.conflict(
@@ -587,16 +589,18 @@ public class OnlyOfficeService {
 
         // Replace localhost:8888 with the internal Docker service name and nginx port.
         // OnlyOffice nginx listens on port 80 inside the container (port 8888 is the host mapping).
-        String downloadUrl = savedFileUrl
-                .replace("localhost:8888", "onlyoffice-document-server:80")
-                .replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+        String downloadUrl = normalizeOnlyOfficeDownloadUrl(savedFileUrl);
         log.info("Downloading saved file from DocumentServer: {}", downloadUrl);
         byte[] fileBytes;
+        Path tempFile = null;
         try {
-            fileBytes = downloadFromUrl(downloadUrl);
+            tempFile = downloadFromUrl(downloadUrl);
+            fileBytes = Files.readAllBytes(tempFile);
         } catch (Exception ex) {
             log.error("Failed to download file from DocumentServer: {}", ex.getMessage(), ex);
             return OnlyOfficeCallbackResponse.error("Failed to download saved file: " + ex.getMessage(), documentId);
+        } finally {
+            cleanupTempFile(tempFile);
         }
 
         int oldVersion = document.getCurrentVersion();

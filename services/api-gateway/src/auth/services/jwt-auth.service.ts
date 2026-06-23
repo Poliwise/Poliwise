@@ -16,8 +16,7 @@ export class JwtAuthService {
   private readonly logger = new Logger(JwtAuthService.name);
 
   constructor(private readonly configService: ConfigService) {
-    this.secret =
-      this.configService.get<string>('jwt.secret') || 'default-secret';
+    this.secret = this.configService.getOrThrow<string>('jwt.secret');
     this.issuer =
       this.configService.get<string>('jwt.issuer') || 'poliwise-auth';
   }

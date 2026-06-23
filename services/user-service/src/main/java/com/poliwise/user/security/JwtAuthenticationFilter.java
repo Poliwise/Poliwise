@@ -88,7 +88,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .getPayload();
             return Optional.of(claims);
         } catch (ExpiredJwtException ex) {
-            return Optional.of(ex.getClaims());
+            return Optional.empty();
         } catch (JwtException ex) {
             return Optional.empty();
         }

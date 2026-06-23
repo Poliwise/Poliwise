@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     port: int = 8086
     log_level: str = "info"
     internal_api_key: str = Field(..., description="Internal API Key for service-to-service authentication")
+    jwt_secret: str = Field(..., min_length=32, description="Shared access-token signing secret")
+    jwt_issuer: str = "poliwise-auth-service"
 
     database_url: str = "postgresql+asyncpg://poliwise:poliwise_secure_password@postgres:5432/poliwise"
     database_schema: str = "conversation"

@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.Set;
 
 /**
  * REST controller for OnlyOffice Document Server integration.
@@ -179,9 +180,19 @@ public class OnlyOfficeController {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (!(auth instanceof OnlyOfficeCallbackToken)) {
+        if (!(auth instanceof OnlyOfficeCallbackToken callbackToken)) {
             return ResponseEntity.status(401)
                     .body(OnlyOfficeCallbackResponse.error("Unauthorized callback", documentId));
+        }
+
+        OnlyOfficeCallbackPrincipal principal = (OnlyOfficeCallbackPrincipal) callbackToken.getPrincipal();
+        if (principal == null
+                || principal.getDocumentId() == null
+                || !documentId.equals(principal.getDocumentId())
+                || !Set.of("save", "forcesave").contains(principal.getAction())
+                || !onlyOfficeService.matchesCallbackSession(documentId, principal)) {
+            return ResponseEntity.status(401)
+                    .body(OnlyOfficeCallbackResponse.error("Invalid callback principal", documentId));
         }
 
         Integer status = callback.getStatus();
@@ -219,8 +230,6 @@ public class OnlyOfficeController {
                         .body(OnlyOfficeCallbackResponse.error("No url provided for save", documentId));
             }
             try {
-                OnlyOfficeCallbackPrincipal principal = new OnlyOfficeCallbackPrincipal(
-                        status == 6 ? "forcesave" : "save", documentId, callback.getKey());
                 OnlyOfficeCallbackResponse response = onlyOfficeService.handleSaveCallbackFromUrl(
                         documentId, principal, savedFileUrl);
                 return ResponseEntity.ok(response);

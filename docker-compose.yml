@@ -6,11 +6,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: poliwise
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: poliwise
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/init-db:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -34,7 +33,7 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: poliwise
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
@@ -62,8 +61,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
     volumes:
       - minio_data:/data
     ports:
@@ -88,13 +87,38 @@ services:
     image: redis:7-alpine
     container_name: poliwise-redis
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - poliwise
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+
+  flyway:
+    image: flyway/flyway:10.20.1-alpine
+    container_name: poliwise-flyway
+    restart: "no"
+    command:
+      - -url=jdbc:postgresql://postgres:5432/poliwise
+      - -user=poliwise
+      - -password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - -schemas=public,core,metadata,knowledge,conversation,analytics
+      - -defaultSchema=public
+      - -baselineOnMigrate=true
+      - -baselineVersion=1
+      - -connectRetries=60
+      - migrate
+    volumes:
+      - ./infrastructure/flyway/sql:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - poliwise
 
@@ -106,10 +130,10 @@ services:
     container_name: poliwise-onlyoffice
     restart: unless-stopped
     environment:
-      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-ChangeMeInProductionPleaseUseAtLeast256Bits!}
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?ONLYOFFICE_JWT_SECRET is required}
       REDIS_SERVER_HOST: onlyoffice-redis
       REDIS_SERVER_PORT: 6379
-      REDIS_SERVER_PASS: ${ONLYOFFICE_REDIS_PASSWORD:-onlyoffice_redis_pass}
+      REDIS_SERVER_PASS: ${ONLYOFFICE_REDIS_PASSWORD:?ONLYOFFICE_REDIS_PASSWORD is required}
       USE_UNAUTHORIZED: "false"
       LICENSE_KEY: ${ONLYOFFICE_LICENSE_KEY:-}
     volumes:
@@ -142,11 +166,11 @@ services:
     image: redis:7-alpine
     container_name: poliwise-onlyoffice-redis
     restart: unless-stopped
-    command: redis-server --requirepass ${ONLYOFFICE_REDIS_PASSWORD:-onlyoffice_redis_pass}
+    command: redis-server --requirepass ${ONLYOFFICE_REDIS_PASSWORD:?ONLYOFFICE_REDIS_PASSWORD is required}
     volumes:
       - onlyoffice_redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${ONLYOFFICE_REDIS_PASSWORD:-onlyoffice_redis_pass}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${ONLYOFFICE_REDIS_PASSWORD:?ONLYOFFICE_REDIS_PASSWORD is required}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -163,39 +187,36 @@ services:
       dockerfile: Dockerfile
     container_name: poliwise-auth-service
     restart: unless-stopped
-    env_file:
-      - ./services/auth-service/.env
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=core
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
-      AUTH_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      AUTH_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       AUTH_JWT_ISSUER: poliwise-auth-service
       AUTH_ACCESS_TOKEN_TTL: PT15M
       AUTH_REFRESH_TOKEN_TTL: P7D
       AUTH_MAX_FAILED_ATTEMPTS: 5
       AUTH_LOCK_DURATION: PT15M
-      ADMIN_USERNAME: admin
-      ADMIN_EMAIL: admin@poliwise.com
-      ADMIN_PASSWORD: Admin@123456
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      EMAIL_USERNAME: ${EMAIL_USERNAME:-xuanvietle20050228@gmail.com}
-      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-mjhclmhmzwxhowpi}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      EMAIL_USERNAME: ${EMAIL_USERNAME:-}
+      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
-      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
-    ports:
-      - "8081:8081"
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -223,19 +244,18 @@ services:
       SERVER_PORT: 8082
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
-      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
       POLIWISE_JWT_ISSUER: poliwise-auth-service
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
-    ports:
-      - "8082:8082"
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       auth-service:
@@ -265,22 +285,26 @@ services:
       SERVER_PORT: 8083
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=knowledge
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
-      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
       MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-poliwise-documents}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       INGESTION_SERVICE_URL: http://ingestion-service:8088
-      KNOWLEDGE_INGESTION_INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
+      KNOWLEDGE_INGESTION_INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
       METADATA_SERVICE_URL: http://metadata-service:8084
       KNOWLEDGE_INGESTION_SUGGESTION_TIMEOUT_SECONDS: 30
-      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-ChangeMeInProductionPleaseUseAtLeast256Bits!}
+      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?ONLYOFFICE_JWT_SECRET is required}
+      ONLYOFFICE_DOWNLOAD_MAX_BYTES: ${ONLYOFFICE_DOWNLOAD_MAX_BYTES:-52428800}
+      ONLYOFFICE_DOWNLOAD_CONNECT_TIMEOUT_MS: ${ONLYOFFICE_DOWNLOAD_CONNECT_TIMEOUT_MS:-5000}
+      ONLYOFFICE_DOWNLOAD_READ_TIMEOUT_MS: ${ONLYOFFICE_DOWNLOAD_READ_TIMEOUT_MS:-30000}
       ONLYOFFICE_CALLBACK_URL: ${ONLYOFFICE_CALLBACK_URL:-http://knowledge-service:8083/api/v1/documents}
       # OnlyOffice DS (inside Docker) must reach the API gateway via its Docker hostname and
       # the HOST-MAPPED port (3001), which is the same as the internal container port now.
@@ -289,12 +313,10 @@ services:
       #   poliwise-network) use port 3001 to reach the gateway.
       ONLYOFFICE_CALLBACK_PUBLIC_URL: ${ONLYOFFICE_CALLBACK_PUBLIC_URL:-http://api-gateway:3001/api/v1/documents}
       ONLYOFFICE_LOCK_DURATION_MINUTES: ${ONLYOFFICE_LOCK_DURATION_MINUTES:-30}
-      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
-    ports:
-      - "8083:8083"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       minio:
@@ -326,20 +348,18 @@ services:
       SERVER_PORT: 8084
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=metadata
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
-      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       POLIWISE_JWT_ISSUER: poliwise-auth-service
       USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
-      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
-    ports:
-      - "8084:8084"
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       user-service:
@@ -369,20 +389,25 @@ services:
       SERVER_PORT: 8085
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poliwise?schema=analytics
       SPRING_DATASOURCE_USERNAME: poliwise
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-poliwise_secure_password}
-      POLIWISE_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POLIWISE_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-poliwise_secure_password}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       SPRING_RABBITMQ_VIRTUAL_HOST: /
-      JAVA_OPTS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
-    ports:
-      - "8085:8085"
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_REPORT_BUCKET: ${MINIO_REPORT_BUCKET:-poliwise-reports}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8085/actuator/health" ]
@@ -418,27 +443,24 @@ services:
       HOST: 0.0.0.0
       PORT: 8088
       LOG_LEVEL: info
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
-      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:-poliwise_secure_password}@postgres:5432/poliwise
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/poliwise
       DATABASE_SCHEMA: knowledge
-      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:-poliwise_secure_password}@rabbitmq:5672
+      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672
       RABBITMQ_EXCHANGE: poliwise.events
       MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
       MINIO_SECURE: "false"
       EMBEDDING_URL: http://bge-m3-embedding:80
       RERANKER_URL: ${RERANKER_URL:-http://host.docker.internal:8002}
-      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
     volumes:
       - ./base_dataset:/app/base_dataset:ro
-      - ./services/ingestion-service/src:/app/src
-    ports:
-      - "8088:8088"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       minio:
@@ -472,8 +494,6 @@ services:
     command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 2048 --max-client-batch-size 8 --payload-limit 512000
     volumes:
       - ./data/hf_cache:/data
-    ports:
-      - "8001:80"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
       interval: 30s
@@ -504,19 +524,21 @@ services:
       HOST: 0.0.0.0
       PORT: 8086
       LOG_LEVEL: info
-      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:-poliwise_secure_password}@postgres:5432/poliwise
+      DATABASE_URL: postgresql+asyncpg://poliwise:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/poliwise
       DATABASE_SCHEMA: conversation
-      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:-poliwise_secure_password}@rabbitmq:5672
+      RABBITMQ_URL: amqp://poliwise:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672
       RABBITMQ_EXCHANGE: poliwise.events
       EMBEDDING_URL: http://bge-m3-embedding:80
       RERANKER_URL: ${RERANKER_URL:-http://host.docker.internal:8002}
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
-      LLM_API_KEY: ${GROQ_API_KEY}
+      LLM_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
       LOCAL_MODEL_NAME: ${LOCAL_MODEL_NAME:-qwen3-8b}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-change-me-in-production}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      GROQ_API_KEY: ${GROQ_API_KEY}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: poliwise-auth-service
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
       LAYER1_MODEL: ${LAYER1_MODEL:-meta-llama/llama-prompt-guard-2-86m}
       LAYER2_MODEL: ${LAYER2_MODEL:-llama-3.1-8b-instant}
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.3}
@@ -524,11 +546,9 @@ services:
       TITLE_DEFAULT_PATTERNS: ${TITLE_DEFAULT_PATTERNS:-New Conversation,}
       CONTEXT_LAYER3_ONLY: ${CONTEXT_LAYER3_ONLY:-true}
       MAX_LAYER3_CONTEXT_PAIRS: ${MAX_LAYER3_CONTEXT_PAIRS:-5}
-    ports:
-      - "8086:8086"
     depends_on:
-      postgres:
-        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       bge-m3-embedding:
@@ -564,7 +584,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ISSUER: poliwise-auth-service
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
@@ -582,6 +602,7 @@ services:
       CIRCUIT_BREAKER_TIMEOUT: 30000
       CIRCUIT_BREAKER_VOLUME_THRESHOLD: 10
       LOG_LEVEL: info
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
     ports:
       - "3001:3001"
     depends_on:
@@ -594,6 +615,8 @@ services:
       metadata-service:
         condition: service_healthy
       feedback-service:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]

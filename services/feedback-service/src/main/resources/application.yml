@@ -2,6 +2,7 @@ poliwise:
   jwt:
     secret: ${POLIWISE_JWT_SECRET:change-me-in-production}
     issuer: ${POLIWISE_JWT_ISSUER:poliwise-auth-service}
+  service-token: ${INTERNAL_SERVICE_TOKEN:}
   cleanup:
     audit-retention-days: 90
     report-expiry-days: 7
