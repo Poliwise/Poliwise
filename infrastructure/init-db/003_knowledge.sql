@@ -88,6 +88,7 @@ CREATE TABLE knowledge.document_versions (
 
     file_key VARCHAR(500) NOT NULL,
     file_size_bytes BIGINT NOT NULL,
+    document_type VARCHAR(50),  -- Added for ingestion-service compatibility
     changelog TEXT,
     extracted_text TEXT,
     is_current BOOLEAN DEFAULT FALSE,

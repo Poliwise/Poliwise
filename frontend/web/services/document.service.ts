@@ -364,8 +364,9 @@ export const categoryService = {
    * Get category tree (hierarchical structure)
    */
   async getCategoryTree(): Promise<CategoryTree[]> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(
-      `${METADATA_SERVICE_URL}/api/v1/categories/active/tree`,
+      `${apiUrl}/api/v1/categories/active/tree`,
       { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } }
     );
     const data = await res.json();
@@ -376,9 +377,10 @@ export const categoryService = {
    * Get category children by parent ID
    */
   async getCategoryChildren(parentId?: string): Promise<Category[]> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const url = parentId
-      ? `${METADATA_SERVICE_URL}/api/v1/categories/active/children/${parentId}`
-      : `${METADATA_SERVICE_URL}/api/v1/categories/active/children`;
+      ? `${apiUrl}/api/v1/categories/active/children/${parentId}`
+      : `${apiUrl}/api/v1/categories/active/children`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });
@@ -397,7 +399,8 @@ export const categoryService = {
    * Get category by slug
    */
   async getCategoryBySlug(slug: string): Promise<Category> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/categories/slug/${slug}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/categories/slug/${slug}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });
     const data = await res.json();
@@ -435,7 +438,8 @@ export const categoryService = {
       displayOrder?: number;
     }
   ): Promise<Category> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/categories/${id}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/categories/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -464,7 +468,8 @@ export const categoryService = {
    */
   async resolveSlug(slug: string): Promise<string | null> {
     try {
-      const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/categories/resolve/${slug}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const res = await fetch(`${apiUrl}/api/v1/categories/resolve/${slug}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
       const data = await res.json();
@@ -490,7 +495,8 @@ export const tagService = {
    * Get popular tags
    */
   async getPopularTags(limit = 20): Promise<Tag[]> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/tags/popular?limit=${limit}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/tags/popular?limit=${limit}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });
     const data = await res.json();
@@ -507,8 +513,9 @@ export const tagService = {
     total: number;
     totalPages: number;
   }> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const res = await fetch(
-      `${METADATA_SERVICE_URL}/api/v1/tags/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${limit}`,
+      `${apiUrl}/api/v1/tags/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${limit}`,
       { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } }
     );
     const data = await res.json();
@@ -519,7 +526,8 @@ export const tagService = {
    * Get tag by ID
    */
   async getTagById(id: string): Promise<Tag> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/tags/${id}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/tags/${id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });
     const data = await res.json();
@@ -601,7 +609,8 @@ export const accessRuleService = {
     targetUserId?: string;
     permission: 'VIEW' | 'DENY';
   }): Promise<AccessRule> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/access-rules/${ruleId}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/access-rules/${ruleId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -668,7 +677,8 @@ export const documentMetadataService = {
    * Get document metadata
    */
   async getMetadata(id: string): Promise<DocumentMetadata> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/metadata/${id}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/metadata/${id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });
     const data = await res.json();
@@ -680,7 +690,8 @@ export const documentMetadataService = {
    * @throws Error with `status` property if HTTP error occurs (e.g., 404, 500)
    */
   async getMetadataByDocumentId(documentId: string): Promise<DocumentMetadata> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/metadata/document/${documentId}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/metadata/document/${documentId}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });
     if (!res.ok) {
@@ -707,7 +718,8 @@ export const documentMetadataService = {
     effectiveDate?: string;
     expiryDate?: string;
   }): Promise<DocumentMetadata> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/metadata`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/metadata`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -734,7 +746,8 @@ export const documentMetadataService = {
       expiryDate?: string;
     }
   ): Promise<DocumentMetadata> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/metadata/${id}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/metadata/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -750,7 +763,8 @@ export const documentMetadataService = {
    * Publish document (ADMIN only)
    */
   async publish(id: string): Promise<void> {
-    const res = await fetch(`${METADATA_SERVICE_URL}/api/v1/metadata/${id}/publish`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/metadata/${id}/publish`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
     });

@@ -34,6 +34,7 @@ public class Feedback {
     private UUID conversationId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "type", nullable = false)
     private FeedbackType type;
 

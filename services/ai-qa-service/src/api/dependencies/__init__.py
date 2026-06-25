@@ -31,7 +31,7 @@ def get_user_context(request: Request) -> UserContext:
         claims = jwt.decode(
             token,
             settings.jwt_secret,
-            algorithms=["HS256"],
+            algorithms=["HS256", "HS384", "HS512"],
             issuer=settings.jwt_issuer,
             options={"require": ["exp", "iat", "iss", "sub", "role", "status"]},
         )
