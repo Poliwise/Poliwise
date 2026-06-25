@@ -53,12 +53,6 @@ import type { AccessRule, CreateAccessRuleRequest } from '@/types/document';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-/** Direct knowledge-service URL for multipart uploads (bypass gateway streaming issues) */
-const KNOWLEDGE_SERVICE_URL =
-  typeof window === 'undefined'
-    ? 'http://knowledge-service:8083'
-    : 'http://localhost:8083';
-
 // ============================================================================
 // Response coercers — handle both wrapped { success: true, data: {...} and raw responses
 // ============================================================================
@@ -903,7 +897,7 @@ class ApiClient {
       if (changelog) formData.append('changelog', changelog);
       if (language) formData.append('language', language);
       const res = await this.client.post<unknown>(
-        `${KNOWLEDGE_SERVICE_URL}/api/v1/documents`,
+        `/api/v1/documents/upload`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
@@ -944,7 +938,7 @@ class ApiClient {
     },
 
     cancel: async (documentId: string): Promise<void> => {
-      await this.client.delete(`${KNOWLEDGE_SERVICE_URL}/api/v1/documents/${documentId}/cancel`);
+      await this.client.delete(`/api/v1/documents/${documentId}/cancel`);
     },
 
     getVersions: async (documentId: string): Promise<DocumentVersion[]> => {
@@ -1323,20 +1317,28 @@ class ApiClient {
     }> => {
       const res = await this.client.get<
         ApiResponse<UnansweredQuestion[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/ai/unanswered', { params });
+      >('/api/v1/analytics/unanswered', { params });
       const coerced = coercePaginated<UnansweredQuestion>(res.data as unknown as Record<string, unknown>, 'data');
+      const normalizedData = (coerced.data.length ? coerced.data : (res.data as unknown as { data?: UnansweredQuestion[] })?.data || [])
+        .map((item) => ({
+          ...item,
+          askCount: Number((item as unknown as Record<string, unknown>).askCount ?? 1),
+          firstAskedAt: String((item as unknown as Record<string, unknown>).firstAskedAt ?? new Date().toISOString()),
+          lastAskedAt: String((item as unknown as Record<string, unknown>).lastAskedAt ?? (item as unknown as Record<string, unknown>).firstAskedAt ?? new Date().toISOString()),
+          status: String((item as unknown as Record<string, unknown>).status ?? 'PENDING') as UnansweredQuestion['status'],
+        }));
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: UnansweredQuestion[] })?.data || [],
+        data: normalizedData,
         pagination: coerced.pagination,
       };
     },
 
     resolveUnanswered: async (id: string, data: { answer: string }): Promise<void> => {
-      await this.client.put(`/api/v1/ai/unanswered/${id}/resolve`, data);
+      await this.client.put(`/api/v1/analytics/unanswered/${id}/resolve`, data);
     },
 
     rejectUnanswered: async (id: string): Promise<void> => {
-      await this.client.put(`/api/v1/ai/unanswered/${id}/reject`);
+      await this.client.put(`/api/v1/analytics/unanswered/${id}/reject`);
     },
 
     getDocumentViews: async (days = 30): Promise<{

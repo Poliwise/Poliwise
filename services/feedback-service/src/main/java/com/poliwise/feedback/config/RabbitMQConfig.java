@@ -2,7 +2,10 @@ package com.poliwise.feedback.config;
 
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.MessageRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -25,8 +28,13 @@ public class RabbitMQConfig {
     public static final String ROUTING_USER_STATUS = "user.status.changed";
     public static final String ROUTING_USER_PROFILE = "user.profile.updated";
     public static final String ROUTING_AUTH_LOGIN = "user.login.*";
+    public static final String QUEUE_REPORT_EXPORT = "poliwise.feedback.report.export";
+    public static final String ROUTING_REPORT_EXPORT = "report.export.requested";
+    public static final String DEAD_LETTER_EXCHANGE_NAME = EXCHANGE_NAME + ".dlx";
+    public static final String QUEUE_REPORT_EXPORT_DLQ = QUEUE_REPORT_EXPORT + ".dlq";
 
     @Bean public TopicExchange poliwiseExchange() { return new TopicExchange(EXCHANGE_NAME); }
+    @Bean public TopicExchange poliwiseDeadLetterExchange() { return new TopicExchange(DEAD_LETTER_EXCHANGE_NAME); }
     @Bean public TopicExchange userExchange() { return new TopicExchange(USER_EXCHANGE_NAME, true, false); }
     @Bean public TopicExchange authExchange() { return new TopicExchange(AUTH_EXCHANGE_NAME, true, false); }
 
@@ -45,6 +53,10 @@ public class RabbitMQConfig {
     @Bean public Queue authLoginQueue() {
         return QueueBuilder.durable(QUEUE_AUTH_LOGIN).withArgument("x-dead-letter-exchange", EXCHANGE_NAME + ".dlx").build();
     }
+    @Bean public Queue reportExportQueue() {
+        return QueueBuilder.durable(QUEUE_REPORT_EXPORT).withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE_NAME).build();
+    }
+    @Bean public Queue reportExportDeadLetterQueue() { return QueueBuilder.durable(QUEUE_REPORT_EXPORT_DLQ).build(); }
 
     @Bean public Binding unansweredBinding(Queue unansweredQueue, TopicExchange poliwiseExchange) {
         return BindingBuilder.bind(unansweredQueue).to(poliwiseExchange).with(ROUTING_UNANSWERED);
@@ -67,11 +79,37 @@ public class RabbitMQConfig {
     @Bean public Binding authLoginBinding(Queue authLoginQueue, TopicExchange authExchange) {
         return BindingBuilder.bind(authLoginQueue).to(authExchange).with(ROUTING_AUTH_LOGIN);
     }
+    @Bean public Binding reportExportBinding(Queue reportExportQueue, TopicExchange poliwiseExchange) {
+        return BindingBuilder.bind(reportExportQueue).to(poliwiseExchange).with(ROUTING_REPORT_EXPORT);
+    }
+    @Bean public Binding reportExportDeadLetterBinding(
+            Queue reportExportDeadLetterQueue,
+            TopicExchange poliwiseDeadLetterExchange) {
+        return BindingBuilder.bind(reportExportDeadLetterQueue)
+                .to(poliwiseDeadLetterExchange)
+                .with(ROUTING_REPORT_EXPORT);
+    }
 
     @Bean public MessageConverter jsonMessageConverter() { return new Jackson2JsonMessageConverter(); }
     @Bean public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate t = new RabbitTemplate(connectionFactory);
         t.setMessageConverter(jsonMessageConverter());
         return t;
+    }
+
+    @Bean
+    public SimpleRabbitListenerContainerFactory reportExportRabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            MessageConverter messageConverter,
+            MessageRecoverer reportExportMessageRecoverer) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(messageConverter);
+        factory.setAdviceChain(RetryInterceptorBuilder.stateless()
+                .maxAttempts(3)
+                .backOffOptions(1_000, 2.0, 5_000)
+                .recoverer(reportExportMessageRecoverer)
+                .build());
+        return factory;
     }
 }

@@ -54,9 +54,9 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(internalStatsTokenFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(internalStatsTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(onlyOfficeCallbackFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(onlyOfficeCallbackFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 

@@ -114,7 +114,7 @@ export class RateLimitInterceptor implements NestInterceptor {
     const resetTime = now + this.ttl;
 
     try {
-      const result = (await this.redisClient.eval(
+      const result = (await this.redisClient!.eval(
         `local current = redis.call('INCR', KEYS[1])
          if current == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
          local ttl = redis.call('PTTL', KEYS[1])

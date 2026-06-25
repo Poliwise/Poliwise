@@ -77,7 +77,7 @@ public class AdminInitializer implements CommandLineRunner {
                     userRepository.save(admin);
                     log.info("Admin account '{}' password has been reset successfully.", adminUsername);
                 } else {
-                    log.info("Admin account '{}' credentials verified.", ADMIN_USERNAME);
+                    log.info("Admin account '{}' credentials verified.", adminUsername);
                 }
             }
             return;

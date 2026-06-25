@@ -30,9 +30,4 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(dashboardService.getTrends(days)));
     }
 
-    @GetMapping("/unanswered")
-    public ResponseEntity<ApiResponse<Page<UnansweredQuestionResponse>>> getUnanswered(
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(dashboardService.getUnansweredQuestions(pageable)));
-    }
 }

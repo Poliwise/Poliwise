@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Edit3, ArrowLeft, Loader2, Upload, FileText } from 'lucide-react';
 import mammoth from 'mammoth';
+import DOMPurify from 'dompurify';
 import { onlyOfficeService, type LockInfo, type ConflictStatus } from '@/services/onlyoffice.service';
 
 interface ConflictResolverProps {
@@ -279,7 +280,7 @@ export function ConflictResolver({
                     <div
                       className="p-8 bg-gray-50 min-h-full"
                       style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '14px', lineHeight: '1.8', color: '#1a1a1a' }}
-                      dangerouslySetInnerHTML={{ __html: minePreview.html }}
+                      dangerouslySetInnerHTML={{ __html: typeof window !== 'undefined' ? DOMPurify.sanitize(minePreview.html) : '' }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -342,7 +343,7 @@ export function ConflictResolver({
                     <div
                       className="p-8 bg-gray-50 min-h-full"
                       style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '14px', lineHeight: '1.8', color: '#1a1a1a' }}
-                      dangerouslySetInnerHTML={{ __html: theirsPreview.html }}
+                      dangerouslySetInnerHTML={{ __html: typeof window !== 'undefined' ? DOMPurify.sanitize(theirsPreview.html) : '' }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">

@@ -2,6 +2,7 @@ package com.poliwise.feedback.dto.response;
 
 import com.poliwise.feedback.entity.ReportExport;
 import com.poliwise.feedback.enums.ExportFormat;
+import com.poliwise.feedback.enums.ExportStatus;
 import com.poliwise.feedback.enums.ReportType;
 
 import java.time.Instant;
@@ -12,7 +13,7 @@ public record ReportExportResponse(
         ReportType reportType,
         String title,
         ExportFormat format,
-        String status,
+        ExportStatus status,
         String fileKey,
         Integer fileSizeBytes,
         UUID requestedBy,

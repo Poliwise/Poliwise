@@ -45,7 +45,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/stats").hasRole("INTERNAL")
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(internalStatsTokenFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(internalStatsTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

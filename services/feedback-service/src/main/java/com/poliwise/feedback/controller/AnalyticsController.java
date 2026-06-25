@@ -96,4 +96,23 @@ public class AnalyticsController {
             @RequestParam(defaultValue = "30") int days) {
         return ResponseEntity.ok(ApiResponse.success(analyticsService.getTrends(days)));
     }
+
+    @GetMapping("/unanswered")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<UnansweredQuestionResponse>>> getUnanswered(
+            @RequestParam(required = false) String status,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(dashboardService.getUnansweredQuestions(pageable, status)));
+    }
+
+    @PutMapping("/unanswered/{id}/resolve")
+    public ResponseEntity<ApiResponse<Void>> resolveUnanswered(@PathVariable UUID id, @RequestBody Map<String, String> request) {
+        dashboardService.resolveUnanswered(id, request.get("answer"));
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PutMapping("/unanswered/{id}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectUnanswered(@PathVariable UUID id) {
+        dashboardService.rejectUnanswered(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

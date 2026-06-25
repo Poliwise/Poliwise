@@ -7,7 +7,7 @@
  * - Audit logs
  * - Search and filter
  *
- * NOTE: Uses XHR for multipart uploads (bypasses gateway streaming issues).
+ * NOTE: Uses XHR for multipart uploads through the gateway.
  * All other methods use the public api.documents.*, api.metadata.* wrappers.
  */
 
@@ -65,7 +65,7 @@ export const documentService = {
 
   /**
    * Upload a new document
-   * Bypasses gateway for streaming multipart upload
+   * Upload through gateway multipart endpoint
    */
   async uploadDocument(
     file: File,
@@ -106,7 +106,8 @@ export const documentService = {
       });
 
       const token = localStorage.getItem('accessToken');
-      xhr.open('POST', `${KNOWLEDGE_SERVICE_URL}/api/v1/documents`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      xhr.open('POST', `${apiUrl}/api/v1/documents/upload`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
     });

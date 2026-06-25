@@ -36,7 +36,7 @@ public class DocumentController {
     private final MetadataSuggestionService metadataSuggestionService;
 
     // ===== 1. Upload Document =====
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = {"", "/upload"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DocumentResponse> upload(
             @RequestParam("file") MultipartFile file,

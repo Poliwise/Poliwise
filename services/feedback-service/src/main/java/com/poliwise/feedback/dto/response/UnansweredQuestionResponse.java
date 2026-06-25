@@ -6,12 +6,11 @@ import java.util.UUID;
 public record UnansweredQuestionResponse(
         UUID id,
         String question,
-        UUID userId,
-        UUID userDepartmentId,
-        String category,
-        String priority,
-        Boolean resolved,
-        Instant createdAt,
-        Instant resolvedAt,
-        String resolutionNotes
+        Integer askCount,
+        String departmentName,
+        String userName,
+        Instant firstAskedAt,
+        Instant lastAskedAt,
+        String status,
+        String suggestedAnswer
 ) {}
