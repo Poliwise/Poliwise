@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, MessageSquare, CheckCircle } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
+import { api } from '@/lib/api';
 import { useLanguage } from '@/providers';
 import styles from './reset-password.module.css';
 
@@ -48,23 +49,18 @@ function ResetPasswordForm() {
     try {
       // Call backend reset password endpoint
       // If endpoint doesn't exist, API will fail — handle gracefully
-      await (window as unknown as {
-        fetch: (url: string, opts: unknown) => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
-      }).fetch('/api/v1/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, newPassword: password }),
-      });
+      await api.auth.resetPassword({ token: token!, newPassword: password });
       setSuccess(true);
     } catch (err: unknown) {
       const axiosError = err as {
-        response?: { data?: { error?: { message?: string } } };
+        response?: { data?: { message?: string; error?: { message?: string } } };
         message?: string;
       };
       setError(
+        axiosError.response?.data?.message ||
         axiosError.response?.data?.error?.message ||
         axiosError.message ||
-        t('reset.success.message')
+        t('reset.invalid.message')
       );
     } finally {
       setIsLoading(false);

@@ -59,6 +59,14 @@ export class AuthProxyController {
     return this.proxyService.forward(ServiceName.AUTH, request, path);
   }
 
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  handleResetPassword(@Req() request: Request) {
+    const path = '/api/v1/auth/reset-password';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)

@@ -33,11 +33,11 @@ class IngestionPipeline:
         self,
         document_id: UUID,
         version_id: UUID,
-        document_version: int,
         job_id: UUID,
         bucket_name: str,
         file_key: str,
         metadata: dict,
+        document_version: int = 1,
     ) -> dict:
         """Run the full ingestion pipeline."""
         logger.info(
@@ -94,12 +94,16 @@ class IngestionPipeline:
             # Prepare metadata for chunker
             chunk_metadata = {
                 "document_id": document_id,
-                "version_id": version_id,
+                "document_version_id": version_id,
                 "document_version": document_version,
                 "allowed_roles": metadata.get("allowed_roles"),
                 "allowed_departments": metadata.get("allowed_departments"),
                 "allowed_users": metadata.get("allowed_users"),
-                "access_level": metadata.get("access_level", "PUBLIC"),
+                "access_level": metadata.get("access_level", "RESTRICTED"),
+                "department_id": metadata.get("department_id"),
+                "document_type": metadata.get("document_type"),
+                "effective_date": metadata.get("effective_date"),
+                "expiry_date": metadata.get("expiry_date"),
             }
             
             chunks = self.chunker.chunk(structured, chunk_metadata)

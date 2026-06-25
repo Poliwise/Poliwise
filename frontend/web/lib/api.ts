@@ -511,6 +511,17 @@ class ApiClient {
       return res.data;
     },
 
+    resetPassword: async (data: {
+      token: string;
+      newPassword: string;
+    }): Promise<{ success: boolean; message: string }> => {
+      const res = await this.client.post<{ success: boolean; message: string }>(
+        '/api/v1/auth/reset-password',
+        data
+      );
+      return res.data;
+    },
+
     changePassword: async (data: {
       oldPassword: string;
       newPassword: string;
@@ -671,10 +682,6 @@ class ApiClient {
     updateMe: async (data: Partial<User>): Promise<User> => {
       const res = await this.client.put<ApiResponse<User>>('/api/v1/users/me', data);
       return coercePaginated<User>(res.data, 'data').data[0] ?? res.data.data!;
-    },
-
-    updateDepartment: async (departmentId: string): Promise<void> => {
-      await this.client.patch('/api/v1/users/me/department', { departmentId });
     },
 
     search: async (params?: {
@@ -962,21 +969,29 @@ class ApiClient {
 
 
     comparePolicies: async (doc1Id: string, doc2Id: string): Promise<{
-      document1: Document;
-      document2: Document;
-      added: string[];
-      removed: string[];
-      modified: { old: string; new: string }[];
+      document1Id: string;
+      document2Id: string;
+      document1Title: string;
+      document2Title: string;
+      addedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+      removedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+      modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+      totalChanges: number;
     }> => {
-      const res = await this.client.get<{
+      const res = await this.client.post<{
         data?: {
-          document1: Document;
-          document2: Document;
-          added: string[];
-          removed: string[];
-          modified: { old: string; new: string }[];
+          document1Id: string;
+          document2Id: string;
+          document1Title: string;
+          document2Title: string;
+          addedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+          removedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+          modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+          totalChanges: number;
         };
-      }>(`/api/v1/documents/compare?doc1=${doc1Id}&doc2=${doc2Id}`);
+      }>('/api/v1/documents/compare', null, {
+        params: { document1Id: doc1Id, document2Id: doc2Id },
+      });
       return (res.data as any).data || res.data;
     },
 

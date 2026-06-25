@@ -1,6 +1,7 @@
 package com.poliwise.feedback.repository;
 
 import com.poliwise.feedback.entity.UnansweredQuestion;
+import com.poliwise.feedback.enums.UnansweredStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,11 +18,15 @@ public interface UnansweredQuestionRepository extends JpaRepository<UnansweredQu
 
     Page<UnansweredQuestion> findByResolved(Boolean resolved, Pageable pageable);
 
+    Page<UnansweredQuestion> findByStatus(UnansweredStatus status, Pageable pageable);
+
     Page<UnansweredQuestion> findByUserId(UUID userId, Pageable pageable);
 
     List<UnansweredQuestion> findByPriorityOrderByCreatedAtDesc(String priority);
 
     long countByResolved(Boolean resolved);
+
+    long countByStatusIn(List<UnansweredStatus> statuses);
 
     @Query("SELECT COUNT(u) FROM UnansweredQuestion u WHERE u.resolved = false AND u.createdAt BETWEEN :from AND :to")
     Long countUnansweredBetween(@Param("from") Instant from, @Param("to") Instant to);

@@ -595,7 +595,7 @@ public class DocumentManagementService {
         payload.put("file_key", document.getFileKey());
         payload.put("bucket_name", document.getBucketName());
         
-        Map<String, Object> metadata = new HashMap<>();
+        Map<String, Object> metadata = new HashMap<>(metadataServiceClient.getIngestionAccessMetadata(documentId, triggeredBy));
         metadata.put("language", document.getLanguage());
         metadata.put("uploaded_by", triggeredBy.toString());
         payload.put("metadata", metadata);

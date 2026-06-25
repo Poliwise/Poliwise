@@ -101,7 +101,11 @@ class ParentChildChunker:
                 allowed_roles=metadata.get("allowed_roles"),
                 allowed_departments=metadata.get("allowed_departments"),
                 allowed_users=metadata.get("allowed_users"),
-                access_level=metadata.get("access_level", "PUBLIC"),
+                access_level=metadata.get("access_level", "RESTRICTED"),
+                department_id=metadata.get("department_id"),
+                document_type=metadata.get("document_type"),
+                effective_date=metadata.get("effective_date"),
+                expiry_date=metadata.get("expiry_date"),
                 metadata=metadata,
             )
             chunks.append(parent_chunk)
@@ -159,7 +163,11 @@ class ParentChildChunker:
                 allowed_roles=metadata.get("allowed_roles"),
                 allowed_departments=metadata.get("allowed_departments"),
                 allowed_users=metadata.get("allowed_users"),
-                access_level=metadata.get("access_level", "PUBLIC"),
+                access_level=metadata.get("access_level", "RESTRICTED"),
+                department_id=metadata.get("department_id"),
+                document_type=metadata.get("document_type"),
+                effective_date=metadata.get("effective_date"),
+                expiry_date=metadata.get("expiry_date"),
                 metadata=metadata,
             )
             chunks.append(parent_chunk)
@@ -229,7 +237,11 @@ class ParentChildChunker:
                     allowed_roles=metadata.get("allowed_roles"),
                     allowed_departments=metadata.get("allowed_departments"),
                     allowed_users=metadata.get("allowed_users"),
-                    access_level=metadata.get("access_level", "PUBLIC"),
+                    access_level=metadata.get("access_level", "RESTRICTED"),
+                    department_id=metadata.get("department_id"),
+                    document_type=metadata.get("document_type"),
+                    effective_date=metadata.get("effective_date"),
+                    expiry_date=metadata.get("expiry_date"),
                     metadata=metadata,
                 )
             )

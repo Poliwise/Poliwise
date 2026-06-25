@@ -3,6 +3,7 @@ package com.poliwise.metadata.service;
 import com.poliwise.metadata.dto.CreateDocumentMetadataRequest;
 import com.poliwise.metadata.dto.UpdateDocumentMetadataRequest;
 import com.poliwise.metadata.dto.DocumentMetadataResponse;
+import com.poliwise.metadata.dto.DocumentAccessCheckResponse;
 import com.poliwise.metadata.dto.TagResponse;
 import com.poliwise.metadata.dto.AccessRuleResponse;
 import com.poliwise.metadata.dto.event.DocumentUploadedEvent;
@@ -12,8 +13,10 @@ import com.poliwise.metadata.entity.DocumentMetadata;
 import com.poliwise.metadata.entity.DocumentTag;
 import com.poliwise.metadata.entity.Tag;
 import com.poliwise.metadata.enums.DocumentStatus;
+import com.poliwise.metadata.enums.AccessLevel;
 import com.poliwise.metadata.enums.RulePermission;
 import com.poliwise.metadata.enums.RuleTargetType;
+import com.poliwise.metadata.enums.UserRole;
 import com.poliwise.metadata.event.MetadataEventPublisher;
 import com.poliwise.metadata.exception.ResourceNotFoundException;
 import com.poliwise.metadata.repository.*;
@@ -130,6 +133,52 @@ public class DocumentMetadataService {
         DocumentMetadata metadata = metadataRepository.findByDocumentIdAndDeletedAtIsNull(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document metadata not found for document: " + documentId));
         return toResponse(metadata);
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentAccessCheckResponse checkAccess(UUID documentId, UUID userId, UserRole userRole, UUID userDepartmentId) {
+        DocumentMetadata metadata = metadataRepository.findByDocumentIdAndDeletedAtIsNull(documentId).orElse(null);
+        if (metadata == null) {
+            return new DocumentAccessCheckResponse(documentId, false, "metadata_not_found");
+        }
+        if (userRole == UserRole.ADMIN) {
+            return new DocumentAccessCheckResponse(documentId, true, "admin");
+        }
+
+        List<DocumentAccessRule> rules = accessRuleRepository.findByDocumentMetadataId(metadata.getId());
+        boolean denied = rules.stream().anyMatch(rule -> matchesRule(rule, userId, userRole, userDepartmentId)
+                && rule.getPermission() == RulePermission.DENY);
+        if (denied) {
+            return new DocumentAccessCheckResponse(documentId, false, "explicit_deny");
+        }
+
+        AccessLevel level = metadata.getAccessLevel();
+        if (level == AccessLevel.PUBLIC) {
+            return new DocumentAccessCheckResponse(documentId, true, "public");
+        }
+        if (level == AccessLevel.DEPARTMENT_ONLY) {
+            boolean sameDepartment = metadata.getDepartmentId() != null
+                    && metadata.getDepartmentId().equals(userDepartmentId);
+            return new DocumentAccessCheckResponse(documentId, sameDepartment,
+                    sameDepartment ? "department_match" : "department_mismatch");
+        }
+
+        boolean allowed = rules.stream().anyMatch(rule -> matchesRule(rule, userId, userRole, userDepartmentId)
+                && rule.getPermission() == RulePermission.VIEW);
+        return new DocumentAccessCheckResponse(documentId, allowed, allowed ? "explicit_allow" : "restricted");
+    }
+
+    private boolean matchesRule(DocumentAccessRule rule, UUID userId, UserRole userRole, UUID userDepartmentId) {
+        if (rule.getTargetType() == RuleTargetType.USER) {
+            return userId != null && userId.equals(rule.getTargetUserId());
+        }
+        if (rule.getTargetType() == RuleTargetType.ROLE) {
+            return userRole != null && userRole.equals(rule.getTargetRole());
+        }
+        if (rule.getTargetType() == RuleTargetType.DEPARTMENT) {
+            return userDepartmentId != null && userDepartmentId.equals(rule.getTargetDepartmentId());
+        }
+        return false;
     }
 
     @Transactional

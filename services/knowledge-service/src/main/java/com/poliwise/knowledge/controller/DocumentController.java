@@ -2,6 +2,7 @@ package com.poliwise.knowledge.controller;
 
 import com.poliwise.knowledge.dto.*;
 import com.poliwise.knowledge.entity.Document;
+import com.poliwise.knowledge.client.MetadataServiceClient;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
@@ -34,6 +35,7 @@ public class DocumentController {
     private final DocumentManagementService documentManagementService;
     private final MetadataContextService metadataContextService;
     private final MetadataSuggestionService metadataSuggestionService;
+    private final MetadataServiceClient metadataServiceClient;
 
     // ===== 1. Upload Document =====
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -179,6 +181,7 @@ public class DocumentController {
     @GetMapping("/{documentId}")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<DocumentDetailResponse> getDetail(@PathVariable UUID documentId) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         return ResponseEntity.ok(detail);
     }
@@ -187,6 +190,7 @@ public class DocumentController {
     @GetMapping("/{documentId}/download")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID documentId) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         StreamingResponseBody stream = documentManagementService.downloadDocument(documentId);
 
@@ -204,6 +208,7 @@ public class DocumentController {
     @GetMapping("/{documentId}/url")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<DownloadUrlResponse> getDownloadUrl(@PathVariable UUID documentId) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         String url = documentManagementService.getDownloadUrl(documentId);
         return ResponseEntity.ok(new DownloadUrlResponse(url));
     }
@@ -212,6 +217,7 @@ public class DocumentController {
     @GetMapping("/{documentId}/preview")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<byte[]> getPreview(@PathVariable UUID documentId) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         byte[] content = documentManagementService.getDocumentBytes(documentId);
 
@@ -229,6 +235,7 @@ public class DocumentController {
             @PathVariable UUID documentId,
             @PathVariable Integer versionNumber) {
 
+        metadataServiceClient.assertCanReadDocument(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         DocumentVersionResponse version = detail.versions().stream()
                 .filter(v -> v.versionNumber().equals(versionNumber))
@@ -253,6 +260,7 @@ public class DocumentController {
     public ResponseEntity<String> getDocumentContent(
             @PathVariable UUID documentId,
             @RequestParam(required = false) Integer version) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         String content = documentManagementService.getExtractedText(documentId, version);
         return ResponseEntity.ok(content);
     }
@@ -281,6 +289,7 @@ public class DocumentController {
     @GetMapping("/{documentId}/versions")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<List<DocumentVersionResponse>> getVersions(@PathVariable UUID documentId) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         return ResponseEntity.ok(detail.versions());
     }
@@ -290,6 +299,7 @@ public class DocumentController {
     public ResponseEntity<Map<String, String>> getContent(
             @PathVariable UUID documentId,
             @PathVariable Integer versionNumber) {
+        metadataServiceClient.assertCanReadDocument(documentId);
         String content = documentManagementService.getExtractedText(documentId, versionNumber);
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
     }
@@ -306,6 +316,7 @@ public class DocumentController {
             @RequestParam(required = false, defaultValue = "1") int page,
             @RequestParam(required = false, defaultValue = "20") int size) {
 
+        metadataServiceClient.assertCanReadDocument(documentId);
         java.time.LocalDate start = null;
         java.time.LocalDate end = null;
         try {

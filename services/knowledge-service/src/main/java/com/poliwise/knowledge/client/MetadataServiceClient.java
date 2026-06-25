@@ -2,6 +2,7 @@ package com.poliwise.knowledge.client;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -134,8 +135,18 @@ public class MetadataServiceClient {
             body.put("title", title);
             body.put("description", description);
             body.put("categoryId", categoryId != null ? categoryId.toString() : null);
-            body.put("accessLevel", "PUBLIC");
+            body.put("accessLevel", "RESTRICTED");
             body.put("documentType", isPolicy != null && isPolicy ? "POLICY" : "GENERAL");
+            if (authToken != null) {
+                UUID currentUserId = currentUserIdFromRequest();
+                if (currentUserId != null) {
+                    body.put("accessRules", List.of(Map.of(
+                            "targetType", "USER",
+                            "targetUserId", currentUserId.toString(),
+                            "permission", "VIEW"
+                    )));
+                }
+            }
             if (tagIds != null && !tagIds.isEmpty()) {
                 body.put("tagIds", tagIds.stream().map(UUID::toString).toList());
             }
@@ -161,5 +172,114 @@ public class MetadataServiceClient {
                     documentId, e.getMessage(), e);
             throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
         }
+    }
+
+    public void assertCanReadDocument(UUID documentId) {
+        String authToken = getCurrentAuthToken();
+        try {
+            WebClient.RequestHeadersSpec<?> req = metadataWebClient.get()
+                    .uri("/api/v1/metadata/document/{documentId}/access-check", documentId);
+
+            if (authToken != null) {
+                req = req.header("Authorization", authToken);
+            }
+
+            Map<String, Object> response = req
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(TIMEOUT)
+                    .block();
+
+            Object allowed = response != null ? response.get("allowed") : null;
+            if (Boolean.TRUE.equals(allowed)) {
+                return;
+            }
+            throw new AccessDeniedException("Document access denied");
+        } catch (AccessDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Document access check failed closed for documentId={}: {}", documentId, e.getMessage());
+            throw new AccessDeniedException("Document access denied");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getIngestionAccessMetadata(UUID documentId, UUID fallbackUserId) {
+        String authToken = getCurrentAuthToken();
+        try {
+            WebClient.RequestHeadersSpec<?> req = metadataWebClient.get()
+                    .uri("/api/v1/metadata/document/{documentId}", documentId);
+            if (authToken != null) {
+                req = req.header("Authorization", authToken);
+            }
+
+            Map<String, Object> metadata = req
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(TIMEOUT)
+                    .block();
+
+            if (metadata == null) {
+                return restrictedFallback(fallbackUserId);
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("access_level", metadata.getOrDefault("accessLevel", "RESTRICTED"));
+            payload.put("department_id", metadata.get("departmentId"));
+            payload.put("document_type", metadata.get("documentType"));
+            payload.put("effective_date", metadata.get("effectiveDate"));
+            payload.put("expiry_date", metadata.get("expiryDate"));
+
+            List<Map<String, Object>> rules = metadata.get("accessRules") instanceof List<?>
+                    ? (List<Map<String, Object>>) metadata.get("accessRules")
+                    : List.of();
+            payload.put("allowed_roles", rules.stream()
+                    .filter(rule -> "VIEW".equals(rule.get("permission")))
+                    .filter(rule -> "ROLE".equals(rule.get("targetType")))
+                    .map(rule -> rule.get("targetRole"))
+                    .filter(Objects::nonNull)
+                    .toList());
+            payload.put("allowed_departments", rules.stream()
+                    .filter(rule -> "VIEW".equals(rule.get("permission")))
+                    .filter(rule -> "DEPARTMENT".equals(rule.get("targetType")))
+                    .map(rule -> rule.get("targetDepartmentId"))
+                    .filter(Objects::nonNull)
+                    .toList());
+            payload.put("allowed_users", rules.stream()
+                    .filter(rule -> "VIEW".equals(rule.get("permission")))
+                    .filter(rule -> "USER".equals(rule.get("targetType")))
+                    .map(rule -> rule.get("targetUserId"))
+                    .filter(Objects::nonNull)
+                    .toList());
+            return payload;
+        } catch (Exception e) {
+            log.warn("Falling back to restricted ingestion ACL for documentId={}: {}", documentId, e.getMessage());
+            return restrictedFallback(fallbackUserId);
+        }
+    }
+
+    private Map<String, Object> restrictedFallback(UUID fallbackUserId) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("access_level", "RESTRICTED");
+        payload.put("allowed_roles", List.of());
+        payload.put("allowed_departments", List.of());
+        payload.put("allowed_users", fallbackUserId != null ? List.of(fallbackUserId.toString()) : List.of());
+        return payload;
+    }
+
+    private UUID currentUserIdFromRequest() {
+        try {
+            ServletRequestAttributes attrs =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                String userId = attrs.getRequest().getHeader("X-User-Id");
+                if (userId != null && !userId.isBlank()) {
+                    return UUID.fromString(userId);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not extract current user id: {}", e.getMessage());
+        }
+        return null;
     }
 }

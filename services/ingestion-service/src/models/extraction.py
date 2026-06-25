@@ -46,5 +46,9 @@ class Chunk:
     allowed_roles: Optional[list[str]] = None
     allowed_departments: Optional[list[str]] = None
     allowed_users: Optional[list[str]] = None
-    access_level: str = "PUBLIC"
+    access_level: str = "RESTRICTED"
+    department_id: Optional[str] = None
+    document_type: Optional[str] = None
+    effective_date: Optional[str] = None
+    expiry_date: Optional[str] = None
     metadata: dict = field(default_factory=dict)

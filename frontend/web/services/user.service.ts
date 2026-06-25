@@ -11,10 +11,6 @@ export interface UserProfileUpdateRequest {
   dateOfBirth?: string;
 }
 
-export interface UserDepartmentUpdateRequest {
-  departmentId: string;
-}
-
 export interface UserStatusResponse {
   status: 'ACTIVE' | 'DEACTIVATED' | 'REVOKED';
   lockedUntil?: string;
@@ -55,10 +51,6 @@ class UserService {
   async getMyStatus(): Promise<UserStatusResponse> {
     const response = await apiClient.get<{ success: boolean; data: UserStatusResponse }>('/api/v1/users/me/status');
     return response.data;
-  }
-
-  async updateMyDepartment(data: UserDepartmentUpdateRequest): Promise<void> {
-    await apiClient.patch('/api/v1/users/me/department', data);
   }
 
   async getUserById(userId: string): Promise<UserSearchResponse> {

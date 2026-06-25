@@ -85,6 +85,7 @@ CREATE TABLE conversation.unanswered_questions (
     user_department_id UUID,
     user_role VARCHAR(20),
 
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     resolved BOOLEAN DEFAULT FALSE,
     resolved_by UUID,
     resolved_at TIMESTAMPTZ,
@@ -116,6 +117,7 @@ CREATE INDEX idx_conversation_messages_deleted_at ON conversation.messages(delet
 CREATE INDEX idx_conversation_messages_trace_id ON conversation.messages(trace_id);
 
 CREATE INDEX idx_conversation_unanswered_questions_user_id ON conversation.unanswered_questions(user_id);
+CREATE INDEX idx_conversation_unanswered_questions_status ON conversation.unanswered_questions(status);
 CREATE INDEX idx_conversation_unanswered_questions_resolved ON conversation.unanswered_questions(resolved);
 CREATE INDEX idx_conversation_unanswered_questions_priority ON conversation.unanswered_questions(priority);
 CREATE INDEX idx_conversation_unanswered_questions_deleted_at ON conversation.unanswered_questions(deleted_at) WHERE deleted_at IS NULL;

@@ -100,6 +100,9 @@ CREATE TABLE knowledge.document_versions (
 
     created_by UUID NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    deleted_by UUID,
+    deletion_reason TEXT,
 
     CONSTRAINT uq_document_version UNIQUE (document_id, version_number),
     CONSTRAINT chk_version_number CHECK (version_number >= 1)
@@ -241,6 +244,7 @@ CREATE INDEX idx_knowledge_documents_expires_at ON knowledge.documents(expires_a
 
 CREATE INDEX idx_knowledge_document_versions_document_id ON knowledge.document_versions(document_id);
 CREATE INDEX idx_knowledge_document_versions_is_current ON knowledge.document_versions(is_current) WHERE is_current = TRUE;
+CREATE INDEX idx_knowledge_document_versions_deleted_at ON knowledge.document_versions(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_versions_file_checksum ON knowledge.document_versions(file_checksum) WHERE file_checksum IS NOT NULL;
 CREATE INDEX idx_versions_content_hash ON knowledge.document_versions(content_hash) WHERE content_hash IS NOT NULL;
 
@@ -261,6 +265,13 @@ CREATE INDEX idx_knowledge_processing_jobs_deleted_at ON knowledge.processing_jo
 CREATE INDEX idx_knowledge_embedding_cache_hash ON knowledge.embedding_cache(text_hash);
 CREATE INDEX idx_knowledge_embedding_cache_last_used ON knowledge.embedding_cache(last_used_at DESC);
 
+CREATE INDEX idx_document_audit_logs_document_id ON knowledge.document_audit_logs(document_id);
+CREATE INDEX idx_document_audit_logs_actor_id ON knowledge.document_audit_logs(actor_id);
+CREATE INDEX idx_document_audit_logs_action ON knowledge.document_audit_logs(action);
+CREATE INDEX idx_document_audit_logs_created_at ON knowledge.document_audit_logs(created_at DESC);
+
+COMMENT ON TABLE knowledge.document_audit_logs IS 'Audit trail for document operations including OnlyOffice editing and conflict resolution';
+
 -- ============================================================
 -- COMMENTS
 -- ============================================================
@@ -269,28 +280,3 @@ COMMENT ON TABLE knowledge.document_versions IS 'Immutable version history with 
 COMMENT ON TABLE knowledge.chunks IS 'Text chunks with VECTOR(1024) embeddings for RAG';
 COMMENT ON TABLE knowledge.processing_jobs IS 'ETL pipeline job tracking';
 COMMENT ON TABLE knowledge.embedding_cache IS 'Cache for embedding vectors to reduce API costs';
-
--- ============================================================
--- TABLE: knowledge.document_audit_logs
--- Audit trail for document-specific operations (OnlyOffice editing, version changes, etc.)
--- Owned by: knowledge-service
--- ============================================================
-CREATE TABLE knowledge.document_audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    document_id UUID NOT NULL,
-    action VARCHAR(100) NOT NULL,
-    actor_id UUID,
-    actor_username VARCHAR(50),
-    old_values JSONB,
-    new_values JSONB,
-    ip_address INET,
-    user_agent TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_document_audit_logs_document_id ON knowledge.document_audit_logs(document_id);
-CREATE INDEX idx_document_audit_logs_actor_id ON knowledge.document_audit_logs(actor_id);
-CREATE INDEX idx_document_audit_logs_action ON knowledge.document_audit_logs(action);
-CREATE INDEX idx_document_audit_logs_created_at ON knowledge.document_audit_logs(created_at DESC);
-
-COMMENT ON TABLE knowledge.document_audit_logs IS 'Audit trail for document operations including OnlyOffice editing and conflict resolution';

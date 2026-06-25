@@ -10,6 +10,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -36,14 +37,14 @@ public class EmailService {
                 buildCredentialsEmail(username, password));
     }
 
-    public CompletableFuture<Boolean> sendPasswordReset(String toEmail, String username, String newPassword) {
+    public CompletableFuture<Boolean> sendPasswordResetLink(String toEmail, String username, String resetLink, Duration ttl) {
         if (!emailProperties.enabled()) {
-            log.warn("[EMAIL DISABLED] Would send password reset to {} for user {}", toEmail, username);
+            log.warn("[EMAIL DISABLED] Would send password reset link to {} for user {}", maskEmail(toEmail), username);
             return CompletableFuture.completedFuture(false);
         }
 
-        return sendEmailAsync(toEmail, "Khôi phục mật khẩu Poliwise",
-                buildPasswordResetEmail(username, newPassword));
+        return sendEmailAsync(toEmail, "Poliwise password reset",
+                buildPasswordResetLinkEmail(username, resetLink, ttl));
     }
 
     public CompletableFuture<Boolean> sendBulkAccountCredentials(
@@ -414,7 +415,8 @@ public class EmailService {
                 .replace("__PASSWORD__", escapeHtml(password));
     }
 
-    private String buildPasswordResetEmail(String username, String newPassword) {
+    private String buildPasswordResetLinkEmail(String username, String resetLink, Duration ttl) {
+        long minutes = Math.max(1, ttl.toMinutes());
         String html = """
         <!DOCTYPE html>
         <html>
@@ -422,54 +424,35 @@ public class EmailService {
             <meta charset="UTF-8">
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
-                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                .credentials { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c; }
-                .credentials-row { display: flex; justify-content: space-between; margin: 10px 0; }
-                .label { font-weight: bold; color: #555; }
-                .value { font-family: monospace; background: #f0f0f0; padding: 5px 10px; border-radius: 4px; }
-                .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin-top: 20px; }
-                .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
-                a { color: #e74c3c; }
+                .header { background: #2563eb; color: white; padding: 24px; border-radius: 8px 8px 0 0; text-align: center; }
+                .content { background: #f9fafb; padding: 24px; border-radius: 0 0 8px 8px; }
+                .button { display: inline-block; background: #2563eb; color: white; padding: 12px 18px; border-radius: 6px; text-decoration: none; font-weight: bold; }
+                .warning { background: #fff7ed; border: 1px solid #fed7aa; padding: 12px; border-radius: 6px; margin-top: 18px; }
+                .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 18px; }
             </style>
         </head>
         <body>
             <div class="header">
-                <h1>Khôi phục mật khẩu</h1>
-                <p>Yêu cầu đặt lại mật khẩu của bạn</p>
+                <h1>Password reset</h1>
             </div>
             <div class="content">
-                <p>Xin chào <strong>__USERNAME__</strong>,</p>
-                <p>Chúng tôi đã nhận được yêu cầu khôi phục mật khẩu cho tài khoản của bạn. Dưới đây là mật khẩu mới:</p>
-
-                <div class="credentials">
-                    <div class="credentials-row">
-                        <span class="label">Mật khẩu mới:</span>
-                        <span class="value">__NEWPASSWORD__</span>
-                    </div>
-                </div>
-
+                <p>Hello <strong>__USERNAME__</strong>,</p>
+                <p>Use the link below to set a new password for your Poliwise account.</p>
+                <p><a class="button" href="__RESETLINK__">Reset password</a></p>
                 <div class="warning">
-                    <strong>Quan trọng:</strong>
-                    <ul>
-                        <li>Đổi mật khẩu ngay sau khi đăng nhập</li>
-                        <li>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng liên hệ quản trị viên ngay</li>
-                        <li>Mật khẩu này chỉ có giá trị trong 24 giờ</li>
-                    </ul>
+                    This link expires in __MINUTES__ minutes. If you did not request it, ignore this email.
                 </div>
-
-                <p>Đăng nhập tại: <a href="#">https://poliwise.vn</a></p>
             </div>
             <div class="footer">
-                <p>Email này được gửi tự động từ hệ thống Poliwise.</p>
-                <p>Không trả lời email này.</p>
+                <p>This automated email does not contain your password.</p>
             </div>
         </body>
         </html>
         """;
         return html
                 .replace("__USERNAME__", escapeHtml(username))
-                .replace("__NEWPASSWORD__", escapeHtml(newPassword));
+                .replace("__RESETLINK__", escapeHtml(resetLink))
+                .replace("__MINUTES__", Long.toString(minutes));
     }
 
     private String buildBulkCredentialsEmail(String username, String password, String adminName) {

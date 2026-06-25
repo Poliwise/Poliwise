@@ -4,6 +4,7 @@ import com.poliwise.feedback.dto.response.*;
 import com.poliwise.feedback.entity.DailyAggregate;
 import com.poliwise.feedback.entity.PopularQuestion;
 import com.poliwise.feedback.entity.UnansweredQuestion;
+import com.poliwise.feedback.enums.UnansweredStatus;
 import com.poliwise.feedback.feign.KnowledgeServiceClient;
 import com.poliwise.feedback.feign.UserServiceClient;
 import com.poliwise.feedback.repository.*;
@@ -21,6 +22,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -83,7 +86,8 @@ public class DashboardService {
                     .divide(BigDecimal.valueOf(totalLikes + totalDislikes), 4, RoundingMode.HALF_UP);
         }
 
-        long unansweredCount = unansweredQuestionRepository.countByResolved(false);
+        long unansweredCount = unansweredQuestionRepository.countByStatusIn(
+                List.of(UnansweredStatus.PENDING, UnansweredStatus.REVIEWING));
 
         List<PopularQuestionResponse> topQuestions = popularQuestionRepository
                 .findTop10ByOrderByAskCountDesc(PageRequest.of(0, 5))
@@ -133,10 +137,54 @@ public class DashboardService {
                 .toList();
     }
 
-    public Page<UnansweredQuestionResponse> getUnansweredQuestions(Pageable pageable) {
-        return unansweredQuestionRepository.findByResolved(false, pageable)
-                .map(uq -> new UnansweredQuestionResponse(uq.getId(), uq.getQuestion(), uq.getUserId(),
-                        uq.getUserDepartmentId(), uq.getCategory(), uq.getPriority(), uq.getResolved(),
-                        uq.getCreatedAt(), uq.getResolvedAt(), uq.getResolutionNotes()));
+    public Page<UnansweredQuestionResponse> getUnansweredQuestions(Pageable pageable, UnansweredStatus status) {
+        Page<UnansweredQuestion> questions = status != null
+                ? unansweredQuestionRepository.findByStatus(status, pageable)
+                : unansweredQuestionRepository.findAll(pageable);
+        return questions.map(this::toResponse);
+    }
+
+    @Transactional
+    public UnansweredQuestionResponse resolveUnanswered(UUID id, UUID resolvedBy, String answer) {
+        UnansweredQuestion question = unansweredQuestionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unanswered question not found: " + id));
+        Instant now = Instant.now();
+        question.setStatus(UnansweredStatus.ANSWERED);
+        question.setResolved(true);
+        question.setResolvedBy(resolvedBy);
+        question.setResolvedAt(now);
+        question.setResolutionNotes(answer);
+        return toResponse(unansweredQuestionRepository.save(question));
+    }
+
+    @Transactional
+    public UnansweredQuestionResponse rejectUnanswered(UUID id, UUID resolvedBy) {
+        UnansweredQuestion question = unansweredQuestionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unanswered question not found: " + id));
+        Instant now = Instant.now();
+        question.setStatus(UnansweredStatus.REJECTED);
+        question.setResolved(true);
+        question.setResolvedBy(resolvedBy);
+        question.setResolvedAt(now);
+        return toResponse(unansweredQuestionRepository.save(question));
+    }
+
+    private UnansweredQuestionResponse toResponse(UnansweredQuestion uq) {
+        return new UnansweredQuestionResponse(
+                uq.getId(),
+                uq.getQuestion(),
+                uq.getUserId(),
+                uq.getUserDepartmentId(),
+                uq.getCategory(),
+                uq.getPriority(),
+                uq.getStatus() != null ? uq.getStatus().name() : (Boolean.TRUE.equals(uq.getResolved()) ? "ANSWERED" : "PENDING"),
+                1L,
+                uq.getResolved(),
+                uq.getCreatedAt(),
+                uq.getCreatedAt(),
+                uq.getCreatedAt(),
+                uq.getResolvedAt(),
+                uq.getResolutionNotes()
+        );
     }
 }

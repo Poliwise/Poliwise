@@ -74,8 +74,18 @@ export default function UnansweredQuestionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.analytics.getUnansweredQuestions();
-      setQuestions(data as unknown as UnansweredQuestion[]);
+      const result = await api.analytics.getUnansweredQuestions();
+      setQuestions(result.data.map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        askCount: q.askCount ?? 1,
+        departmentName: q.departmentName,
+        userName: q.userName,
+        firstAskedAt: q.firstAskedAt ?? q.createdAt,
+        lastAskedAt: q.lastAskedAt ?? q.createdAt,
+        status: q.status ?? (q.resolved ? 'ANSWERED' : 'PENDING'),
+        suggestedAnswer: q.resolutionNotes,
+      })));
     } catch {
       setError(tRef.current('admin.unanswered.loadError'));
     } finally {

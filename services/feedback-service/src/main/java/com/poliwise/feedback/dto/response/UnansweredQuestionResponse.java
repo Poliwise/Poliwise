@@ -10,7 +10,11 @@ public record UnansweredQuestionResponse(
         UUID userDepartmentId,
         String category,
         String priority,
+        String status,
+        long askCount,
         Boolean resolved,
+        Instant firstAskedAt,
+        Instant lastAskedAt,
         Instant createdAt,
         Instant resolvedAt,
         String resolutionNotes

@@ -140,4 +140,6 @@ CREATE INDEX idx_metadata_document_tags_metadata_id ON metadata.document_tags(do
 CREATE INDEX idx_metadata_document_tags_tag_id ON metadata.document_tags(tag_id);
 
 CREATE INDEX idx_metadata_doc_access_rules_metadata_id ON metadata.document_access_rules(document_metadata_id);
+CREATE INDEX idx_metadata_doc_access_rules_target_lookup
+    ON metadata.document_access_rules(document_metadata_id, permission, target_type, target_role, target_department_id, target_user_id);
 CREATE INDEX idx_metadata_doc_access_rules_trace_id ON metadata.document_access_rules(trace_id);
