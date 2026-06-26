@@ -6,8 +6,6 @@ import com.poliwise.feedback.service.AnalyticsService;
 import com.poliwise.feedback.service.DashboardService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import com.poliwise.feedback.security.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -107,25 +105,20 @@ public class AnalyticsController {
     }
 
     @PutMapping("/unanswered/{id}/resolve")
-    public ResponseEntity<ApiResponse<Void>> resolveUnanswered(@PathVariable UUID id, @RequestBody Map<String, String> request) {
-        dashboardService.resolveUnanswered(id, currentUserId(), request.get("answer"));
+    public ResponseEntity<ApiResponse<Void>> resolveUnanswered(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> request) {
+        UUID resolvedBy = request.get("resolvedBy") != null ? UUID.fromString(request.get("resolvedBy")) : null;
+        dashboardService.resolveUnanswered(id, resolvedBy, request.get("answer"));
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PutMapping("/unanswered/{id}/reject")
-    public ResponseEntity<ApiResponse<Void>> rejectUnanswered(@PathVariable UUID id) {
-        dashboardService.rejectUnanswered(id, currentUserId());
+    public ResponseEntity<ApiResponse<Void>> rejectUnanswered(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> request) {
+        UUID resolvedBy = request.get("resolvedBy") != null ? UUID.fromString(request.get("resolvedBy")) : null;
+        dashboardService.rejectUnanswered(id, resolvedBy);
         return ResponseEntity.ok(ApiResponse.success(null));
-    }
-
-    private UUID currentUserId() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken jwt) {
-            Object principal = jwt.getPrincipal();
-            if (principal instanceof com.poliwise.feedback.security.UserPrincipal userPrincipal) {
-                return userPrincipal.getUserId();
-            }
-        }
-        return null;
     }
 }
