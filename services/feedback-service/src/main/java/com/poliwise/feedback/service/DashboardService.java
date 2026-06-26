@@ -186,7 +186,7 @@ public class DashboardService {
                 uq.getUserId(),
                 uq.getUserDepartmentId(),
                 uq.getCategory(),
-                uq.getPriority(),
+                uq.getPriority() != null ? uq.getPriority().name() : null,
                 uq.getStatus() != null ? uq.getStatus().name() : (Boolean.TRUE.equals(uq.getResolved()) ? "ANSWERED" : "PENDING"),
                 1L,
                 uq.getResolved(),

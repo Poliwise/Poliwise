@@ -655,6 +655,17 @@ class ApiClient {
       return res.data;
     },
 
+    resetPassword: async (data: {
+      token: string;
+      newPassword: string;
+    }): Promise<{ success: boolean; message: string }> => {
+      const res = await this.client.post<{ success: boolean; message: string }>(
+        "/api/v1/auth/reset-password/confirm",
+        data,
+      );
+      return res.data;
+    },
+
     resetPasswordWithOtp: async (data: {
       email: string;
       otp: string;
@@ -1229,22 +1240,38 @@ class ApiClient {
       doc1Id: string,
       doc2Id: string,
     ): Promise<{
-      document1: Document;
-      document2: Document;
-      added: string[];
-      removed: string[];
-      modified: { old: string; new: string }[];
+      document1Id: string;
+      document2Id: string;
+      document1Title: string;
+      document2Title: string;
+      addedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+      removedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+      modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+      totalChanges: number;
     }> => {
       const res = await this.client.get<{
         data?: {
-          document1: Document;
-          document2: Document;
-          added: string[];
-          removed: string[];
-          modified: { old: string; new: string }[];
+          document1Id: string;
+          document2Id: string;
+          document1Title: string;
+          document2Title: string;
+          addedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+          removedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+          modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+          totalChanges: number;
         };
       }>(`/api/v1/documents/compare?doc1=${doc1Id}&doc2=${doc2Id}`);
-      return (res.data as any).data || res.data;
+      const payload = (res.data as any).data ?? res.data;
+      return {
+        document1Id: payload.document1Id,
+        document2Id: payload.document2Id,
+        document1Title: payload.document1Title,
+        document2Title: payload.document2Title,
+        addedSections: payload.addedSections ?? [],
+        removedSections: payload.removedSections ?? [],
+        modifiedSections: payload.modifiedSections ?? [],
+        totalChanges: payload.totalChanges ?? 0,
+      };
     },
 
     getContent: async (

@@ -1,6 +1,7 @@
 package com.poliwise.feedback.repository;
 
 import com.poliwise.feedback.entity.UnansweredQuestion;
+import com.poliwise.feedback.enums.PriorityLevel;
 import com.poliwise.feedback.enums.UnansweredStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

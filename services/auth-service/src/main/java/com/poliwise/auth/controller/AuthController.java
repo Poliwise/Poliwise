@@ -218,6 +218,16 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/reset-password/confirm")
+    public ResponseEntity<?> resetPasswordConfirm(@Valid @RequestBody ResetPasswordRequest request) {
+        ResetPasswordResponse result = forgotPasswordService.resetPassword(request.token(), request.newPassword());
+        if (result.success()) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request) {

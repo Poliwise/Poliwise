@@ -251,4 +251,50 @@ public class MetadataServiceClient {
             return Collections.emptySet();
         }
     }
+
+    /**
+     * Returns access metadata for the ingestion pipeline.
+     * Fetches the access rule for the given document and returns it as a Map.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getIngestionAccessMetadata(UUID documentId, UUID requestingUserId) {
+        try {
+            Map<String, Object> accessResponse = checkDocumentAccess(documentId);
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("documentId", documentId.toString());
+            if (accessResponse != null) {
+                metadata.put("hasAccess", accessResponse.getOrDefault("hasAccess", false));
+                metadata.put("accessLevel", accessResponse.getOrDefault("accessLevel", "UNKNOWN"));
+                metadata.put("allowedDepartments", accessResponse.getOrDefault("allowedDepartments", Collections.emptyList()));
+                metadata.put("allowedRoles", accessResponse.getOrDefault("allowedRoles", Collections.emptyList()));
+                metadata.put("requestingUserId", requestingUserId != null ? requestingUserId.toString() : null);
+            }
+            return metadata;
+        } catch (Exception e) {
+            log.warn("Failed to get ingestion access metadata for documentId={}: {}", documentId, e.getMessage());
+            return Map.of(
+                    "documentId", documentId.toString(),
+                    "hasAccess", false,
+                    "accessLevel", "UNKNOWN",
+                    "allowedDepartments", Collections.emptyList(),
+                    "allowedRoles", Collections.emptyList(),
+                    "requestingUserId", requestingUserId != null ? requestingUserId.toString() : null
+            );
+        }
+    }
+
+    /**
+     * Asserts the current user can read the given document.
+     * Throws a RuntimeException if access is denied.
+     */
+    public void assertCanReadDocument(UUID documentId) {
+        Map<String, Object> accessResponse = checkDocumentAccess(documentId);
+        Boolean hasAccess = accessResponse != null ? (Boolean) accessResponse.getOrDefault("hasAccess", false) : false;
+        if (!hasAccess) {
+            String reason = accessResponse != null
+                    ? (String) accessResponse.getOrDefault("reason", "Access denied")
+                    : "Access check failed";
+            throw new RuntimeException("Access denied to document " + documentId + ": " + reason);
+        }
+    }
 }

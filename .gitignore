@@ -46,3 +46,5 @@ node_modules/
 
 # Base dataset (large files, local only)
 base_dataset/
+
+POLIWISE_PROJECT_PRESENTATION.md
