@@ -91,10 +91,10 @@ class IngestionPipeline:
             
             structured = self.standardizer.normalize(extracted.text)
             
-            # Prepare metadata for chunker
+            # Prepare metadata for chunker - convert UUIDs to strings for JSON serialization
             chunk_metadata = {
-                "document_id": document_id,
-                "document_version_id": version_id,
+                "document_id": str(document_id),
+                "document_version_id": str(version_id),
                 "document_version": document_version,
                 "allowed_roles": metadata.get("allowed_roles"),
                 "allowed_departments": metadata.get("allowed_departments"),
@@ -108,12 +108,24 @@ class IngestionPipeline:
             
             chunks = self.chunker.chunk(structured, chunk_metadata)
 
-            # --- 5. EMBEDDING ---
+            # --- 5. EMBEDDING (in batches to avoid payload size limits) ---
             await processing_job_service.update_progress(job_id, 80, "Generating embeddings (BGE-M3)")
+            
+            EMBED_BATCH_SIZE = 32  # Process embeddings in batches to avoid 413 Payload Too Large
             
             async with async_session() as session:
                 chunk_contents = [c.content for c in chunks]
-                embeddings = await embedding_service.embed_batch_cached(chunk_contents, session)
+                embeddings = [None] * len(chunk_contents)
+                
+                # Process embeddings in batches
+                for batch_start in range(0, len(chunk_contents), EMBED_BATCH_SIZE):
+                    batch_end = min(batch_start + EMBED_BATCH_SIZE, len(chunk_contents))
+                    batch_texts = chunk_contents[batch_start:batch_end]
+                    
+                    batch_embeddings = await embedding_service.embed_batch_cached(batch_texts, session)
+                    
+                    for i, emb in enumerate(batch_embeddings):
+                        embeddings[batch_start + i] = emb
                 
                 for i, emb in enumerate(embeddings):
                     chunks[i].embedding_vector = emb
@@ -208,7 +220,8 @@ class IngestionPipeline:
         
         async with async_session() as session:
             doc_repo = DocumentRepository(session)
-            await doc_repo.update_status(document_id, "DUPLICATE")
+            # Set to READY since content is available via the duplicate
+            await doc_repo.update_status(document_id, "READY")
 
         await processing_job_service.complete_job(job_id, True, {
             "duplicate_of": str(result.existing_version_id),
