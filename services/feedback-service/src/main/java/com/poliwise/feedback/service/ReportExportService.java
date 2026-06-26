@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.poliwise.feedback.dto.request.ReportExportRequest;
+import com.poliwise.feedback.dto.response.ReportDownload;
 import com.poliwise.feedback.dto.response.ReportExportResponse;
 import com.poliwise.feedback.entity.*;
 import com.poliwise.feedback.enums.ExportFormat;
@@ -18,11 +19,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.poliwise.feedback.config.RabbitMQConfig;
+import io.minio.MinioClient;
+import io.minio.BucketExistsArgs;
+import io.minio.MakeBucketArgs;
+import io.minio.PutObjectArgs;
+import io.minio.GetObjectArgs;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -50,9 +60,14 @@ public class ReportExportService {
     private final DepartmentDailyStatRepository departmentDailyStatRepository;
     private final UnansweredQuestionRepository unansweredQuestionRepository;
     private final ObjectMapper objectMapper;
+    private final RabbitTemplate rabbitTemplate;
+    private final MinioClient minioClient;
 
     @Value("${poliwise.cleanup.report-expiry-days:7}")
     private int reportExpiryDays;
+
+    @Value("${MINIO_REPORT_BUCKET:poliwise-reports}")
+    private String reportBucket;
 
     public ReportExportService(
             ReportExportRepository reportExportRepository,
@@ -62,7 +77,9 @@ public class ReportExportService {
             PopularQuestionRepository popularQuestionRepository,
             DocumentPopularityRepository documentPopularityRepository,
             DepartmentDailyStatRepository departmentDailyStatRepository,
-            UnansweredQuestionRepository unansweredQuestionRepository) {
+            UnansweredQuestionRepository unansweredQuestionRepository,
+            RabbitTemplate rabbitTemplate,
+            MinioClient minioClient) {
         this.reportExportRepository = reportExportRepository;
         this.analyticsService = analyticsService;
         this.dailyAggregateRepository = dailyAggregateRepository;
@@ -75,18 +92,38 @@ public class ReportExportService {
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .setTimeZone(TimeZone.getTimeZone(ZoneOffset.UTC));
+        this.rabbitTemplate = rabbitTemplate;
+        this.minioClient = minioClient;
     }
 
     public ReportExportResponse createReport(UUID requestedBy, ReportExportRequest request) {
         ReportExport report = ReportExport.builder()
                 .reportType(request.reportType()).title(request.title())
                 .format(request.format()).departmentId(request.departmentId())
-                .status(ExportStatus.PENDING.name()).requestedBy(requestedBy)
+                .status(ExportStatus.PENDING).requestedBy(requestedBy)
                 .build();
         if (request.dateFrom() != null) report.setDateFrom(request.dateFrom());
         if (request.dateTo() != null) report.setDateTo(request.dateTo());
         ReportExport saved = reportExportRepository.save(report);
-        generateReportAsync(saved.getId());
+
+        Map<String, Object> message = new HashMap<>();
+        message.put("reportId", saved.getId().toString());
+        Runnable publish = () -> rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.ROUTING_REPORT_EXPORT,
+                message
+        );
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publish.run();
+                }
+            });
+        } else {
+            publish.run();
+        }
+
         return ReportExportResponse.fromEntity(saved);
     }
 
@@ -98,41 +135,62 @@ public class ReportExportService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] downloadReport(UUID id, UUID userId, boolean isAdmin) {
+    public ReportDownload openReport(UUID id, UUID userId, boolean isAdmin) {
         ReportExport report = reportExportRepository.findById(id)
                 .orElseThrow(() -> new ReportNotFoundException(id));
         if (!isAdmin && !report.getRequestedBy().equals(userId)) {
             throw new UnauthorizedFeedbackAccessException();
         }
-        if (!ExportStatus.COMPLETED.name().equals(report.getStatus())) {
+        if (report.getStatus() != ExportStatus.COMPLETED) {
             throw new IllegalStateException("Report not ready: " + report.getStatus());
         }
-        return generateReportData(report);
+        try {
+            InputStream inputStream = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(reportBucket)
+                        .object(report.getFileKey())
+                        .build());
+            long contentLength = report.getFileSizeBytes() != null ? report.getFileSizeBytes() : -1L;
+            return new ReportDownload(inputStream, report.getFormat(), contentLength);
+        } catch (Exception e) {
+            log.error("Failed to download report from MinIO: {}", id, e);
+            throw new RuntimeException("Failed to download report data", e);
+        }
     }
 
-    @Async("reportExportExecutor")
-    public void generateReportAsync(UUID reportId) {
-        try { generateReport(reportId); }
-        catch (Exception e) { log.error("Failed to generate report: {}", reportId, e); markReportFailed(reportId, e.getMessage()); }
-    }
-
-    @Transactional
     public void generateReport(UUID id) {
         ReportExport report = reportExportRepository.findById(id).orElse(null);
         if (report == null) return;
-        report.setStatus(ExportStatus.PROCESSING.name());
+        if (report.getStatus() == ExportStatus.COMPLETED) {
+            log.info("Skipping already completed report export: {}", id);
+            return;
+        }
+        report.setStatus(ExportStatus.PROCESSING);
         reportExportRepository.save(report);
         try {
             byte[] data = generateReportData(report);
+            String fileKey = "reports/" + id + "." + report.getFormat().name().toLowerCase();
+            ensureReportBucketExists();
+
+            try (InputStream is = new ByteArrayInputStream(data)) {
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(reportBucket)
+                                .object(fileKey)
+                                .stream(is, data.length, -1)
+                                .contentType(report.getFormat() == ExportFormat.JSON ? "application/json" : "text/csv")
+                                .build()
+                );
+            }
+
             report.setFileSizeBytes(data.length);
-            report.setFileKey("reports/" + id + "." + report.getFormat().name().toLowerCase());
-            report.setStatus(ExportStatus.COMPLETED.name());
+            report.setFileKey(fileKey);
+            report.setStatus(ExportStatus.COMPLETED);
             report.setCompletedAt(Instant.now());
             report.setExpiresAt(Instant.now().plus(reportExpiryDays, java.time.temporal.ChronoUnit.DAYS));
         } catch (Exception e) {
-            report.setStatus(ExportStatus.FAILED.name());
-            report.setErrorMessage(e.getMessage());
             log.error("Report generation failed: {}", id, e);
+            throw new IllegalStateException("Report generation failed", e);
         }
         reportExportRepository.save(report);
     }
@@ -303,18 +361,19 @@ public class ReportExportService {
             byType.put(ft != null ? ft.name() : "UNKNOWN", cnt);
         }
 
-        List<Feedback> recent = feedbackRepository.findAll(PageRequest.of(0, 200)).getContent();
-        List<Feedback> inRange = recent.stream()
-                .filter(f -> f.getCreatedAt() != null
-                        && !f.getCreatedAt().isBefore(fromInst)
-                        && f.getCreatedAt().isBefore(toInst))
-                .toList();
+        List<Feedback> inRange = new ArrayList<>();
+        int page = 0;
+        Page<Feedback> feedbackPage;
+        do {
+            feedbackPage = feedbackRepository.findByCreatedAtBetween(fromInst, toInst, PageRequest.of(page, 500));
+            inRange.addAll(feedbackPage.getContent());
+            page++;
+        } while (feedbackPage.hasNext());
 
         long likes = inRange.stream().filter(f -> f.getType() == FeedbackType.LIKE).count();
         long dislikes = inRange.stream().filter(f -> f.getType() == FeedbackType.DISLIKE).count();
 
         List<Map<String, Object>> sampleRows = inRange.stream()
-                .limit(100)
                 .map(f -> {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("feedbackId", f.getId());
@@ -365,12 +424,15 @@ public class ReportExportService {
         // Group by role if available in Feedback
         Instant fromInst = dateFrom.atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant toInst = dateTo.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        List<Feedback> feedbacks = feedbackRepository.findAll(PageRequest.of(0, 500)).getContent()
-                .stream()
-                .filter(f -> f.getCreatedAt() != null
-                        && !f.getCreatedAt().isBefore(fromInst)
-                        && f.getCreatedAt().isBefore(toInst))
-                .toList();
+
+        List<Feedback> feedbacks = new ArrayList<>();
+        int page = 0;
+        Page<Feedback> feedbackPage;
+        do {
+            feedbackPage = feedbackRepository.findByCreatedAtBetween(fromInst, toInst, PageRequest.of(page, 500));
+            feedbacks.addAll(feedbackPage.getContent());
+            page++;
+        } while (feedbackPage.hasNext());
 
         Map<String, Long> byRole = feedbacks.stream()
                 .filter(f -> f.getUserRole() != null)
@@ -442,16 +504,22 @@ public class ReportExportService {
         Long totalUnanswered = unansweredQuestionRepository.countUnansweredBetween(fromInst, toInst);
         long totalResolved = unansweredQuestionRepository.countByResolved(true);
 
-        Page<UnansweredQuestion> page = unansweredQuestionRepository.findByResolved(false, Pageable.unpaged());
-        List<UnansweredQuestion> allUnanswered = page.getContent().stream()
-                .filter(q -> q.getCreatedAt() != null
-                        && !q.getCreatedAt().isBefore(fromInst)
-                        && q.getCreatedAt().isBefore(toInst))
-                .toList();
+        List<UnansweredQuestion> allUnanswered = new ArrayList<>();
+        int page = 0;
+        Page<UnansweredQuestion> unansweredPage;
+        do {
+            unansweredPage = unansweredQuestionRepository.findByResolved(false, PageRequest.of(page, 500));
+            allUnanswered.addAll(unansweredPage.getContent().stream()
+                    .filter(q -> q.getCreatedAt() != null
+                            && !q.getCreatedAt().isBefore(fromInst)
+                            && q.getCreatedAt().isBefore(toInst))
+                    .toList());
+            page++;
+        } while (unansweredPage.hasNext());
 
         Map<String, Long> byPriority = allUnanswered.stream()
                 .filter(q -> q.getPriority() != null)
-                .collect(Collectors.groupingBy(UnansweredQuestion::getPriority, Collectors.counting()));
+                .collect(Collectors.groupingBy(q -> q.getPriority().name(), Collectors.counting()));
 
         Map<String, Long> byCategory = allUnanswered.stream()
                 .filter(q -> q.getCategory() != null)
@@ -464,7 +532,7 @@ public class ReportExportService {
             row.put("userId", q.getUserId());
             row.put("userRole", q.getUserRole() != null ? q.getUserRole() : "");
             row.put("category", q.getCategory() != null ? q.getCategory() : "");
-            row.put("priority", q.getPriority() != null ? q.getPriority() : "NORMAL");
+            row.put("priority", q.getPriority() != null ? q.getPriority().name() : "NORMAL");
             row.put("resolved", q.getResolved() != null ? q.getResolved() : false);
             row.put("resolvedBy", q.getResolvedBy());
             row.put("resolvedAt", q.getResolvedAt() != null ? DT.format(q.getResolvedAt()) : "");
@@ -613,6 +681,10 @@ public class ReportExportService {
 
     private String escape(String s) {
         if (s == null) return "";
+        // Sanitize CSV Injection
+        if (s.matches("^\\s*[=+\\-@].*")) {
+            s = "'" + s;
+        }
         if (s.contains(",") || s.contains("\"") || s.contains("\n") || s.contains("\r")) {
             return "\"" + s.replace("\"", "\"\"") + "\"";
         }
@@ -650,12 +722,25 @@ public class ReportExportService {
     // Cleanup & user list
     // ========================================================================
 
-    private void markReportFailed(UUID id, String error) {
-        reportExportRepository.findById(id).ifPresent(report -> {
-            report.setStatus(ExportStatus.FAILED.name());
-            report.setErrorMessage(error);
-            reportExportRepository.save(report);
-        });
+    private void ensureReportBucketExists() throws Exception {
+        boolean exists;
+        try {
+            exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(reportBucket).build());
+        } catch (io.minio.errors.ErrorResponseException e) {
+            if (!"NoSuchBucket".equals(e.errorResponse().code())) throw e;
+            exists = false;
+        }
+        if (!exists) {
+            try {
+                minioClient.makeBucket(
+                        MakeBucketArgs.builder().bucket(reportBucket).build()
+                );
+                log.info("Created MinIO bucket: {}", reportBucket);
+            } catch (io.minio.errors.ErrorResponseException e) {
+                String code = e.errorResponse().code();
+                if (!"BucketAlreadyOwnedByYou".equals(code) && !"BucketAlreadyExists".equals(code)) throw e;
+            }
+        }
     }
 
     @Scheduled(cron = "0 0 1 * * *")

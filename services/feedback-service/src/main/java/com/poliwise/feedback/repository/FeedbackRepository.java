@@ -25,6 +25,8 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
 
     Optional<Feedback> findByUserIdAndMessageId(UUID userId, UUID messageId);
 
+    Page<Feedback> findByCreatedAtBetween(Instant start, Instant end, Pageable pageable);
+
     long countByType(FeedbackType type);
 
     long countByCreatedAtBetween(Instant from, Instant to);

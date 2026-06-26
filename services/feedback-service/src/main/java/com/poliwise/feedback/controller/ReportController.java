@@ -2,7 +2,9 @@ package com.poliwise.feedback.controller;
 
 import com.poliwise.feedback.dto.request.ReportExportRequest;
 import com.poliwise.feedback.dto.response.ApiResponse;
+import com.poliwise.feedback.dto.response.ReportDownload;
 import com.poliwise.feedback.dto.response.ReportExportResponse;
+import com.poliwise.feedback.enums.ExportFormat;
 import com.poliwise.feedback.security.JwtAuthenticationToken;
 import com.poliwise.feedback.security.UserPrincipal;
 import com.poliwise.feedback.service.ReportExportService;
@@ -13,6 +15,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,19 +44,22 @@ public class ReportController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> download(@PathVariable UUID id, Authentication authentication) {
+    public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID id, Authentication authentication) {
         UUID userId = getUserId(authentication);
         boolean isAdmin = "ADMIN".equals(getRole(authentication));
-        byte[] data = reportExportService.downloadReport(id, userId, isAdmin);
-        ReportExportResponse meta = reportExportService.getReportStatus(id);
-        String extension = "CSV".equals(meta.format()) ? "csv" : "json";
+        ReportDownload download = reportExportService.openReport(id, userId, isAdmin);
+        String extension = extensionFor(download.format());
         String filename = "report-" + id + "." + extension;
-        return ResponseEntity.ok()
+        StreamingResponseBody body = outputStream -> {
+            try (var inputStream = download.inputStream()) {
+                inputStream.transferTo(outputStream);
+            }
+        };
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType("CSV".equals(meta.format())
-                        ? MediaType.parseMediaType("text/csv; charset=UTF-8")
-                        : MediaType.APPLICATION_JSON)
-                .body(data);
+                .contentType(mediaTypeFor(download.format()));
+        if (download.contentLength() >= 0) response.contentLength(download.contentLength());
+        return response.body(body);
     }
 
     @GetMapping
@@ -78,5 +84,23 @@ public class ReportController {
     private String getRole(Authentication authentication) {
         if (authentication instanceof JwtAuthenticationToken jwtAuth) return ((UserPrincipal) jwtAuth.getPrincipal()).getRole();
         return null;
+    }
+
+    private String extensionFor(ExportFormat format) {
+        return switch (format) {
+            case CSV -> "csv";
+            case JSON -> "json";
+            case PDF -> "pdf";
+            case XLSX -> "xlsx";
+        };
+    }
+
+    private MediaType mediaTypeFor(ExportFormat format) {
+        return switch (format) {
+            case CSV -> MediaType.parseMediaType("text/csv; charset=UTF-8");
+            case JSON -> MediaType.APPLICATION_JSON;
+            case PDF -> MediaType.APPLICATION_PDF;
+            case XLSX -> MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        };
     }
 }

@@ -22,7 +22,7 @@ public interface UnansweredQuestionRepository extends JpaRepository<UnansweredQu
 
     Page<UnansweredQuestion> findByUserId(UUID userId, Pageable pageable);
 
-    List<UnansweredQuestion> findByPriorityOrderByCreatedAtDesc(String priority);
+    List<UnansweredQuestion> findByPriorityOrderByCreatedAtDesc(PriorityLevel priority);
 
     long countByResolved(Boolean resolved);
 

@@ -1,6 +1,7 @@
 package com.poliwise.knowledge.config;
 
 import com.poliwise.knowledge.security.JwtAuthenticationFilter;
+import com.poliwise.knowledge.security.InternalStatsTokenFilter;
 import com.poliwise.knowledge.security.OnlyOfficeCallbackFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,12 +26,15 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OnlyOfficeCallbackFilter onlyOfficeCallbackFilter;
+    private final InternalStatsTokenFilter internalStatsTokenFilter;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            OnlyOfficeCallbackFilter onlyOfficeCallbackFilter) {
+            OnlyOfficeCallbackFilter onlyOfficeCallbackFilter,
+            InternalStatsTokenFilter internalStatsTokenFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.onlyOfficeCallbackFilter = onlyOfficeCallbackFilter;
+        this.internalStatsTokenFilter = internalStatsTokenFilter;
     }
 
     @Bean
@@ -46,11 +50,13 @@ public class SecurityConfig {
                         // Match both HTTP methods to avoid 403 on pre-flight checks.
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/*/file").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/v1/documents/*/file").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/documents/stats").hasRole("INTERNAL")
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(internalStatsTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(onlyOfficeCallbackFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(onlyOfficeCallbackFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 

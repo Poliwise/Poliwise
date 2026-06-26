@@ -4,18 +4,19 @@
 -- ===========================================
 
 -- Default password: Admin@123456
--- BCrypt hash for 'Admin@123456' (cost factor 10)
-UPDATE auth.users 
+-- BCrypt hash for 'Admin@123456' (cost factor 12)
+UPDATE core.users
 SET 
-    password_hash = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    password_hash = '$2b$12$2vAYpN1.GYZ1Ze8xXe1TB.xWw/cB8z5uTyqc/7rqMRkmtG4Mw39Ka',
     failed_login_attempts = 0,
     status = 'ACTIVE',
+    locked_until = NULL,
     updated_at = NOW()
 WHERE username = 'admin';
 
 -- Verify the update
 SELECT username, email, role, status, created_at, updated_at 
-FROM auth.users 
+FROM core.users
 WHERE username = 'admin';
 
 -- If you need to set a custom password, generate a BCrypt hash for it first

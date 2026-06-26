@@ -15,4 +15,7 @@ public class OnlyOfficeProperties {
     private String callbackUrl = "http://localhost:8083/api/v1/documents";
     private String callbackPublicUrl = "http://localhost:3001/api/v1/documents";
     private int lockDurationMinutes = 30;
+    private long downloadMaxBytes = 50L * 1024 * 1024;
+    private int downloadConnectTimeoutMs = 5000;
+    private int downloadReadTimeoutMs = 30000;
 }

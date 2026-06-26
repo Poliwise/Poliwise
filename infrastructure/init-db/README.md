@@ -7,8 +7,10 @@ This project uses one PostgreSQL database (`poliwise`) with 5 schemas:
 - `conversation`
 - `analytics`
 
-The default init flow is executed by Docker on first startup via:
-- `infrastructure/init-db/init.sql`
+Flyway is now the only schema authority. The database is migrated by the
+`flyway` container in `docker-compose.yml` from:
+- `infrastructure/flyway/sql/V1__baseline.sql`
+- `infrastructure/flyway/sql/V2__onlyoffice_locks.sql`
 
 RLS script is intentionally excluded from default bootstrap because it is Supabase-specific.
 Cross-schema views in `docs/supbase_sql/consolidate_cros.sql` are also excluded from default bootstrap to avoid blocking Hibernate auto-migration in `user-service`.
@@ -52,7 +54,8 @@ docker compose up -d
 
 ## 6. Re-run Initialization from Scratch
 
-Postgres init scripts run only when database volume is empty.
+Flyway baselines an existing non-empty schema at version 1 and then applies
+later migrations.
 
 ```powershell
 docker compose down
@@ -60,26 +63,17 @@ docker volume rm poliwise_postgres_data
 docker compose up -d postgres
 ```
 
-Or run one command from repo root:
+## 7. Flyway Reset
+
+To re-run from scratch, remove the database volume and bring the stack back up:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\infrastructure\init-db\reset-and-bootstrap.ps1
+docker compose down -v
+docker compose up -d postgres flyway
 ```
 
-Force mode (skip confirmation):
+## 8. Optional AI/Vector Enhancements
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\infrastructure\init-db\reset-and-bootstrap.ps1 -Force
-```
-
-## 7. Optional AI/Vector Enhancements
-
-`infrastructure/init-db/init-enhancements.sql` is optional and should be applied only after validating table names and pgvector availability in your PostgreSQL image.
-
-## 8. Optional Cross-Schema Views
-
-Apply consolidated views only after schema is stable:
-
-```powershell
-docker compose exec -T postgres psql -U poliwise -d poliwise -f /docker-entrypoint-initdb.d/supbase_sql/consolidate_cros.sql
-```
+`infrastructure/init-db/init-enhancements.sql` is still optional and should be
+applied only after validating table names and pgvector availability in your
+PostgreSQL image.

@@ -74,8 +74,10 @@ export default function UnansweredQuestionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.analytics.getUnansweredQuestions();
-      setQuestions(result.data.map((q: any) => ({
+      const response = await api.analytics.getUnansweredQuestions(
+        statusFilter ? { status: statusFilter } : undefined,
+      );
+      setQuestions(response.data.map((q: any) => ({
         id: q.id,
         question: q.question,
         askCount: q.askCount ?? 1,
@@ -84,14 +86,14 @@ export default function UnansweredQuestionsPage() {
         firstAskedAt: q.firstAskedAt ?? q.createdAt,
         lastAskedAt: q.lastAskedAt ?? q.createdAt,
         status: q.status ?? (q.resolved ? 'ANSWERED' : 'PENDING'),
-        suggestedAnswer: q.resolutionNotes,
+        suggestedAnswer: q.resolutionNotes ?? q.suggestedAnswer,
       })));
     } catch {
       setError(tRef.current('admin.unanswered.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (!isManager) {

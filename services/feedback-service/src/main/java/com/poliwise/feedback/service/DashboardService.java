@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -137,9 +138,18 @@ public class DashboardService {
                 .toList();
     }
 
-    public Page<UnansweredQuestionResponse> getUnansweredQuestions(Pageable pageable, UnansweredStatus status) {
-        Page<UnansweredQuestion> questions = status != null
-                ? unansweredQuestionRepository.findByStatus(status, pageable)
+    public Page<UnansweredQuestionResponse> getUnansweredQuestions(Pageable pageable, String status) {
+        String normalizedStatus = status != null ? status.trim().toUpperCase(Locale.ROOT) : null;
+        UnansweredStatus enumStatus = null;
+        if (normalizedStatus != null && !normalizedStatus.isBlank()) {
+            try {
+                enumStatus = UnansweredStatus.valueOf(normalizedStatus);
+            } catch (IllegalArgumentException e) {
+                // Invalid status, will return empty or all
+            }
+        }
+        Page<UnansweredQuestion> questions = enumStatus != null
+                ? unansweredQuestionRepository.findByStatus(enumStatus, pageable)
                 : unansweredQuestionRepository.findAll(pageable);
         return questions.map(this::toResponse);
     }

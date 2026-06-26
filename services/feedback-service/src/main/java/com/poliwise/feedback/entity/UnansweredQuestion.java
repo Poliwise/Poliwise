@@ -1,5 +1,6 @@
 package com.poliwise.feedback.entity;
 
+import com.poliwise.feedback.enums.PriorityLevel;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -77,8 +78,10 @@ public class UnansweredQuestion {
     @Column(name = "category", length = 100)
     private String category;
 
-    @Column(name = "priority", length = 20)
-    private String priority = "NORMAL";
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "priority", nullable = false)
+    private PriorityLevel priority = PriorityLevel.NORMAL;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

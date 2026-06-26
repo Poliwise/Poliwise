@@ -88,6 +88,7 @@ CREATE TABLE knowledge.document_versions (
 
     file_key VARCHAR(500) NOT NULL,
     file_size_bytes BIGINT NOT NULL,
+    document_type VARCHAR(50),  -- Added for ingestion-service compatibility
     changelog TEXT,
     extracted_text TEXT,
     is_current BOOLEAN DEFAULT FALSE,
@@ -208,6 +209,13 @@ CREATE TABLE knowledge.document_audit_logs (
     user_agent TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_document_audit_logs_document_id ON knowledge.document_audit_logs(document_id);
+CREATE INDEX idx_document_audit_logs_actor_id ON knowledge.document_audit_logs(actor_id);
+CREATE INDEX idx_document_audit_logs_action ON knowledge.document_audit_logs(action);
+CREATE INDEX idx_document_audit_logs_created_at ON knowledge.document_audit_logs(created_at DESC);
+
+COMMENT ON TABLE knowledge.document_audit_logs IS 'Audit trail for document operations including OnlyOffice editing and conflict resolution';
 
 -- ============================================================
 -- TABLE: knowledge.embedding_cache

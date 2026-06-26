@@ -37,7 +37,7 @@ public class DashboardController {
 
     @GetMapping("/unanswered")
     public ResponseEntity<ApiResponse<Page<UnansweredQuestionResponse>>> getUnanswered(
-            @RequestParam(required = false) UnansweredStatus status,
+            @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(dashboardService.getUnansweredQuestions(pageable, status)));
     }

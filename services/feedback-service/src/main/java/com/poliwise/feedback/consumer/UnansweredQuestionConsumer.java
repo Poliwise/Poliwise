@@ -7,6 +7,7 @@ import com.poliwise.feedback.repository.PopularQuestionRepository;
 import com.poliwise.feedback.repository.UnansweredQuestionRepository;
 import com.poliwise.feedback.service.AuditLogService;
 import com.poliwise.feedback.enums.AuditAction;
+import com.poliwise.feedback.enums.PriorityLevel;
 import com.poliwise.feedback.enums.ResourceType;
 import com.poliwise.feedback.enums.UnansweredStatus;
 import org.slf4j.Logger;
@@ -61,7 +62,7 @@ public class UnansweredQuestionConsumer {
             String category = (String) payload.get("category");
             String searchQuery = (String) payload.getOrDefault("search_query", question);
             Double similarity = (Double) payload.get("top_similarity_score");
-            String priority = (String) payload.getOrDefault("priority", "NORMAL");
+            PriorityLevel priority = parsePriority(payload.get("priority"));
 
             UnansweredQuestion uq = UnansweredQuestion.builder()
                     .userId(userId)
@@ -125,5 +126,16 @@ public class UnansweredQuestionConsumer {
         if (value instanceof UUID) return (UUID) value;
         try { return UUID.fromString(value.toString()); }
         catch (Exception e) { return null; }
+    }
+
+    private PriorityLevel parsePriority(Object value) {
+        if (value == null) {
+            return PriorityLevel.NORMAL;
+        }
+        try {
+            return PriorityLevel.valueOf(value.toString().trim().toUpperCase());
+        } catch (Exception ignored) {
+            return PriorityLevel.NORMAL;
+        }
     }
 }

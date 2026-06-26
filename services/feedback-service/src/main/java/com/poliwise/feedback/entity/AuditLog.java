@@ -34,10 +34,12 @@ public class AuditLog {
     private String userRole;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "action", nullable = false)
     private AuditAction action;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "resource_type", nullable = false)
     private ResourceType resourceType;
 

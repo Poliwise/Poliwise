@@ -25,6 +25,17 @@ interface ServiceEndpoint {
   timeout: number;
 }
 
+export function isUntrustedIdentityHeader(headerName: string): boolean {
+  const normalized = headerName.toLowerCase();
+  return (
+    normalized === 'x-role' ||
+    normalized === 'x-service-token' ||
+    normalized.startsWith('x-user-') ||
+    normalized.startsWith('x-department-') ||
+    normalized.startsWith('x-internal-')
+  );
+}
+
 @Injectable()
 export class ProxyService {
   private readonly logger = new Logger(ProxyService.name);
@@ -360,7 +371,11 @@ export class ProxyService {
     ];
 
     for (const [key, value] of Object.entries(request.headers)) {
-      if (!hopByHopHeaders.includes(key.toLowerCase()) && value) {
+      if (
+        !hopByHopHeaders.includes(key.toLowerCase()) &&
+        !isUntrustedIdentityHeader(key) &&
+        value
+      ) {
         const normalized = Array.isArray(value) ? value[0] : value;
         if (normalized && normalized !== 'undefined') {
           headers[key] = normalized;

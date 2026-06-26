@@ -8,4 +8,3 @@
 **/Dockerfile*
 **/.env*
 **/node_modules
-**/test

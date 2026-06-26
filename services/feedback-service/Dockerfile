@@ -13,7 +13,7 @@ RUN ./mvnw dependency:go-offline -B
 COPY src ./src
 
 RUN touch .env && \
-    ./mvnw package -DskipTests -B && \
+    ./mvnw verify -B && \
     mv target/*.jar app.jar
 
 # Production stage
@@ -26,7 +26,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=appuser:appgroup /app/app.jar app.jar
 
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseContainerSupport"
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseContainerSupport"
 ENV SPRING_PROFILES_ACTIVE=prod
 
 USER appuser

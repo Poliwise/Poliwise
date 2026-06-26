@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import Joi from 'joi';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { createWinstonConfig } from './logging/winston.config';
@@ -42,6 +43,11 @@ import {
         redisConfig,
       ],
       envFilePath: '.env',
+      validationSchema: Joi.object({
+        JWT_SECRET: Joi.string().min(32).required(),
+        JWT_ISSUER: Joi.string().default('poliwise-auth-service'),
+        REDIS_URL: Joi.string().uri().default('redis://localhost:6379'),
+      }),
     }),
     WinstonModule.forRoot(createWinstonConfig()),
     AuthModule,
