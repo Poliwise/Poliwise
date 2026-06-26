@@ -71,31 +71,11 @@ export default function ChangePasswordPage() {
     setIsLoading(true);
 
     try {
-      // Attempt change password — backend needs endpoint: PUT /api/v1/auth/password
-      // Fallback: direct fetch if not in api.ts yet
-      try {
-        await (api as unknown as { auth: { changePassword: (cur: string, next: string) => Promise<void> } }).auth.changePassword(
-          formData.currentPassword,
-          formData.newPassword
-        );
-      } catch {
-        // If endpoint not implemented, fall back to direct fetch
-        const res = await fetch('/api/v1/auth/password', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-          },
-          body: JSON.stringify({
-            currentPassword: formData.currentPassword,
-            newPassword: formData.newPassword,
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error((data as { error?: { message?: string } })?.error?.message || 'Không thể đổi mật khẩu.');
-        }
-      }
+      await api.auth.changePassword({
+        oldPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmPassword: formData.confirmPassword,
+      });
       setSuccess(true);
     } catch (err: unknown) {
       const axiosError = err as { message?: string };

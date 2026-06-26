@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, ZoomIn, ZoomOut, AlertCircle, FileText, Download } from 'lucide-react';
 import mammoth from 'mammoth';
+import DOMPurify from 'dompurify';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -330,7 +331,7 @@ function DocxPreview({ url }: { url: string }) {
           lineHeight: '1.8',
           color: '#1a1a1a',
         }}
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: typeof window !== 'undefined' ? DOMPurify.sanitize(html) : '' }}
       />
     </div>
   );

@@ -24,7 +24,7 @@ COMMENT ON COLUMN knowledge.document_locks.lock_token IS 'UUID token returned to
 COMMENT ON COLUMN knowledge.document_locks.version_at_lock IS 'The document version that was locked — used to detect if newer versions were uploaded by others';
 
 -- Auto-expire stale locks
-CREATE INDEX idx_locks_expires ON knowledge.document_locks(expires_at);
+CREATE INDEX IF NOT EXISTS idx_locks_expires ON knowledge.document_locks(expires_at);
 
 -- ============================================================
 -- TABLE: knowledge.document_version_deletions

@@ -8,7 +8,7 @@ export const appConfig = registerAs('app', () => ({
 }));
 
 export const jwtConfig = registerAs('jwt', () => ({
-  secret: process.env.JWT_SECRET || 'change-me-in-production',
+  secret: process.env.JWT_SECRET,
   issuer: process.env.JWT_ISSUER || 'poliwise-auth-service',
 }));
 
@@ -38,7 +38,7 @@ export const throttlerConfig = registerAs('throttler', () => ({
 }));
 
 export const redisConfig = registerAs('redis', () => ({
-  host: process.env.REDIS_HOST || 'localhost',
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   password: process.env.REDIS_PASSWORD || undefined,
   ttl: parseInt(process.env.REDIS_TTL || '60000', 10),

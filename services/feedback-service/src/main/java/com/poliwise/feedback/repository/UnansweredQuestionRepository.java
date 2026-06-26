@@ -1,6 +1,7 @@
 package com.poliwise.feedback.repository;
 
 import com.poliwise.feedback.entity.UnansweredQuestion;
+import com.poliwise.feedback.enums.PriorityLevel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,7 +20,7 @@ public interface UnansweredQuestionRepository extends JpaRepository<UnansweredQu
 
     Page<UnansweredQuestion> findByUserId(UUID userId, Pageable pageable);
 
-    List<UnansweredQuestion> findByPriorityOrderByCreatedAtDesc(String priority);
+    List<UnansweredQuestion> findByPriorityOrderByCreatedAtDesc(PriorityLevel priority);
 
     long countByResolved(Boolean resolved);
 

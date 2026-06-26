@@ -74,14 +74,16 @@ export default function UnansweredQuestionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.analytics.getUnansweredQuestions();
-      setQuestions(data as unknown as UnansweredQuestion[]);
+      const response = await api.analytics.getUnansweredQuestions(
+        statusFilter ? { status: statusFilter } : undefined,
+      );
+      setQuestions(response.data as unknown as UnansweredQuestion[]);
     } catch {
       setError(tRef.current('admin.unanswered.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (!isManager) {

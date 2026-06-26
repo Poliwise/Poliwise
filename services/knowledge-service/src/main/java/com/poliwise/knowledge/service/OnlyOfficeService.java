@@ -31,8 +31,17 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.crypto.SecretKey;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -437,6 +446,9 @@ public class OnlyOfficeService {
         tokenEditorConfig.put("callbackUrl", properties.getCallbackPublicUrl() + "/" + documentId + "/save-callback");
         tokenEditorConfig.put("mode", "edit");
         callbackTokenPayload.put("editorConfig", tokenEditorConfig);
+        callbackTokenPayload.put("action", "save");
+        callbackTokenPayload.put("documentId", documentId.toString());
+        callbackTokenPayload.put("key", documentKey);
 
         callbackTokenPayload.put("exp", System.currentTimeMillis() / 1000 + 86400);
 
@@ -560,6 +572,9 @@ public class OnlyOfficeService {
         if (lock.isExpired()) {
             return OnlyOfficeCallbackResponse.error("Lock has expired", documentId);
         }
+        if (!matchesCallbackSession(documentId, principal)) {
+            return OnlyOfficeCallbackResponse.error("Callback session does not match the active lock", documentId);
+        }
 
         // Conflict detection
         if (document.getCurrentVersion() > lock.getVersionAtLock()) {
@@ -567,17 +582,19 @@ public class OnlyOfficeService {
                     documentId, lock.getVersionAtLock(), document.getCurrentVersion());
 
             // Download and save conflict file for preview/merging
-            String downloadUrl = savedFileUrl
-                    .replace("localhost:8888", "onlyoffice-document-server:80")
-                    .replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+            String downloadUrl = normalizeOnlyOfficeDownloadUrl(savedFileUrl);
+            Path tempFile = null;
             try {
-                byte[] fileBytes = downloadFromUrl(downloadUrl);
+                tempFile = downloadFromUrl(downloadUrl);
+                byte[] fileBytes = Files.readAllBytes(tempFile);
                 String ext = getExtension(document.getOriginalFilename() != null ? document.getOriginalFilename() : "docx");
                 String conflictFileKey = "locks/" + documentId + "/conflict." + ext.toLowerCase();
                 storageService.uploadConflictFile(fileBytes, conflictFileKey);
                 log.info("Saved conflict preview file on version conflict: key={}", conflictFileKey);
             } catch (Exception ex) {
                 log.error("Failed to download and save conflict preview file: {}", ex.getMessage(), ex);
+            } finally {
+                cleanupTempFile(tempFile);
             }
 
             return OnlyOfficeCallbackResponse.conflict(
@@ -587,16 +604,18 @@ public class OnlyOfficeService {
 
         // Replace localhost:8888 with the internal Docker service name and nginx port.
         // OnlyOffice nginx listens on port 80 inside the container (port 8888 is the host mapping).
-        String downloadUrl = savedFileUrl
-                .replace("localhost:8888", "onlyoffice-document-server:80")
-                .replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+        String downloadUrl = normalizeOnlyOfficeDownloadUrl(savedFileUrl);
         log.info("Downloading saved file from DocumentServer: {}", downloadUrl);
         byte[] fileBytes;
+        Path tempFile = null;
         try {
-            fileBytes = downloadFromUrl(downloadUrl);
+            tempFile = downloadFromUrl(downloadUrl);
+            fileBytes = Files.readAllBytes(tempFile);
         } catch (Exception ex) {
             log.error("Failed to download file from DocumentServer: {}", ex.getMessage(), ex);
             return OnlyOfficeCallbackResponse.error("Failed to download saved file: " + ex.getMessage(), documentId);
+        } finally {
+            cleanupTempFile(tempFile);
         }
 
         int oldVersion = document.getCurrentVersion();
@@ -638,15 +657,145 @@ public class OnlyOfficeService {
         return OnlyOfficeCallbackResponse.success(newVersionNumber, documentId);
     }
 
-    private byte[] downloadFromUrl(String urlString) throws Exception {
-        java.net.URI uri = java.net.URI.create(urlString);
-        java.net.URL url = uri.toURL();
-        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-        conn.setConnectTimeout(10_000);
-        conn.setReadTimeout(30_000);
-        conn.setRequestProperty("User-Agent", "Poliwise/1.0");
-        try (java.io.InputStream is = conn.getInputStream()) {
-            return is.readAllBytes();
+    public boolean matchesCallbackSession(UUID documentId, OnlyOfficeCallbackPrincipal principal) {
+        if (principal == null || principal.getDocumentId() == null || principal.getKey() == null) {
+            return false;
+        }
+
+        return lockRepository.findByDocumentId(documentId)
+                .filter(lock -> !lock.isExpired())
+                .filter(lock -> documentId.equals(principal.getDocumentId()))
+                .filter(lock -> principal.getKey().startsWith(lock.getLockToken().toString()))
+                .isPresent();
+    }
+
+    private Path downloadFromUrl(String urlString) throws Exception {
+        URI uri = normalizeOnlyOfficeDownloadUri(urlString);
+        validateOnlyOfficeDownloadUri(uri);
+
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(properties.getDownloadConnectTimeoutMs()))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofMillis(properties.getDownloadReadTimeoutMs()))
+                .header("User-Agent", "Poliwise/1.0")
+                .GET()
+                .build();
+
+        HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IllegalStateException("Unexpected OnlyOffice response status: " + response.statusCode());
+        }
+
+        Path tempFile = Files.createTempFile("onlyoffice-callback-", ".bin");
+        long maxBytes = properties.getDownloadMaxBytes();
+        long totalBytes = 0L;
+
+        try (InputStream body = response.body(); OutputStream output = Files.newOutputStream(tempFile)) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = body.read(buffer)) != -1) {
+                totalBytes += bytesRead;
+                if (totalBytes > maxBytes) {
+                    throw new IllegalStateException("OnlyOffice callback file exceeds allowed size");
+                }
+                output.write(buffer, 0, bytesRead);
+            }
+            output.flush();
+            return tempFile;
+        } catch (Exception ex) {
+            cleanupTempFile(tempFile);
+            throw ex;
+        }
+    }
+
+    private String normalizeOnlyOfficeDownloadUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        if (url.contains("localhost:8888")) {
+            return url.replace("localhost:8888", "onlyoffice-document-server:80");
+        }
+        if (url.contains("127.0.0.1:8888")) {
+            return url.replace("127.0.0.1:8888", "onlyoffice-document-server:80");
+        }
+        return url;
+    }
+
+    private URI normalizeOnlyOfficeDownloadUri(String urlString) {
+        if (urlString == null || urlString.isBlank()) {
+            throw new IllegalArgumentException("OnlyOffice callback URL is required");
+        }
+        return URI.create(normalizeOnlyOfficeDownloadUrl(urlString));
+    }
+
+    private void validateOnlyOfficeDownloadUri(URI uri) throws Exception {
+        if (uri.getRawUserInfo() != null) {
+            throw new IllegalArgumentException("OnlyOffice callback URL must not contain credentials");
+        }
+        if (uri.getRawFragment() != null) {
+            throw new IllegalArgumentException("OnlyOffice callback URL must not contain a fragment");
+        }
+        if (!"http".equalsIgnoreCase(uri.getScheme()) && !"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new IllegalArgumentException("OnlyOffice callback URL must use http or https");
+        }
+        if (uri.getHost() == null || uri.getHost().isBlank()) {
+            throw new IllegalArgumentException("OnlyOffice callback URL host is required");
+        }
+
+        URI configured = URI.create(properties.getDocumentServerUrl());
+        String configuredHost = configured.getHost();
+        int configuredPort = configured.getPort() > 0 ? configured.getPort() : defaultPort(configured.getScheme());
+        int targetPort = uri.getPort() > 0 ? uri.getPort() : defaultPort(uri.getScheme());
+        String targetHost = uri.getHost();
+
+        Set<String> allowedHosts = new HashSet<>();
+        if (configuredHost != null) {
+            allowedHosts.add(configuredHost);
+        }
+        allowedHosts.add("onlyoffice-document-server");
+        allowedHosts.add("onlyoffice");
+
+        boolean allowedPort = targetPort == configuredPort || targetPort == 80;
+        if (!allowedPort || !allowedHosts.contains(targetHost)) {
+            throw new IllegalArgumentException("OnlyOffice callback URL origin is not allowed");
+        }
+
+        if (configuredHost != null && !configuredHost.equalsIgnoreCase(targetHost)) {
+            Set<String> configuredAddresses = new HashSet<>();
+            for (InetAddress address : InetAddress.getAllByName(configuredHost)) {
+                configuredAddresses.add(address.getHostAddress());
+            }
+
+            boolean sharedAddress = false;
+            for (InetAddress address : InetAddress.getAllByName(targetHost)) {
+                if (configuredAddresses.contains(address.getHostAddress())) {
+                    sharedAddress = true;
+                    break;
+                }
+            }
+
+            if (!sharedAddress && !"onlyoffice-document-server".equalsIgnoreCase(targetHost)
+                    && !"onlyoffice".equalsIgnoreCase(targetHost)) {
+                throw new IllegalArgumentException("OnlyOffice callback URL resolves to an unexpected host");
+            }
+        }
+    }
+
+    private int defaultPort(String scheme) {
+        return "https".equalsIgnoreCase(scheme) ? 443 : 80;
+    }
+
+    private void cleanupTempFile(Path tempFile) {
+        if (tempFile == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(tempFile);
+        } catch (Exception ex) {
+            log.debug("Failed to delete temporary OnlyOffice callback file {}", tempFile, ex);
         }
     }
 

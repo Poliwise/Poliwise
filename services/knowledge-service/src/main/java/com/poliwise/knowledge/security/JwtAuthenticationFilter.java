@@ -116,7 +116,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .getPayload();
             return Optional.of(claims);
         } catch (ExpiredJwtException ex) {
-            return Optional.of(ex.getClaims());
+            return Optional.empty();
         } catch (JwtException ex) {
             return Optional.empty();
         }
@@ -148,7 +148,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || path.equals("/api/v1/auth/refresh")
                 || path.contains("/save-callback") // OnlyOffice Document Server callback
                 || path.contains("/file") // OnlyOffice Document Server file download
-                || path.equals("/api/v1/documents/stats"); // internal service stats
+                || path.equals("/api/v1/documents/stats"); // scoped service-token authentication
     }
 
     private UUID parseDepartment(String value) {

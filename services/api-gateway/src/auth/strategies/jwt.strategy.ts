@@ -13,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.secret') || 'default-secret',
+      secretOrKey: configService.getOrThrow<string>('jwt.secret'),
       issuer: configService.get<string>('jwt.issuer') || 'poliwise-auth',
     });
   }

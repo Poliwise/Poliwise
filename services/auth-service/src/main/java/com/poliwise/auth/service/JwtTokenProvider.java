@@ -72,11 +72,7 @@ public class JwtTokenProvider {
 
             return buildJwtPayload(claims);
         } catch (ExpiredJwtException ex) {
-            Claims claims = ex.getClaims();
-            if (blacklistRepository.existsByJti(claims.getId())) {
-                throw new JwtException("Token has been revoked");
-            }
-            return buildJwtPayload(claims);
+            throw new JwtException("Access token has expired", ex);
         } catch (JwtException ex) {
             throw new JwtException("Invalid JWT token: " + ex.getMessage());
         }

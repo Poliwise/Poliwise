@@ -9,8 +9,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "email")
 public record EmailProperties(
-        @NotBlank String username,
-        @NotBlank String appPassword,
+        String username,
+        String appPassword,
         @NotBlank String fromName,
         @NotBlank @Email String fromAddress,
         @NotNull Boolean enabled
