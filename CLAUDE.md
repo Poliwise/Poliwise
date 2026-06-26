@@ -7,6 +7,8 @@ Guidance for AI coding agents working in the Poliwise repository.
 - Always check architecture and boundary context before implementing features, changing database interaction, or touching service contracts.
 - Source of truth for architecture and ownership:
   - `contexts/architecture/`
+  - `contexts/frontend/`
+  - `contexts/patterns/`
   - `contexts/service-boundaries/`
   - `contexts/database/`
   - `contexts/authorization/`
@@ -25,7 +27,12 @@ Poliwise is a multi-service monorepo with:
 - `frontend/web`: Next.js 16 App Router frontend (TypeScript)
 - `services/api-gateway`: NestJS 11 API gateway (single client entry point)
 - `services/*-service`: Spring Boot 3 / Java 17 microservices
+- `services/ai-qa-service`: FastAPI AI Q&A pipeline
+- `services/ingestion-service`: FastAPI document processing/embedding
 - `infrastructure/init-db/`: SQL initialization scripts
+- `contexts/`: Architecture, patterns, and development documentation
+- `scripts/`: Utility and testing scripts
+- `reports/`: Project reports, audits, and class deliverables
 - `config/`: Shared environment/config files (including RabbitMQ)
 - `docs/`: Product and architecture notes
 
@@ -61,6 +68,18 @@ Poliwise is a multi-service monorepo with:
 ### Full Stack (Docker)
 
 - Start all services: `docker compose up`
+
+### AI Q&A Service (`services/ai-qa-service`)
+
+- Install deps: `uv sync` (or `pip install -r requirements.txt`)
+- Run: `uv run uvicorn src.main:app --reload --port 8086`
+- Run tests: `uv run pytest`
+
+### Ingestion Service (`services/ingestion-service`)
+
+- Install deps: `uv sync` (or `pip install -r requirements.txt`)
+- Run: `uv run uvicorn src.main:app --reload --port 8088`
+- Run tests: `uv run pytest`
 
 ## 4) High-Level Architecture
 
@@ -138,6 +157,18 @@ Shared stack and pattern:
 - Feedback and usage analytics
 - Aggregations, audit logs, reporting, unanswered questions
 
+### `ai-qa-service` (8086) - schema `conversation`
+
+- RAG pipeline: intent classification, retrieval, reranking
+- Streaming answer generation
+- Conversation and message history
+
+### `ingestion-service` (8088) - no dedicated schema
+
+- Document chunking, text extraction, OCR
+- Embedding generation (BGE-M3)
+- Processing job orchestration via RabbitMQ
+
 ## 6) Database Ownership Boundaries
 
 Strong ownership per service:
@@ -147,6 +178,7 @@ Strong ownership per service:
 - `poliwise_knowledge` -> `knowledge-service`
 - `poliwise_metadata` -> `metadata-service`
 - `poliwise_analytics` -> `feedback-service`
+- `conversation` -> `ai-qa-service`
 
 Do not bypass ownership boundaries without explicit architecture updates.
 
@@ -185,6 +217,8 @@ Main local ports:
 - Knowledge service: 8083
 - Metadata service: 8084
 - Feedback service: 8085
+- AI Q&A service: 8086
+- Ingestion service: 8088
 - API gateway: 3001
 - Frontend: 3000
 
