@@ -100,28 +100,6 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
 
-  flyway:
-    image: flyway/flyway:10.20.1-alpine
-    container_name: poliwise-flyway
-    restart: "no"
-    command:
-      - -url=jdbc:postgresql://postgres:5432/poliwise
-      - -user=poliwise
-      - -password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - -schemas=public,core,metadata,knowledge,conversation,analytics
-      - -defaultSchema=public
-      - -baselineOnMigrate=true
-      - -baselineVersion=1
-      - -connectRetries=60
-      - migrate
-    volumes:
-      - ./infrastructure/flyway/sql:/flyway/sql:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - poliwise
-
   # ============================================================
   # OnlyOffice Document Server
   # ============================================================
@@ -216,8 +194,8 @@ services:
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -255,8 +233,8 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       auth-service:
@@ -316,8 +294,8 @@ services:
       ONLYOFFICE_LOCK_DURATION_MINUTES: ${ONLYOFFICE_LOCK_DURATION_MINUTES:-30}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
@@ -359,8 +337,8 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       user-service:
@@ -404,8 +382,8 @@ services:
       MINIO_REPORT_BUCKET: ${MINIO_REPORT_BUCKET:-poliwise-reports}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
@@ -460,8 +438,8 @@ services:
     volumes:
       - ./base_dataset:/app/base_dataset:ro
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
@@ -548,8 +526,8 @@ services:
       CONTEXT_LAYER3_ONLY: ${CONTEXT_LAYER3_ONLY:-true}
       MAX_LAYER3_CONTEXT_PAIRS: ${MAX_LAYER3_CONTEXT_PAIRS:-5}
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       bge-m3-embedding:
