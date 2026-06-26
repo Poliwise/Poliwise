@@ -352,7 +352,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     assignSearchRef.current = setTimeout(async () => {
       setAssignLoading(true);
       try {
-        const result = await api.users.search({ search: value, limit: 10 });
+        const result = await api.users.search({ keyword: value, limit: 10 });
         const users: DeptUser[] = result.data.map(u => ({
           id: u.id,
           username: u.username,
@@ -435,7 +435,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
             <p>{t('admin.depts.subtitle')}</p>
           </div>
           <div className={styles.headerActions}>
-            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={openCreateModal}>
+            <button className={styles.createBtn} onClick={openCreateModal}>
               <Plus size={16} />
               {t('admin.depts.create')}
             </button>
@@ -522,7 +522,9 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
           </div>
         ) : filteredGrid.length === 0 && viewMode === 'grid' ? (
           <div className={styles.empty}>
-            <Building2 size={48} />
+            <div className={styles.emptyIcon}>
+              <Building2 size={32} />
+            </div>
             <p>{t('admin.depts.empty')}</p>
             <span className={styles.emptySub}>
               {search ? t('admin.depts.empty.search') : t('admin.depts.empty.start')}
@@ -535,7 +537,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                 <div key={dept.id} className={`${styles.deptCard} ${!dept.isActive ? styles.inactive : ''}`}>
                   <div className={styles.deptCardTop}>
                     <div className={`${styles.deptIcon} ${!dept.isActive ? styles.inactive : ''}`}>
-                      <Building2 size={18} />
+                      <Building2 size={22} />
                     </div>
                     <div className={styles.deptInfo}>
                       <div className={styles.deptName}>{dept.name}</div>

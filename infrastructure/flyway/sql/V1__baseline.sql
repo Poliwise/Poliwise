@@ -1680,9 +1680,8 @@ ALTER TABLE knowledge.chunks
 -- ============================================================
 -- L9: Add index on metadata.document_access_rules for access checks
 -- ============================================================
-CREATE INDEX IF NOT EXISTS idx_access_rules_targets
-    ON metadata.document_access_rules(target_type, target_role, target_department_id, target_user_id)
-    WHERE deleted_at IS NULL;
+CREATE INDEX idx_access_rules_targets
+    ON metadata.document_access_rules(target_type, target_role, target_department_id, target_user_id);
 
 -- ============================================================
 -- L1: Update tag usage count on document soft-delete

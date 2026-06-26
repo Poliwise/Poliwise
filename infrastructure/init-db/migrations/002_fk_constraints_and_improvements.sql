@@ -128,9 +128,8 @@ ALTER TABLE knowledge.chunks
 -- ============================================================
 -- L9: Add index on metadata.document_access_rules for access checks
 -- ============================================================
-CREATE INDEX IF NOT EXISTS idx_access_rules_targets
-    ON metadata.document_access_rules(target_type, target_role, target_department_id, target_user_id)
-    WHERE permission = 'VIEW';
+CREATE INDEX idx_access_rules_targets
+    ON metadata.document_access_rules(target_type, target_role, target_department_id, target_user_id);
 
 -- ============================================================
 -- L1: Update tag usage count on document soft-delete
@@ -141,16 +140,16 @@ BEGIN
     IF OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL THEN
         -- Document was soft-deleted, decrement tag usage counts
         UPDATE metadata.tags
-        SET usage_count = GREATEST(0, usage_count - 1)
+        SET usage_count = usage_count - 1
         WHERE id IN (
-            SELECT tag_id FROM metadata.document_tags WHERE document_metadata_id = OLD.id
+            SELECT tag_id FROM metadata.document_tags WHERE document_id = OLD.id
         );
     ELSIF OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL THEN
         -- Document was restored, increment tag usage counts
         UPDATE metadata.tags
         SET usage_count = usage_count + 1
         WHERE id IN (
-            SELECT tag_id FROM metadata.document_tags WHERE document_metadata_id = OLD.id
+            SELECT tag_id FROM metadata.document_tags WHERE document_id = OLD.id
         );
     END IF;
     RETURN NEW;

@@ -8,6 +8,7 @@ import com.poliwise.knowledge.entity.DocumentVersion;
 import com.poliwise.knowledge.client.MetadataServiceClient;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
+import com.poliwise.knowledge.enums.FileType;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.event.DocumentEventPublisher;
 import com.poliwise.knowledge.repository.DocumentAuditLogRepository;
@@ -47,6 +48,7 @@ public class DocumentManagementService {
     private final DocumentEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final MetadataServiceClient metadataServiceClient;
+    private final DocumentParsingService parsingService;
 
     public DocumentManagementService(
             DocumentRepository documentRepository,
@@ -55,7 +57,8 @@ public class DocumentManagementService {
             StorageService storageService,
             DocumentEventPublisher eventPublisher,
             ObjectMapper objectMapper,
-            MetadataServiceClient metadataServiceClient) {
+            MetadataServiceClient metadataServiceClient,
+            DocumentParsingService parsingService) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
         this.auditLogRepository = auditLogRepository;
@@ -63,6 +66,7 @@ public class DocumentManagementService {
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.metadataServiceClient = metadataServiceClient;
+        this.parsingService = parsingService;
     }
 
     // ========== Document CRUD ==========
@@ -258,6 +262,48 @@ public class DocumentManagementService {
         log.info("Document soft deleted: id={}", documentId);
     }
 
+    /**
+     * Filter accessible documents for the current user.
+     * Calls metadata-service to check access rules.
+     */
+    public Set<UUID> filterAccessibleDocuments(List<UUID> documentIds) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        try {
+            return metadataServiceClient.filterAccessibleDocuments(documentIds);
+        } catch (Exception e) {
+            log.warn("Failed to filter accessible documents: {}. Returning empty for security.", e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    /**
+     * Check if the current user has access to a document.
+     * Throws AccessDeniedException if access is denied.
+     */
+    public void checkDocumentAccessOrThrow(UUID documentId) {
+        try {
+            Map<String, Object> result = metadataServiceClient.checkDocumentAccess(documentId);
+            if (result != null) {
+                Object hasAccess = result.get("hasAccess");
+                if (hasAccess instanceof Boolean && !((Boolean) hasAccess)) {
+                    Object reason = result.get("reason");
+                    String message = reason != null ? reason.toString() : "You do not have access to this document";
+                    throw new org.springframework.security.access.AccessDeniedException(message);
+                }
+            }
+        } catch (org.springframework.security.access.AccessDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Failed to check document access for {}: {}. Denying access for security.",
+                    documentId, e.getMessage());
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Access denied: unable to verify permissions");
+        }
+    }
+
     public StreamingResponseBody downloadDocument(UUID documentId) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
@@ -326,15 +372,83 @@ public class DocumentManagementService {
     }
 
     public String getExtractedText(UUID documentId, Integer versionNumber) {
-        if (versionNumber != null) {
-            DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
-                    .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
-            return storageService.readFileContent(version.getFileKey());
-        } else {
-            Document document = documentRepository.findById(documentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
-            return storageService.readFileContent(document.getFileKey());
+        try {
+            if (versionNumber != null) {
+                DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
+                        .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
+
+                // First, try to use stored extracted text
+                if (version.getExtractedText() != null && !version.getExtractedText().isBlank()) {
+                    return version.getExtractedText();
+                }
+
+                // Fallback: parse the file
+                return parseFileContent(version.getFileKey(), version.getFileKey());
+            } else {
+                Document document = documentRepository.findById(documentId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+                // First, try to use stored extracted text
+                if (document.getExtractedText() != null && !document.getExtractedText().isBlank()) {
+                    return document.getExtractedText();
+                }
+
+                // Fallback: parse the file
+                return parseFileContent(document.getFileKey(), document.getFileKey());
+            }
+        } catch (Exception e) {
+            log.error("Failed to get extracted text for document {}: {}", documentId, e.getMessage());
+            return "";
         }
+    }
+
+    /**
+     * Parse file content from storage using DocumentParsingService.
+     */
+    private String parseFileContent(String fileKey, String filename) {
+        try {
+            try (InputStream is = storageService.downloadFile(fileKey)) {
+                byte[] fileBytes = is.readAllBytes();
+                if (fileBytes == null || fileBytes.length == 0) {
+                    log.warn("Empty file for key: {}", fileKey);
+                    return "";
+                }
+
+                // Detect file type from filename
+                FileType fileType = detectFileTypeFromKey(filename);
+                DocumentParsingService.ParsingResult result = parsingService.parse(
+                        new java.io.ByteArrayInputStream(fileBytes),
+                        fileType,
+                        filename
+                );
+
+                String text = result.text();
+                if (text == null) {
+                    text = "";
+                }
+
+                log.info("Parsed content for key {} ({} bytes -> {} chars)", fileKey, fileBytes.length, text.length());
+                return text;
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse content for key {}: {}", fileKey, e.getMessage());
+            return "";
+        }
+    }
+
+    private FileType detectFileTypeFromKey(String fileKey) {
+        if (fileKey == null) return FileType.UNKNOWN;
+        String lower = fileKey.toLowerCase();
+        if (lower.endsWith(".pdf")) return FileType.PDF;
+        if (lower.endsWith(".docx")) return FileType.DOCX;
+        if (lower.endsWith(".doc")) return FileType.DOC;
+        if (lower.endsWith(".xlsx")) return FileType.XLSX;
+        if (lower.endsWith(".xls")) return FileType.XLS;
+        if (lower.endsWith(".txt")) return FileType.TXT;
+        if (lower.endsWith(".png")) return FileType.PNG;
+        if (lower.endsWith(".jpg")) return FileType.JPG;
+        if (lower.endsWith(".jpeg")) return FileType.JPEG;
+        return FileType.UNKNOWN;
     }
 
     // ========== Stats ==========

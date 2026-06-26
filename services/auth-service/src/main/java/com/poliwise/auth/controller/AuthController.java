@@ -34,6 +34,7 @@ public class AuthController {
     private final LoginHistoryRepository loginHistoryRepository;
     private final ForgotPasswordService forgotPasswordService;
     private final ChangePasswordService changePasswordService;
+    private final OtpService otpService;
 
     public AuthController(
             AuthService authService,
@@ -42,7 +43,8 @@ public class AuthController {
             RefreshTokenRepository refreshTokenRepository,
             LoginHistoryRepository loginHistoryRepository,
             ForgotPasswordService forgotPasswordService,
-            ChangePasswordService changePasswordService
+            ChangePasswordService changePasswordService,
+            OtpService otpService
     ) {
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
@@ -51,6 +53,7 @@ public class AuthController {
         this.loginHistoryRepository = loginHistoryRepository;
         this.forgotPasswordService = forgotPasswordService;
         this.changePasswordService = changePasswordService;
+        this.otpService = otpService;
     }
 
     @PostMapping("/register")
@@ -187,15 +190,32 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/send-otp")
+    public ResponseEntity<SendOtpResponse> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        SendOtpResponse response = otpService.sendOtp(request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<VerifyOtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        VerifyOtpResponse response = otpService.verifyOtp(request.getEmail(), request.getOtp());
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/reset-password")
-    public ResponseEntity<ResetPasswordResponse> resetPassword(
-            @Valid @RequestBody ResetPasswordRequest request
-    ) {
-        ResetPasswordResponse response = forgotPasswordService.resetPassword(request.token(), request.newPassword());
-        if (response.success()) {
-            return ResponseEntity.ok(response);
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordWithOtpRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Mật khẩu xác nhận không khớp"
+            ));
         }
-        return ResponseEntity.badRequest().body(response);
+        OtpResponse response = otpService.resetPassword(request);
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
     @PostMapping("/change-password")

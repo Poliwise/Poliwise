@@ -60,6 +60,22 @@ export class AuthProxyController {
   }
 
   @Public()
+  @Post('send-otp')
+  @HttpCode(HttpStatus.OK)
+  handleSendOtp(@Req() request: Request) {
+    const path = '/api/v1/auth/send-otp';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @Public()
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  handleVerifyOtp(@Req() request: Request) {
+    const path = '/api/v1/auth/verify-otp';
+    return this.proxyService.forward(ServiceName.AUTH, request, path);
+  }
+
+  @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   handleResetPassword(@Req() request: Request) {

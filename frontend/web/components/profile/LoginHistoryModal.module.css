@@ -1,3 +1,7 @@
+/* ─────────────────────────────────────────
+   LoginHistoryModal — Modern Glass UI
+   ───────────────────────────────────────── */
+
 .container {
   min-height: 200px;
 }
@@ -14,12 +18,13 @@
 }
 
 .spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border);
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--border);
   border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+  animation: spin 0.7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
@@ -30,13 +35,14 @@
 .error {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: var(--radius);
-  color: #dc2626;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  color: #ef4444;
   font-size: 0.875rem;
+  font-weight: 500;
   margin-bottom: 1rem;
 }
 
@@ -46,22 +52,24 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 3rem;
+  gap: 0.875rem;
+  padding: 3.5rem 2rem;
   color: var(--muted-foreground);
   text-align: center;
 }
 
 .emptyIcon {
-  opacity: 0.3;
+  opacity: 0.25;
+  color: var(--primary);
 }
 
 /* ── Table ── */
 .tableWrapper {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 14px;
   margin-bottom: 1rem;
+  overflow: hidden;
 }
 
 .table {
@@ -78,42 +86,54 @@
   padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .table td {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+  color: var(--foreground);
 }
 
 .table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.table tbody tr {
+  transition: background 0.12s;
+}
+
 .table tbody tr:hover {
-  background: var(--muted);
+  background: rgba(79, 70, 229, 0.03);
 }
 
 /* ── Cell variants ── */
 .timeCell {
   white-space: nowrap;
+  font-size: 0.8125rem;
   color: var(--foreground);
+  font-variant-numeric: tabular-nums;
 }
 
 .monoCell {
-  font-family: 'Courier New', monospace;
-  font-size: 0.8125rem;
+  font-family: 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
+  background: var(--muted);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
 }
 
 .deviceCell {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   white-space: nowrap;
 }
 
@@ -123,10 +143,11 @@
 }
 
 .deviceIconMobile {
-  color: var(--muted-foreground);
+  color: var(--primary);
   flex-shrink: 0;
 }
 
+/* ── Location Cell ── */
 .locationCell {
   display: flex;
   align-items: center;
@@ -140,63 +161,90 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.625rem;
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
+  border: 1px solid;
 }
 
 .success {
-  background: #dcfce7;
-  color: #16a34a;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
 .failed {
-  background: #fef2f2;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.07);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .failureReason {
   display: block;
   font-size: 0.75rem;
-  color: #dc2626;
-  margin-top: 0.2rem;
+  color: #ef4444;
+  margin-top: 0.25rem;
+  opacity: 0.8;
 }
 
 /* ── Pagination ── */
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  justify-content: space-between;
   padding-top: 0.5rem;
 }
 
 .pageBtn {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem 0.75rem;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 10px;
   background: var(--card);
   color: var(--foreground);
   font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .pageBtn:hover:not(:disabled) {
-  background: var(--muted);
+  background: var(--accent);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.1);
 }
 
 .pageBtn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .pageInfo {
   font-size: 0.8125rem;
   color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .table th,
+  .table td {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .pageBtn {
+    justify-content: center;
+  }
 }

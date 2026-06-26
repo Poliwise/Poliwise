@@ -3,6 +3,9 @@ package com.poliwise.metadata.controller;
 import com.poliwise.metadata.dto.AccessRuleResponse;
 import com.poliwise.metadata.dto.AccessRuleSimulationResult;
 import com.poliwise.metadata.dto.CreateAccessRuleRequest;
+import com.poliwise.metadata.dto.DocumentAccessCheckResponse;
+import com.poliwise.metadata.dto.FilterAccessibleDocumentsRequest;
+import com.poliwise.metadata.dto.FilterAccessibleDocumentsResponse;
 import com.poliwise.metadata.dto.UpdateAccessRuleRequest;
 import com.poliwise.metadata.security.SecurityUtils;
 import com.poliwise.metadata.service.AccessRuleService;
@@ -100,5 +103,37 @@ public class AccessRuleController {
     public ResponseEntity<AccessRuleSimulationResult> simulateByDocumentId(@PathVariable UUID documentId) {
         AccessRuleSimulationResult result = accessRuleService.simulateAccess(documentId);
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Check if current user has access to a specific document.
+     */
+    @GetMapping("/check/{documentId}")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<DocumentAccessCheckResponse> checkAccess(@PathVariable UUID documentId) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        UUID departmentId = SecurityUtils.getCurrentDepartmentId();
+        com.poliwise.metadata.enums.UserRole role = SecurityUtils.getCurrentUserRole();
+
+        DocumentAccessCheckResponse response = accessRuleService.checkDocumentAccess(
+                documentId, userId, role != null ? role.name() : null, departmentId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Filter documents that the current user can access from a list of document IDs.
+     * Used by knowledge-service to filter document lists based on access rules.
+     */
+    @PostMapping("/filter-accessible")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<FilterAccessibleDocumentsResponse> filterAccessibleDocuments(
+            @RequestBody FilterAccessibleDocumentsRequest request) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        UUID departmentId = SecurityUtils.getCurrentDepartmentId();
+        com.poliwise.metadata.enums.UserRole role = SecurityUtils.getCurrentUserRole();
+
+        FilterAccessibleDocumentsResponse response = accessRuleService.filterAccessibleDocumentsBatch(
+                request.documentIds(), userId, role != null ? role.name() : null, departmentId);
+        return ResponseEntity.ok(response);
     }
 }

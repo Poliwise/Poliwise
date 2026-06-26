@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
         <div className={styles.statsGrid}>
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' }}>
+              <div className={styles.statIconWrap} style={{ background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(79, 70, 229, 0.05))', color: '#4f46e5' }}>
                 <MessageSquare size={22} />
               </div>
               <div className={styles.statContent}>
@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
                 <div className={styles.statValueRow}>
                   <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
                   {questionsChange !== 0 && (
-                    <span className={styles.changeBadge} style={{ color: questionsChange > 0 ? '#22c55e' : '#ef4444' }}>
+                    <span className={styles.changeBadge} style={{ background: questionsChange > 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: questionsChange > 0 ? '#22c55e' : '#ef4444' }}>
                       {questionsChange > 0 ? '+' : ''}{questionsChange}%
                     </span>
                   )}
@@ -320,7 +320,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
+              <div className={styles.statIconWrap} style={{ background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05))', color: '#22c55e' }}>
                 <ThumbsUp size={22} />
               </div>
               <div className={styles.statContent}>
@@ -335,7 +335,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+              <div className={styles.statIconWrap} style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05))', color: '#3b82f6' }}>
                 <FileText size={22} />
               </div>
               <div className={styles.statContent}>
@@ -348,7 +348,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+              <div className={styles.statIconWrap} style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05))', color: '#f59e0b' }}>
                 <Users size={22} />
               </div>
               <div className={styles.statContent}>
@@ -372,7 +372,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              <div className={styles.statIconWrap} style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05))', color: '#10b981' }}>
                 <LogIn size={22} />
               </div>
               <div className={styles.statContent}>
@@ -384,7 +384,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+              <div className={styles.statIconWrap} style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05))', color: '#8b5cf6' }}>
                 <Eye size={22} />
               </div>
               <div className={styles.statContent}>

@@ -3,21 +3,13 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Shield,
-  Bell,
   Globe,
-  KeyRound,
+  Moon,
+  Sun,
   Clock,
-  Save,
-  RefreshCw,
+  Check,
 } from 'lucide-react';
-import {
-  Card,
-  Button,
-  Switch,
-  Select,
-  Tabs,
-} from '@/components/ui';
+import { Button, Switch, Select } from '@/components/ui';
 import { MainLayout } from '@/components/layout';
 import { useLanguage } from '@/providers';
 import { usePreferencesStore } from '@/store';
@@ -41,9 +33,6 @@ export default function SettingsPage() {
       ? (localStorage.getItem('timezone') ?? 'Asia/Ho_Chi_Minh')
       : 'Asia/Ho_Chi_Minh'
   );
-  const [notifEmail, setNotifEmail] = useState(true);
-  const [notifUnanswered, setNotifUnanswered] = useState(true);
-  const [notifReport, setNotifReport] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -54,158 +43,135 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const tabs = [
-    {
-      value: 'general',
-      label: t('settings.tab.general'),
-      icon: <Globe size={16} />,
-      content: (
-        <div className={styles.settingsSection}>
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.language')}</h3>
-              <p>{t('settings.language.desc')}</p>
-            </div>
-            <Select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as 'vi' | 'en')}
-              options={[
-                { value: 'vi', label: t('settings.lang.vi') },
-                { value: 'en', label: t('settings.lang.en') },
-              ]}
-              selectSize="sm"
-              className={styles.settingSelect}
-            />
-          </div>
-
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.timezone')}</h3>
-              <p>{t('settings.timezone.desc')}</p>
-            </div>
-            <Select
-              value={localTimezone}
-              onChange={(e) => setLocalTimezone(e.target.value)}
-              options={TIMEZONE_OPTIONS}
-              selectSize="sm"
-              className={styles.settingSelect}
-            />
-          </div>
-
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.darkMode')}</h3>
-              <p>{t('settings.darkMode.desc')}</p>
-            </div>
-            <Switch
-              checked={theme === 'dark'}
-              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
-            />
-          </div>
-        </div>
-      ),
-    },
-    {
-      value: 'notifications',
-      label: t('settings.tab.notifications'),
-      icon: <Bell size={16} />,
-      content: (
-        <div className={styles.settingsSection}>
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.notif.email')}</h3>
-              <p>{t('settings.notif.email.desc')}</p>
-            </div>
-            <Switch checked={notifEmail} onChange={(e) => setNotifEmail(e.target.checked)} />
-          </div>
-
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.notif.unanswered')}</h3>
-              <p>{t('settings.notif.unanswered.desc')}</p>
-            </div>
-            <Switch checked={notifUnanswered} onChange={(e) => setNotifUnanswered(e.target.checked)} />
-          </div>
-
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.notif.report')}</h3>
-              <p>{t('settings.notif.report.desc')}</p>
-            </div>
-            <Switch checked={notifReport} onChange={(e) => setNotifReport(e.target.checked)} />
-          </div>
-        </div>
-      ),
-    },
-    {
-      value: 'security',
-      label: t('settings.tab.security'),
-      icon: <Shield size={16} />,
-      content: (
-        <div className={styles.settingsSection}>
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.security.changePassword')}</h3>
-              <p>{t('settings.security.changePassword.desc')}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<KeyRound size={16} />}
-              onClick={() => router.push('/profile/change-password')}
-            >
-              {t('settings.security.changePassword')}
-            </Button>
-          </div>
-
-          <div className={styles.settingRow}>
-            <div className={styles.settingInfo}>
-              <h3>{t('settings.security.sessions')}</h3>
-              <p>{t('settings.security.sessions.desc')}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<Clock size={16} />}
-              onClick={() => router.push('/profile/sessions')}
-            >
-              {t('settings.security.sessions')}
-            </Button>
-          </div>
-        </div>
-      ),
-    },
-  ];
-
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div>
-            <h1>{t('settings.title')}</h1>
-            <p>{t('settings.subtitle')}</p>
+      <div className={styles.pageWrapper}>
+        <div className={styles.pageHeader}>
+          <div className={styles.headerContent}>
+            <div className={styles.headerIcon}>
+              <Globe size={28} />
+            </div>
+            <div>
+              <h1 className={styles.pageTitle}>{t('settings.title')}</h1>
+              <p className={styles.pageSubtitle}>{t('settings.subtitle')}</p>
+            </div>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Save size={16} />}
-            loading={saving}
-            onClick={handleSave}
-          >
-            {saving ? t('settings.saving') : t('settings.save')}
-          </Button>
         </div>
 
-        {saved && (
-          <div className={styles.savedBanner}>
-            <RefreshCw size={16} />
-            <span>{t('settings.saved')}</span>
-          </div>
-        )}
+        <div className={styles.pageBody}>
+          {saved && (
+            <div className={styles.savedBanner}>
+              <Check size={18} />
+              <span>{t('settings.saved')}</span>
+            </div>
+          )}
 
-        <Card>
-          <Tabs tabs={tabs} variant="underline" defaultValue="general" />
-        </Card>
+          <div className={styles.cardsGrid}>
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardIcon} data-color="purple">
+                  <Globe size={20} />
+                </div>
+                <div>
+                  <h2 className={styles.cardTitle}>Ngôn ngữ</h2>
+                  <p className={styles.cardDesc}>Chọn ngôn ngữ hiển thị cho giao diện</p>
+                </div>
+              </div>
+              <div className={styles.cardContent}>
+                <div className={styles.settingRow}>
+                  <div className={styles.settingInfo}>
+                    <h3>{t('settings.language')}</h3>
+                    <p>{t('settings.language.desc')}</p>
+                  </div>
+                  <Select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value as 'vi' | 'en')}
+                    options={[
+                      { value: 'vi', label: t('settings.lang.vi') },
+                      { value: 'en', label: t('settings.lang.en') },
+                    ]}
+                    selectSize="md"
+                    className={styles.settingSelect}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardIcon} data-color="blue">
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <h2 className={styles.cardTitle}>Múi giờ</h2>
+                  <p className={styles.cardDesc}>Thiết lập múi giờ cho hệ thống</p>
+                </div>
+              </div>
+              <div className={styles.cardContent}>
+                <div className={styles.settingRow}>
+                  <div className={styles.settingInfo}>
+                    <h3>{t('settings.timezone')}</h3>
+                    <p>{t('settings.timezone.desc')}</p>
+                  </div>
+                  <Select
+                    value={localTimezone}
+                    onChange={(e) => setLocalTimezone(e.target.value)}
+                    options={TIMEZONE_OPTIONS}
+                    selectSize="md"
+                    className={styles.settingSelect}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardIcon} data-color={theme === 'dark' ? 'yellow' : 'gray'}>
+                  {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
+                </div>
+                <div>
+                  <h2 className={styles.cardTitle}>Giao diện</h2>
+                  <p className={styles.cardDesc}>Tùy chỉnh giao diện hiển thị</p>
+                </div>
+              </div>
+              <div className={styles.cardContent}>
+                <div className={styles.settingRow}>
+                  <div className={styles.settingInfo}>
+                    <h3>{t('settings.darkMode')}</h3>
+                    <p>{t('settings.darkMode.desc')}</p>
+                  </div>
+                  <div className={styles.themeToggle}>
+                    <button
+                      className={`${styles.themeOption} ${theme === 'light' ? styles.active : ''}`}
+                      onClick={() => setTheme('light')}
+                    >
+                      <Sun size={18} />
+                      <span>Sáng</span>
+                    </button>
+                    <button
+                      className={`${styles.themeOption} ${theme === 'dark' ? styles.active : ''}`}
+                      onClick={() => setTheme('dark')}
+                    >
+                      <Moon size={18} />
+                      <span>Tối</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.actions}>
+            <Button
+              variant="primary"
+              size="lg"
+              loading={saving}
+              onClick={handleSave}
+            >
+              {saving ? t('settings.saving') : t('settings.save')}
+            </Button>
+          </div>
+        </div>
       </div>
     </MainLayout>
   );

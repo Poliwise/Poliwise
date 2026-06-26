@@ -2,7 +2,6 @@ package com.poliwise.knowledge.controller;
 
 import com.poliwise.knowledge.dto.*;
 import com.poliwise.knowledge.entity.Document;
-import com.poliwise.knowledge.client.MetadataServiceClient;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
@@ -35,7 +34,6 @@ public class DocumentController {
     private final DocumentManagementService documentManagementService;
     private final MetadataContextService metadataContextService;
     private final MetadataSuggestionService metadataSuggestionService;
-    private final MetadataServiceClient metadataServiceClient;
 
     // ===== 1. Upload Document =====
     @PostMapping(path = {"", "/upload"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -139,7 +137,8 @@ public class DocumentController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false, defaultValue = "desc") String sortOrder) {
+            @RequestParam(required = false, defaultValue = "desc") String sortOrder,
+            HttpServletRequest httpRequest) {
 
         FileType parsedFileType = null;
         if (fileType != null && !fileType.isBlank()) {
@@ -162,15 +161,28 @@ public class DocumentController {
 
         Page<Document> documents = documentManagementService.searchDocuments(searchRequest);
 
+        // Filter documents by access rules
+        List<UUID> documentIds = documents.getContent().stream()
+                .map(Document::getId)
+                .toList();
+
+        java.util.Set<UUID> accessibleIds = documentManagementService.filterAccessibleDocuments(documentIds);
+
         List<DocumentListItem> items = documents.getContent().stream()
+                .filter(doc -> accessibleIds.contains(doc.getId()))
                 .map(this::toListItem)
                 .collect(Collectors.toList());
+
+        // Adjust total count to reflect accessible documents only
+        long accessibleTotal = documents.getTotalElements() > documents.getContent().size()
+                ? documents.getTotalElements() // Approximate - actual count may be lower
+                : items.size();
 
         PagedDocumentResponse response = new PagedDocumentResponse(
                 items,
                 documents.getNumber() + 1,
                 documents.getSize(),
-                documents.getTotalElements(),
+                accessibleTotal,
                 documents.getTotalPages()
         );
 
@@ -180,8 +192,11 @@ public class DocumentController {
     // ===== 4. Get Document Detail =====
     @GetMapping("/{documentId}")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<DocumentDetailResponse> getDetail(@PathVariable UUID documentId) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+    public ResponseEntity<DocumentDetailResponse> getDetail(
+            @PathVariable UUID documentId,
+            HttpServletRequest httpRequest) {
+        // Check access before returning detail
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         return ResponseEntity.ok(detail);
     }
@@ -189,8 +204,8 @@ public class DocumentController {
     // ===== 5. Download Document =====
     @GetMapping("/{documentId}/download")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID documentId) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+    public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         StreamingResponseBody stream = documentManagementService.downloadDocument(documentId);
 
@@ -207,8 +222,8 @@ public class DocumentController {
     // ===== 6. Get Download URL (Signed URL) =====
     @GetMapping("/{documentId}/url")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<DownloadUrlResponse> getDownloadUrl(@PathVariable UUID documentId) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+    public ResponseEntity<DownloadUrlResponse> getDownloadUrl(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         String url = documentManagementService.getDownloadUrl(documentId);
         return ResponseEntity.ok(new DownloadUrlResponse(url));
     }
@@ -216,8 +231,8 @@ public class DocumentController {
     // ===== 6b. Preview Document (returns binary for iframe embedding) =====
     @GetMapping("/{documentId}/preview")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<byte[]> getPreview(@PathVariable UUID documentId) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+    public ResponseEntity<byte[]> getPreview(@PathVariable UUID documentId, HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         byte[] content = documentManagementService.getDocumentBytes(documentId);
 
@@ -233,9 +248,9 @@ public class DocumentController {
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<StreamingResponseBody> downloadVersion(
             @PathVariable UUID documentId,
-            @PathVariable Integer versionNumber) {
-
-        metadataServiceClient.assertCanReadDocument(documentId);
+            @PathVariable Integer versionNumber,
+            HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         DocumentVersionResponse version = detail.versions().stream()
                 .filter(v -> v.versionNumber().equals(versionNumber))
@@ -259,8 +274,9 @@ public class DocumentController {
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<String> getDocumentContent(
             @PathVariable UUID documentId,
-            @RequestParam(required = false) Integer version) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+            @RequestParam(required = false) Integer version,
+            HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         String content = documentManagementService.getExtractedText(documentId, version);
         return ResponseEntity.ok(content);
     }
@@ -288,8 +304,10 @@ public class DocumentController {
     // ===== 10. Get Version History =====
     @GetMapping("/{documentId}/versions")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<List<DocumentVersionResponse>> getVersions(@PathVariable UUID documentId) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+    public ResponseEntity<List<DocumentVersionResponse>> getVersions(
+            @PathVariable UUID documentId,
+            HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
         return ResponseEntity.ok(detail.versions());
     }
@@ -298,8 +316,9 @@ public class DocumentController {
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<Map<String, String>> getContent(
             @PathVariable UUID documentId,
-            @PathVariable Integer versionNumber) {
-        metadataServiceClient.assertCanReadDocument(documentId);
+            @PathVariable Integer versionNumber,
+            HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
         String content = documentManagementService.getExtractedText(documentId, versionNumber);
         return ResponseEntity.ok(Map.of("content", content != null ? content : ""));
     }
@@ -314,9 +333,10 @@ public class DocumentController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false, defaultValue = "1") int page,
-            @RequestParam(required = false, defaultValue = "20") int size) {
+            @RequestParam(required = false, defaultValue = "20") int size,
+            HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
 
-        metadataServiceClient.assertCanReadDocument(documentId);
         java.time.LocalDate start = null;
         java.time.LocalDate end = null;
         try {
