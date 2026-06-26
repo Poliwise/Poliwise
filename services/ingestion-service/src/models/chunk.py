@@ -40,7 +40,7 @@ class Chunk(Base):
     allowed_roles = Column(ARRAY(String), nullable=True)
     allowed_departments = Column(ARRAY(PG_UUID(as_uuid=True)), nullable=True)
     allowed_users = Column(ARRAY(PG_UUID(as_uuid=True)), nullable=True)
-    access_level = Column(String, nullable=False, default="PUBLIC")
+    access_level = Column(String, nullable=False, default="RESTRICTED")
     is_latest = Column(Boolean, default=True, nullable=False)
     metadata_ = Column("metadata", JSONB, nullable=True)  # metadata column
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -1423,7 +1423,7 @@ public class OnlyOfficeService {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
 
-        if (document.getCurrentVersion() == 1 && versionNumber == 1) {
+        if (versionRepository.countByDocumentIdAndDeletedAtIsNull(documentId) <= 1) {
             throw new IllegalStateException("Cannot delete the only version of a document");
         }
 
@@ -1434,25 +1434,33 @@ public class OnlyOfficeService {
             throw new IllegalStateException("Cannot delete the latest version. Upload a new version first.");
         }
 
-        // Archive the version before deletion
-        DocumentVersionDeletion archive = DocumentVersionDeletion.builder()
-                .id(UUID.randomUUID())
-                .documentId(documentId)
-                .versionNumber(versionNumber)
-                .deletedBy(deletedBy)
-                .deletedAt(OffsetDateTime.now())
-                .fileKey(version.getFileKey())
-                .fileSizeBytes(version.getFileSizeBytes())
-                .changelog(version.getChangelog())
-                .extractedText(version.getExtractedText())
-                .build();
-        deletionRepository.save(archive);
-
-        versionRepository.delete(version);
+        version.setDeletedAt(OffsetDateTime.now());
+        version.setDeletedBy(deletedBy);
+        version.setDeletionReason(reason);
+        versionRepository.save(version);
         log.info("Version deleted: documentId={}, version={}, archivedBy={}", documentId, versionNumber, deletedBy);
         logAudit(documentId, "ONLYOFFICE_VERSION_DELETED",
                 Map.of("versionNumber", versionNumber, "fileKey", version.getFileKey()),
                 Map.of("reason", reason != null ? reason : ""), deletedBy);
+    }
+
+    @Transactional
+    public void restoreVersion(UUID documentId, int versionNumber, UUID restoredBy) {
+        documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        DocumentVersion version = versionRepository.findDeletedByDocumentIdAndVersionNumber(documentId, versionNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Deleted version not found: " + versionNumber));
+
+        version.setDeletedAt(null);
+        version.setDeletedBy(null);
+        version.setDeletionReason(null);
+        versionRepository.save(version);
+
+        log.info("Version restored: documentId={}, version={}, restoredBy={}", documentId, versionNumber, restoredBy);
+        logAudit(documentId, "ONLYOFFICE_VERSION_RESTORED",
+                Map.of("versionNumber", versionNumber),
+                Map.of("restoredBy", restoredBy), restoredBy);
     }
 
     // ========== Helpers ==========

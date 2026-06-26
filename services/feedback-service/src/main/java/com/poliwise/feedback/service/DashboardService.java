@@ -4,13 +4,13 @@ import com.poliwise.feedback.dto.response.*;
 import com.poliwise.feedback.entity.DailyAggregate;
 import com.poliwise.feedback.entity.PopularQuestion;
 import com.poliwise.feedback.entity.UnansweredQuestion;
+import com.poliwise.feedback.enums.UnansweredStatus;
 import com.poliwise.feedback.feign.KnowledgeServiceClient;
 import com.poliwise.feedback.feign.UserServiceClient;
 import com.poliwise.feedback.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,6 +23,8 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -85,7 +87,8 @@ public class DashboardService {
                     .divide(BigDecimal.valueOf(totalLikes + totalDislikes), 4, RoundingMode.HALF_UP);
         }
 
-        long unansweredCount = unansweredQuestionRepository.countByResolved(false);
+        long unansweredCount = unansweredQuestionRepository.countByStatusIn(
+                List.of(UnansweredStatus.PENDING, UnansweredStatus.REVIEWING));
 
         List<PopularQuestionResponse> topQuestions = popularQuestionRepository
                 .findTop10ByOrderByAskCountDesc(PageRequest.of(0, 5))
@@ -137,67 +140,61 @@ public class DashboardService {
 
     public Page<UnansweredQuestionResponse> getUnansweredQuestions(Pageable pageable, String status) {
         String normalizedStatus = status != null ? status.trim().toUpperCase(Locale.ROOT) : null;
-        Page<UnansweredQuestion> page;
-        if (normalizedStatus == null || normalizedStatus.isBlank()
-                || "PENDING".equals(normalizedStatus) || "REVIEWING".equals(normalizedStatus)) {
-            page = unansweredQuestionRepository.findByResolved(false, pageable);
-        } else if ("ANSWERED".equals(normalizedStatus) || "REJECTED".equals(normalizedStatus)) {
-            page = unansweredQuestionRepository.findByResolved(true, pageable);
-        } else {
-            page = unansweredQuestionRepository.findAll(pageable);
+        UnansweredStatus enumStatus = null;
+        if (normalizedStatus != null && !normalizedStatus.isBlank()) {
+            try {
+                enumStatus = UnansweredStatus.valueOf(normalizedStatus);
+            } catch (IllegalArgumentException e) {
+                // Invalid status, will return empty or all
+            }
         }
-
-        List<UnansweredQuestionResponse> items = page.stream()
-                .map(this::toUnansweredQuestionResponse)
-                .filter(item -> normalizedStatus == null
-                        || normalizedStatus.isBlank()
-                        || normalizedStatus.equals(item.status()))
-                .toList();
-
-        return new PageImpl<>(items, pageable, items.size());
+        Page<UnansweredQuestion> questions = enumStatus != null
+                ? unansweredQuestionRepository.findByStatus(enumStatus, pageable)
+                : unansweredQuestionRepository.findAll(pageable);
+        return questions.map(this::toResponse);
     }
 
     @Transactional
-    public void resolveUnanswered(java.util.UUID id, String answer) {
-        UnansweredQuestion uq = unansweredQuestionRepository.findById(id).orElseThrow(() -> new RuntimeException("Question not found"));
-        uq.setResolved(true);
-        uq.setResolutionNotes(answer);
-        uq.setResolvedAt(java.time.Instant.now());
-        unansweredQuestionRepository.save(uq);
+    public UnansweredQuestionResponse resolveUnanswered(UUID id, UUID resolvedBy, String answer) {
+        UnansweredQuestion question = unansweredQuestionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unanswered question not found: " + id));
+        Instant now = Instant.now();
+        question.setStatus(UnansweredStatus.ANSWERED);
+        question.setResolved(true);
+        question.setResolvedBy(resolvedBy);
+        question.setResolvedAt(now);
+        question.setResolutionNotes(answer);
+        return toResponse(unansweredQuestionRepository.save(question));
     }
 
     @Transactional
-    public void rejectUnanswered(java.util.UUID id) {
-        UnansweredQuestion uq = unansweredQuestionRepository.findById(id).orElseThrow(() -> new RuntimeException("Question not found"));
-        uq.setResolved(true);
-        uq.setResolutionNotes("Rejected");
-        uq.setResolvedAt(java.time.Instant.now());
-        unansweredQuestionRepository.save(uq);
+    public UnansweredQuestionResponse rejectUnanswered(UUID id, UUID resolvedBy) {
+        UnansweredQuestion question = unansweredQuestionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Unanswered question not found: " + id));
+        Instant now = Instant.now();
+        question.setStatus(UnansweredStatus.REJECTED);
+        question.setResolved(true);
+        question.setResolvedBy(resolvedBy);
+        question.setResolvedAt(now);
+        return toResponse(unansweredQuestionRepository.save(question));
     }
 
-    private UnansweredQuestionResponse toUnansweredQuestionResponse(UnansweredQuestion uq) {
+    private UnansweredQuestionResponse toResponse(UnansweredQuestion uq) {
         return new UnansweredQuestionResponse(
                 uq.getId(),
                 uq.getQuestion(),
-                1,
-                null,
-                null,
+                uq.getUserId(),
+                uq.getUserDepartmentId(),
+                uq.getCategory(),
+                uq.getPriority(),
+                uq.getStatus() != null ? uq.getStatus().name() : (Boolean.TRUE.equals(uq.getResolved()) ? "ANSWERED" : "PENDING"),
+                1L,
+                uq.getResolved(),
                 uq.getCreatedAt(),
-                uq.getUpdatedAt() != null ? uq.getUpdatedAt() : uq.getCreatedAt(),
-                resolveStatus(uq),
-                isRejected(uq) ? null : uq.getResolutionNotes()
+                uq.getCreatedAt(),
+                uq.getCreatedAt(),
+                uq.getResolvedAt(),
+                uq.getResolutionNotes()
         );
-    }
-
-    private String resolveStatus(UnansweredQuestion uq) {
-        if (Boolean.TRUE.equals(uq.getResolved())) {
-            return isRejected(uq) ? "REJECTED" : "ANSWERED";
-        }
-        return "PENDING";
-    }
-
-    private boolean isRejected(UnansweredQuestion uq) {
-        return uq.getResolutionNotes() != null
-                && "rejected".equalsIgnoreCase(uq.getResolutionNotes().trim());
     }
 }

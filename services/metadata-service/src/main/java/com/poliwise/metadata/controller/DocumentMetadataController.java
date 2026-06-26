@@ -46,6 +46,18 @@ public class DocumentMetadataController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/document/{documentId}/access-check")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<DocumentAccessCheckResponse> checkAccess(@PathVariable UUID documentId) {
+        DocumentAccessCheckResponse response = metadataService.checkAccess(
+                documentId,
+                SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentUserRole(),
+                SecurityUtils.getCurrentDepartmentId()
+        );
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/status/{status}")
     public ResponseEntity<List<DocumentMetadataResponse>> getByStatus(@PathVariable String status) {
         var docStatus = com.poliwise.metadata.enums.DocumentStatus.valueOf(status.toUpperCase());

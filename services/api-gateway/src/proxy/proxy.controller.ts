@@ -92,17 +92,6 @@ export class ProxyController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Patch('users/me/department')
-  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
-  handleUserMeDepartment(@Req() request: Request) {
-    return this.proxyService.forward(
-      ServiceName.USER,
-      request,
-      '/api/v1/users/me/department',
-    );
-  }
-
   // ===== User Management Endpoints =====
 
   /** GET /users — list/search users → user-service (returns department info) */
@@ -629,6 +618,41 @@ export class ProxyController {
   }
 
   // AI Q&A endpoints — route to ai-qa-service
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('ai/unanswered')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  handleAIUnansweredList(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      '/api/v1/dashboard/unanswered' + (request.url.includes('?') ? request.url.substring(request.url.indexOf('?')) : ''),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('ai/unanswered/:id/resolve')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  handleAIUnansweredResolve(@Req() request: Request) {
+    const id = (request.params as Record<string, string>).id;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/dashboard/unanswered/${id}/resolve`,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('ai/unanswered/:id/reject')
+  @Roles(UserRole.MANAGER, UserRole.ADMIN)
+  handleAIUnansweredReject(@Req() request: Request) {
+    const id = (request.params as Record<string, string>).id;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/dashboard/unanswered/${id}/reject`,
+    );
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('ai/chat/stream')
   @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)

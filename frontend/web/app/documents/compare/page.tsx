@@ -31,11 +31,14 @@ export default function ComparePoliciesPage() {
   const [doc1, setDoc1] = useState<Document | null>(null);
   const [doc2, setDoc2] = useState<Document | null>(null);
   const [results, setResults] = useState<{
-    document1: Document;
-    document2: Document;
-    added: string[];
-    removed: string[];
-    modified: { old: string; new: string }[];
+    document1Id: string;
+    document2Id: string;
+    document1Title: string;
+    document2Title: string;
+    addedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+    removedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+    modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
+    totalChanges: number;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,24 +139,24 @@ export default function ComparePoliciesPage() {
         <div className={styles.results}>
           {/* Headers */}
           <div className={styles.resultHeader}>
-            <div className={styles.docLabel}>{results.document1.title}</div>
-            <div className={styles.docLabel}>{results.document2.title}</div>
+            <div className={styles.docLabel}>{results.document1Title}</div>
+            <div className={styles.docLabel}>{results.document2Title}</div>
           </div>
 
           {/* Stats */}
           <div className={styles.stats}>
-            {results.added.length > 0 && (
-              <Badge variant="success">{results.added.length} mục mới</Badge>
+            {results.addedSections.length > 0 && (
+              <Badge variant="success">{results.addedSections.length} mục mới</Badge>
             )}
-            {results.removed.length > 0 && (
-              <Badge variant="destructive">{results.removed.length} mục bị xóa</Badge>
+            {results.removedSections.length > 0 && (
+              <Badge variant="destructive">{results.removedSections.length} mục bị xóa</Badge>
             )}
-            {results.modified.length > 0 && (
-              <Badge variant="warning">{results.modified.length} mục thay đổi</Badge>
+            {results.modifiedSections.length > 0 && (
+              <Badge variant="warning">{results.modifiedSections.length} mục thay đổi</Badge>
             )}
           </div>
 
-          {results.added.length > 0 && (
+          {results.addedSections.length > 0 && (
             <Card padding="md">
               <CardHeader>
                 <CardTitle as="h3">
@@ -162,15 +165,15 @@ export default function ComparePoliciesPage() {
               </CardHeader>
               <CardContent>
                 <ul className={styles.changeList}>
-                  {results.added.map((item, i) => (
-                    <li key={i} className={styles.added}>{item}</li>
+                  {results.addedSections.map((item, i) => (
+                    <li key={i} className={styles.added}>{item.newContent}</li>
                   ))}
                 </ul>
               </CardContent>
             </Card>
           )}
 
-          {results.removed.length > 0 && (
+          {results.removedSections.length > 0 && (
             <Card padding="md">
               <CardHeader>
                 <CardTitle as="h3">
@@ -179,15 +182,15 @@ export default function ComparePoliciesPage() {
               </CardHeader>
               <CardContent>
                 <ul className={styles.changeList}>
-                  {results.removed.map((item, i) => (
-                    <li key={i} className={styles.removed}>{item}</li>
+                  {results.removedSections.map((item, i) => (
+                    <li key={i} className={styles.removed}>{item.oldContent}</li>
                   ))}
                 </ul>
               </CardContent>
             </Card>
           )}
 
-          {results.modified.length > 0 && (
+          {results.modifiedSections.length > 0 && (
             <Card padding="md">
               <CardHeader>
                 <CardTitle as="h3">
@@ -196,12 +199,12 @@ export default function ComparePoliciesPage() {
               </CardHeader>
               <CardContent>
                 <div className={styles.modifiedList}>
-                  {results.modified.map((item, i) => (
+                  {results.modifiedSections.map((item, i) => (
                     <div key={i} className={styles.modifiedItem}>
                       <Minus size={14} className={styles.removedIcon} />
-                      <span className={styles.oldText}>{item.old}</span>
+                      <span className={styles.oldText}>{item.oldContent}</span>
                       <Plus size={14} className={styles.addedIcon} />
-                      <span className={styles.newText}>{item.new}</span>
+                      <span className={styles.newText}>{item.newContent}</span>
                     </div>
                   ))}
                 </div>
@@ -209,7 +212,7 @@ export default function ComparePoliciesPage() {
             </Card>
           )}
 
-          {!results.added.length && !results.removed.length && !results.modified.length && (
+          {results.totalChanges === 0 && (
             <EmptyState
               icon={<GitCompare size={32} />}
               title="Không có thay đổi"

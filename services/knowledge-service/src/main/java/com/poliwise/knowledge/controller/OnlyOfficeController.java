@@ -347,6 +347,21 @@ public class OnlyOfficeController {
         ));
     }
 
+    @PostMapping("/{documentId}/versions/{versionNumber}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> restoreVersion(
+            @PathVariable UUID documentId,
+            @PathVariable int versionNumber,
+            HttpServletRequest httpRequest) {
+        UUID restoredBy = getCurrentUserId(httpRequest);
+        onlyOfficeService.restoreVersion(documentId, versionNumber, restoredBy);
+        return ResponseEntity.ok(Map.of(
+                "message", "Version " + versionNumber + " restored successfully",
+                "documentId", documentId.toString(),
+                "restoredVersion", versionNumber
+        ));
+    }
+
     // ===== 10. Fetch latest version metadata + presigned URL =====
     @GetMapping("/{documentId}/fetch-latest")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")

@@ -234,10 +234,7 @@ public class DocumentService {
         payload.put("document_version_id", latestVersion.getId().toString());
         payload.put("file_key", document.getFileKey());
         payload.put("bucket_name", document.getBucketName());
-        payload.put("metadata", java.util.Map.of(
-                "allowed_roles", java.util.List.of("USER", "ADMIN"),
-                "access_level", "PUBLIC"
-        ));
+        payload.put("metadata", metadataServiceClient.getIngestionAccessMetadata(documentId, processedBy));
 
         eventPublisher.publishIngestionRequested(payload);
 

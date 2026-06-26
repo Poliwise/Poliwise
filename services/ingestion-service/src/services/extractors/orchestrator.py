@@ -8,6 +8,7 @@ from src.services.extractors.pdf import PDFExtractor
 from src.services.extractors.docx import DOCXExtractor
 from src.services.extractors.markdown import MarkdownExtractor
 from src.services.extractors.image import ImageExtractor
+from src.services.extractors.text import TextExtractor
 
 logger = structlog.get_logger()
 
@@ -26,6 +27,7 @@ class ExtractionOrchestrator:
             DOCXExtractor(),
             MarkdownExtractor(),
             ImageExtractor(),
+            TextExtractor(),
         ]
 
         for extractor in extractors:

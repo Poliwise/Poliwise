@@ -6,17 +6,32 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DocumentVersionRepository
         extends JpaRepository<DocumentVersion, UUID>, JpaSpecificationExecutor<DocumentVersion> {
 
-    List<DocumentVersion> findByDocumentIdOrderByVersionNumberDesc(UUID documentId);
+    @Query("select v from DocumentVersion v where v.documentId = :documentId and v.deletedAt is null order by v.versionNumber desc")
+    List<DocumentVersion> findByDocumentIdOrderByVersionNumberDesc(@Param("documentId") UUID documentId);
 
-    Optional<DocumentVersion> findFirstByDocumentIdOrderByVersionNumberDesc(UUID documentId);
+    Optional<DocumentVersion> findFirstByDocumentIdAndDeletedAtIsNullOrderByVersionNumberDesc(UUID documentId);
 
-    boolean existsByDocumentIdAndVersionNumber(UUID documentId, Integer versionNumber);
+    default Optional<DocumentVersion> findFirstByDocumentIdOrderByVersionNumberDesc(UUID documentId) {
+        return findFirstByDocumentIdAndDeletedAtIsNullOrderByVersionNumberDesc(documentId);
+    }
 
-    Optional<DocumentVersion> findByDocumentIdAndVersionNumber(UUID documentId, Integer versionNumber);
+    boolean existsByDocumentIdAndVersionNumberAndDeletedAtIsNull(UUID documentId, Integer versionNumber);
+
+    @Query("select v from DocumentVersion v where v.documentId = :documentId and v.versionNumber = :versionNumber and v.deletedAt is null")
+    Optional<DocumentVersion> findByDocumentIdAndVersionNumber(@Param("documentId") UUID documentId,
+                                                               @Param("versionNumber") Integer versionNumber);
+
+    @Query("select v from DocumentVersion v where v.documentId = :documentId and v.versionNumber = :versionNumber and v.deletedAt is not null")
+    Optional<DocumentVersion> findDeletedByDocumentIdAndVersionNumber(@Param("documentId") UUID documentId,
+                                                                      @Param("versionNumber") Integer versionNumber);
+
+    long countByDocumentIdAndDeletedAtIsNull(UUID documentId);
 }

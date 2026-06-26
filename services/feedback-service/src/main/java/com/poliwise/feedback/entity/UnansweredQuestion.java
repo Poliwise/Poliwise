@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.poliwise.feedback.enums.UnansweredStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -55,6 +56,10 @@ public class UnansweredQuestion {
     @Column(name = "user_role", length = 20)
     private String userRole;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20, nullable = false)
+    private UnansweredStatus status = UnansweredStatus.PENDING;
+
     @Column(name = "resolved")
     private Boolean resolved = false;
 
@@ -83,6 +88,9 @@ public class UnansweredQuestion {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     @PrePersist
     protected void onCreate() {

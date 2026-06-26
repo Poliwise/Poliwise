@@ -103,6 +103,20 @@ CREATE TABLE core.refresh_tokens (
 );
 
 -- ============================================================
+-- TABLE: core.password_reset_tokens
+-- ============================================================
+CREATE TABLE core.password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_password_reset_token_lifecycle CHECK (used_at IS NULL OR used_at >= created_at)
+);
+
+-- ============================================================
 -- TABLE: core.access_token_blacklist
 -- ============================================================
 CREATE TABLE core.access_token_blacklist (
@@ -148,6 +162,10 @@ CREATE INDEX idx_core_user_profiles_user_id ON core.user_profiles(user_id);
 
 CREATE INDEX idx_core_refresh_tokens_user_id ON core.refresh_tokens(user_id);
 CREATE INDEX idx_core_refresh_tokens_token_hash ON core.refresh_tokens(token_hash) WHERE revoked = FALSE;
+
+CREATE INDEX idx_core_password_reset_tokens_user_id ON core.password_reset_tokens(user_id);
+CREATE INDEX idx_core_password_reset_tokens_active ON core.password_reset_tokens(token_hash, expires_at)
+    WHERE used_at IS NULL;
 
 CREATE INDEX idx_core_access_token_blacklist_user_id ON core.access_token_blacklist(user_id);
 CREATE INDEX idx_core_access_token_blacklist_expired_at ON core.access_token_blacklist(expired_at);

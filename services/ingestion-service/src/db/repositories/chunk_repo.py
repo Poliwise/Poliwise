@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select, update, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.chunk import Chunk
+from datetime import date
 
 
 class ChunkRepository:
@@ -49,6 +50,12 @@ class ChunkRepository:
                 if not l: return []
                 return [to_uuid(x) for x in l if x]
 
+            def to_date(v):
+                if not v: return None
+                if isinstance(v, date): return v
+                try: return date.fromisoformat(str(v))
+                except: return None
+
             values.append({
                 "id": to_uuid(c.chunk_id) if hasattr(c, 'chunk_id') and c.chunk_id else uuid.uuid4(),
                 "document_id": to_uuid(c.document_id),
@@ -72,6 +79,10 @@ class ChunkRepository:
                 "allowed_departments": to_uuid_list(c.allowed_departments),
                 "allowed_users": to_uuid_list(c.allowed_users),
                 "access_level": str(c.access_level),
+                "department_id": to_uuid(c.department_id),
+                "document_type": c.document_type,
+                "effective_date": to_date(c.effective_date),
+                "expiry_date": to_date(c.expiry_date),
                 "is_latest": True,
                 "metadata": meta,
             })
@@ -84,6 +95,7 @@ class ChunkRepository:
                 chunk_index, start_char_index, end_char_index, token_count,
                 embedding_vector, embedding_model, embedding_dimension,
                 allowed_roles, allowed_departments, allowed_users, access_level,
+                department_id, document_type, effective_date, expiry_date,
                 is_latest, metadata
             ) VALUES (
                 :id, :document_id, :document_version_id, :document_version, :chunk_type, :parent_chunk_id,
@@ -91,6 +103,7 @@ class ChunkRepository:
                 :chunk_index, :start_char_index, :end_char_index, :token_count,
                 :embedding_vector, :embedding_model, :embedding_dimension,
                 :allowed_roles, :allowed_departments, :allowed_users, :access_level,
+                :department_id, :document_type, :effective_date, :expiry_date,
                 :is_latest, :metadata
             )
             ON CONFLICT (document_version_id, chunk_index, chunk_type) DO NOTHING

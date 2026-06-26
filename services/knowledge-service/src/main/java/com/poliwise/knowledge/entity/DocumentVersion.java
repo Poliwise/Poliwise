@@ -43,4 +43,12 @@ public class DocumentVersion {
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
+
+    @Column(name = "deletion_reason", columnDefinition = "text")
+    private String deletionReason;
 }

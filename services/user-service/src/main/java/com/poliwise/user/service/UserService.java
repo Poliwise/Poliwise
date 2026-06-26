@@ -149,25 +149,6 @@ public class UserService {
 
     // CHANGE DEPARTMENT
 
-    @Transactional
-    public UserResponse changeMyDepartment(UUID userId, ChangeDepartmentRequest request) {
-        User user = findActiveUserById(userId);
-
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new UserNotFoundException(
-                        "Department not found: " + request.departmentId()));
-
-        if (!Boolean.TRUE.equals(department.getIsActive())) {
-            throw new IllegalArgumentException(
-                    "Cannot assign user to inactive department: " + department.getName());
-        }
-
-        user.setDepartment(department);
-        User saved = userRepository.save(user);
-        log.info("Changed department of userId={} to departmentId={}", userId, request.departmentId());
-        return toResponse(saved);
-    }
-
     // SEARCH (Admin / Manager)
 
     @Transactional(readOnly = true)

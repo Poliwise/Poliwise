@@ -71,13 +71,6 @@ public class UserController {
     /**
      * Thay đổi phòng ban của chính mình.
      */
-    @PatchMapping("/me/department")
-    public ResponseEntity<UserResponse> changeMyDepartment(
-            @RequestHeader("X-User-Id") UUID userId,
-            @Valid @RequestBody ChangeDepartmentRequest request) {
-        return ResponseEntity.ok(userService.changeMyDepartment(userId, request));
-    }
-
     // ─── SEARCH (Admin / Manager) ──────────────────────────────────────────────
 
     /**

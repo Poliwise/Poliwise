@@ -26,6 +26,7 @@ BASE_DATASET_PATH = "/app/base_dataset/handbook"
 BATCH_SIZE = 1
 MIN_CONTENT_LENGTH = 100 
 TEST_LIMIT = 50 # Set to 0 to run all
+BASE_DATASET_ACCESS_LEVEL = os.getenv("BASE_DATASET_ACCESS_LEVEL", "RESTRICTED").upper()
 
 class HandbookIngestor:
     def __init__(self):
@@ -250,7 +251,7 @@ class HandbookIngestor:
                             published_at, effective_date, created_at, updated_at
                         ) VALUES (
                             :id, :doc_id, :title, :description, 'HANDBOOK',
-                            :cat_id, :dept_id, CAST('PUBLIC' AS metadata.access_level), CAST('PUBLISHED' AS metadata.document_status),
+                            :cat_id, :dept_id, CAST(:access_level AS metadata.access_level), CAST('PUBLISHED' AS metadata.document_status),
                             1, :user_id, :user_id, :user_id,
                             :now, :now_date, :now, :now
                         )
@@ -258,7 +259,8 @@ class HandbookIngestor:
                         "id": metadata_id, "doc_id": doc_id, "title": title,
                         "description": metadata.get('description', '')[:1000],
                         "cat_id": cat_id, "dept_id": dept_id,
-                        "user_id": self.user_id, "now": now, "now_date": now.date()
+                        "user_id": self.user_id, "now": now, "now_date": now.date(),
+                        "access_level": BASE_DATASET_ACCESS_LEVEL
                     })
 
                     # 2.5 Tags Extraction (Subfolders)
@@ -288,7 +290,15 @@ class HandbookIngestor:
 
                     # 4. Chunking & Embedding (Same as before)
                     structured = self.standardizer.normalize(content)
-                    chunk_metadata = {"document_id": str(doc_id), "document_version_id": str(version_id), "document_version": 1, "access_level": "PUBLIC"}
+                    chunk_metadata = {
+                        "document_id": str(doc_id),
+                        "document_version_id": str(version_id),
+                        "document_version": 1,
+                        "access_level": BASE_DATASET_ACCESS_LEVEL,
+                        "department_id": str(dept_id) if dept_id else None,
+                        "allowed_departments": [str(dept_id)] if dept_id and BASE_DATASET_ACCESS_LEVEL != "PUBLIC" else [],
+                        "allowed_roles": ["ADMIN"] if BASE_DATASET_ACCESS_LEVEL == "RESTRICTED" else [],
+                    }
                     chunks = self.chunker.chunk(structured, chunk_metadata)
 
                     if chunks:
@@ -301,7 +311,8 @@ class HandbookIngestor:
                         for idx, emb in enumerate(all_embeddings):
                             chunks[idx].embedding_vector = emb
                             chunks[idx].embedding_model, chunks[idx].embedding_dimension, chunks[idx].is_latest = "BGE_M3", 1024, True
-                            if dept_id: chunks[idx].allowed_departments = [str(dept_id)]
+                            if dept_id and BASE_DATASET_ACCESS_LEVEL != "PUBLIC":
+                                chunks[idx].allowed_departments = [str(dept_id)]
 
                         await ChunkRepository(session).bulk_insert(chunks)
                     
