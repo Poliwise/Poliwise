@@ -77,7 +77,7 @@ export default function UnansweredQuestionsPage() {
       const response = await api.analytics.getUnansweredQuestions(
         statusFilter ? { status: statusFilter } : undefined,
       );
-      setQuestions(response.data as unknown as UnansweredQuestion[]);
+      setQuestions(Array.isArray(response.data) ? response.data as UnansweredQuestion[] : []);
     } catch {
       setError(tRef.current('admin.unanswered.loadError'));
     } finally {

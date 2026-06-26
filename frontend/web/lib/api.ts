@@ -1824,11 +1824,11 @@ class ApiClient {
         res.data as unknown as Record<string, unknown>,
         "data",
       );
-      const normalizedData = (
-        coerced.data.length
+      const rawData =
+        coerced.data.length > 0
           ? coerced.data
-          : (res.data as unknown as { data?: UnansweredQuestion[] })?.data || []
-      ).map((item) => ({
+          : (res.data as unknown as { data?: UnansweredQuestion[] })?.data ?? [];
+      const normalizedData = (Array.isArray(rawData) ? rawData : []).map((item) => ({
         ...item,
         askCount: Number(
           (item as unknown as Record<string, unknown>).askCount ?? 1,
