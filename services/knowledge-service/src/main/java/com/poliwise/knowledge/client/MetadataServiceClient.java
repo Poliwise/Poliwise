@@ -162,4 +162,93 @@ public class MetadataServiceClient {
             throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * Check if the current user has access to a specific document.
+     * Returns a map with "documentId", "hasAccess", and "reason".
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> checkDocumentAccess(UUID documentId) {
+        String authToken = getCurrentAuthToken();
+
+        try {
+            WebClient.RequestHeadersSpec<?> requestSpec = metadataWebClient.get()
+                    .uri("/api/v1/access-rules/check/{documentId}", documentId);
+
+            if (authToken != null) {
+                requestSpec = requestSpec.header("Authorization", authToken);
+            }
+
+            Map<String, Object> response = ((WebClient.RequestHeadersSpec<?>) requestSpec)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(TIMEOUT)
+                    .block();
+
+            log.debug("Access check for document {}: hasAccess={}",
+                    documentId, response != null ? response.get("hasAccess") : "unknown");
+            return response;
+        } catch (Exception e) {
+            log.warn("Failed to check document access for documentId={}: {}",
+                    documentId, e.getMessage());
+            // Default to denying access on error for security
+            return Map.of(
+                    "documentId", documentId.toString(),
+                    "hasAccess", false,
+                    "reason", "Access check failed: " + e.getMessage()
+            );
+        }
+    }
+
+    /**
+     * Filter a list of document IDs to return only those the current user can access.
+     * Returns a list of accessible document IDs.
+     */
+    @SuppressWarnings("unchecked")
+    public Set<UUID> filterAccessibleDocuments(List<UUID> documentIds) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        String authToken = getCurrentAuthToken();
+
+        try {
+            Map<String, Object> body = Map.of(
+                    "documentIds", documentIds.stream().map(UUID::toString).toList()
+            );
+
+            WebClient.RequestBodySpec requestSpec = metadataWebClient.post()
+                    .uri("/api/v1/access-rules/filter-accessible");
+
+            if (authToken != null) {
+                requestSpec = requestSpec.header("Authorization", authToken);
+            }
+
+            Map<String, Object> response = requestSpec
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(TIMEOUT)
+                    .block();
+
+            if (response != null && response.get("accessibleDocumentIds") != null) {
+                List<String> accessibleIds = (List<String>) response.get("accessibleDocumentIds");
+                Set<UUID> accessibleSet = accessibleIds.stream()
+                        .map(UUID::fromString)
+                        .collect(java.util.stream.Collectors.toSet());
+
+                log.debug("Filtered {} documents: {} accessible",
+                        documentIds.size(), accessibleSet.size());
+                return accessibleSet;
+            }
+
+            log.warn("Unexpected response from filter-accessible endpoint");
+            return Collections.emptySet();
+        } catch (Exception e) {
+            log.warn("Failed to filter accessible documents: {}. Returning empty set for security.",
+                    e.getMessage());
+            // Default to empty set on error - this means no documents are accessible
+            return Collections.emptySet();
+        }
+    }
 }

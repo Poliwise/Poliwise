@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search,
@@ -23,8 +23,10 @@ import {
   Building2,
   User as UserIcon,
   Mail,
-  Phone,
   Calendar,
+  Users,
+  UserCog,
+  TrendingUp,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
@@ -45,6 +47,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ total: 0, active: 0, deactivated: 0, admins: 0 });
 
   // Filter states
   const [filterRole, setFilterRole] = useState<string>('');
@@ -68,7 +71,7 @@ export default function AdminUsersPage() {
       const result = await api.users.search({
         page: page - 1,
         limit: 10,
-        search: search || undefined,
+        keyword: search || undefined,
         role: filterRole || undefined,
         status: filterStatus || undefined,
         departmentId: filterDepartment || undefined,
@@ -76,6 +79,14 @@ export default function AdminUsersPage() {
       setUsers(result.data);
       setTotalPages(result.pagination.totalPages);
       setTotal(result.pagination.total);
+      
+      // Calculate stats from current results
+      setStats({
+        total: result.pagination.total,
+        active: result.data.filter(u => u.status === AccountStatus.ACTIVE).length,
+        deactivated: result.data.filter(u => u.status !== AccountStatus.ACTIVE).length,
+        admins: result.data.filter(u => u.role === UserRole.ADMIN).length,
+      });
     } catch (err) {
       console.error('Failed to load users:', err);
     } finally {
@@ -171,51 +182,93 @@ export default function AdminUsersPage() {
 
   return (
     <div className={styles.container}>
-        <div className={styles.header}>
-          <div>
-            <h1>{t('admin.users.title')}</h1>
-            <p>{t('admin.users.subtitle')}</p>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.headerContent}>
+          <h1>{t('admin.users.title')}</h1>
+          <p>{t('admin.users.subtitle')}</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.createBulkButton}
+            onClick={() => { setActiveTab('bulk'); setShowBulkModal(true); }}
+          >
+            <Upload size={16} />
+            <span>{t('admin.users.createBulk')}</span>
+          </button>
+          <button
+            className={styles.createButton}
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus size={16} />
+            {t('admin.users.create')}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.primary}`}>
+            <Users size={22} />
           </div>
-          <div className={styles.headerActions}>
-            <button
-              className={styles.createBulkButton}
-              onClick={() => { setActiveTab('bulk'); setShowBulkModal(true); }}
-            >
-              <Upload size={16} />
-              {t('admin.users.createBulk')}
-            </button>
-            <button
-              className={styles.createButton}
-              onClick={() => setShowCreateModal(true)}
-            >
-              <Plus size={16} />
-              {t('admin.users.create')}
-            </button>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{total}</span>
+            <span className={styles.statLabel}>Tổng người dùng</span>
           </div>
         </div>
-
-        <div className={styles.filters}>
-          <div className={styles.filterRow}>
-            <div className={styles.searchWrapper}>
-              <Search size={18} className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder={t('admin.users.search.placeholder')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={styles.searchInput}
-                onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
-              />
-            </div>
-            <button
-              className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter size={16} />
-              {t('docs.filter')}
-              {hasActiveFilters && <span className={styles.filterBadge} />}
-            </button>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.success}`}>
+            <UserCheck size={22} />
           </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.active}</span>
+            <span className={styles.statLabel}>Đang hoạt động</span>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.warning}`}>
+            <UserX size={22} />
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.deactivated}</span>
+            <span className={styles.statLabel}>Không hoạt động</span>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.danger}`}>
+            <Shield size={22} />
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.admins}</span>
+            <span className={styles.statLabel}>Quản trị viên</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={styles.filters}>
+        <div className={styles.filterRow}>
+          <div className={styles.searchWrapper}>
+            <input
+              type="text"
+              placeholder={t('admin.users.search.placeholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={styles.searchInput}
+              onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+            />
+            <Search size={18} className={styles.searchIcon} />
+          </div>
+          <button
+            className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter size={16} />
+            {t('docs.filter')}
+            {hasActiveFilters && <span className={styles.filterBadge} />}
+          </button>
+        </div>
 
           {showFilters && (
             <div className={styles.filterPanel}>
@@ -286,7 +339,9 @@ export default function AdminUsersPage() {
             </div>
           ) : users.length === 0 ? (
             <div className={styles.empty}>
-              <UserIcon size={48} />
+              <div className={styles.emptyIcon}>
+                <UserIcon size={28} />
+              </div>
               <p>{t('admin.users.table.noData')}</p>
             </div>
           ) : (
@@ -394,21 +449,40 @@ export default function AdminUsersPage() {
                 disabled={page === 1}
                 onClick={() => setPage(page - 1)}
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
-              <span>{t('admin.users.pagination.page').replace('{page}', String(page)).replace('{totalPages}', String(totalPages))}</span>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let pageNum = i + 1;
+                if (totalPages > 5) {
+                  if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    className={`${styles.pageNumber} ${page === pageNum ? styles.active : ''}`}
+                    onClick={() => setPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
               <button
                 className={styles.pageButton}
                 disabled={page === totalPages}
                 onClick={() => setPage(page + 1)}
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
         )}
 
-        {/* User Detail Modal */}
         {showDetailModal && selectedUser && (
           <UserDetailModal
             user={selectedUser}
@@ -512,25 +586,25 @@ function UserDetailModal({ user, departments, onClose, onStatusChange, roleLabel
               <h4>{t('admin.users.detail.accountInfo')}</h4>
               <div className={styles.detailGrid}>
                 <div className={styles.detailItem}>
-                  <UserIcon size={14} />
+                  <UserIcon size={16} />
                   <label>{t('profile.username')}:</label>
                   <span>{user.username}</span>
                 </div>
                 <div className={styles.detailItem}>
-                  <Mail size={14} />
+                  <Mail size={16} />
                   <label>{t('profile.email')}:</label>
                   <span>{user.email}</span>
                 </div>
                 <div className={styles.detailItem}>
-                  <Shield size={14} />
+                  <Shield size={16} />
                   <label>{t('profile.role')}:</label>
                   <span className={`${styles.roleBadge} ${user.role === UserRole.ADMIN ? styles.roleAdmin : user.role === UserRole.MANAGER ? styles.roleManager : styles.roleUser}`}>
                     {roleLabels[user.role]}
                   </span>
                 </div>
                 <div className={styles.detailItem}>
-                  <Building2 size={14} />
-                  <label>{t('admin.users.detail.department')}</label>
+                  <Building2 size={16} />
+                  <label>{t('admin.users.detail.department')}:</label>
                   <span>{user.department?.name || t('admin.users.detail.unassigned')}</span>
                 </div>
               </div>
@@ -541,13 +615,13 @@ function UserDetailModal({ user, departments, onClose, onStatusChange, roleLabel
                 <h4>{t('admin.users.detail.systemInfo')}</h4>
                 <div className={styles.detailGrid}>
                   <div className={styles.detailItem}>
-                    <Calendar size={14} />
-                    <label>{t('admin.users.detail.created')}</label>
+                    <Calendar size={16} />
+                    <label>{t('admin.users.detail.created')}:</label>
                     <span>{new Date(user.createdAt).toLocaleDateString('vi-VN')}</span>
                   </div>
                   <div className={styles.detailItem}>
-                    <Calendar size={14} />
-                    <label>{t('admin.users.detail.updated')}</label>
+                    <Calendar size={16} />
+                    <label>{t('admin.users.detail.updated')}:</label>
                     <span>{new Date(user.updatedAt || user.createdAt).toLocaleDateString('vi-VN')}</span>
                   </div>
                 </div>

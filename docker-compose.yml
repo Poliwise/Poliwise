@@ -208,11 +208,12 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
-      EMAIL_USERNAME: ${EMAIL_USERNAME:-}
+      EMAIL_USERNAME: ${EMAIL_USER:-}
       EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-}
+      EMAIL_USER: ${EMAIL_USER:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
       flyway:

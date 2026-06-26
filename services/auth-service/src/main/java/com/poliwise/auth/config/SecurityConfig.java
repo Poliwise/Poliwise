@@ -48,6 +48,9 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/api/v1/auth/register"),
                 new AntPathRequestMatcher("/api/v1/auth/refresh"),
                 new AntPathRequestMatcher("/api/v1/auth/forgot-password"),
+                new AntPathRequestMatcher("/api/v1/auth/send-otp"),
+                new AntPathRequestMatcher("/api/v1/auth/verify-otp"),
+                new AntPathRequestMatcher("/api/v1/auth/reset-password"),
                 new AntPathRequestMatcher("/actuator/**"),
                 new AntPathRequestMatcher("/**", "OPTIONS")
         ));

@@ -322,6 +322,71 @@ public class AccessRuleService {
                 .toList();
     }
 
+    public FilterAccessibleDocumentsResponse filterAccessibleDocumentsBatch(
+            List<UUID> documentIds,
+            UUID userId,
+            String roleStr,
+            UUID departmentId) {
+
+        UserRole role = null;
+        if (roleStr != null && !roleStr.isBlank()) {
+            try {
+                role = UserRole.valueOf(roleStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid role in filter request: {}", roleStr);
+                return new FilterAccessibleDocumentsResponse(List.of(), documentIds.size(), 0);
+            }
+        }
+
+        // Convert documentIds to metadataIds via metadataRepository
+        List<UUID> metadataIds = documentIds.stream()
+                .map(docId -> metadataRepository.findByDocumentIdAndDeletedAtIsNull(docId)
+                        .map(DocumentMetadata::getId)
+                        .orElse(null))
+                .filter(id -> id != null)
+                .toList();
+
+        List<UUID> accessibleMetadataIds = filterAccessibleDocuments(metadataIds, userId, role, departmentId);
+
+        // Convert metadataIds back to documentIds
+        List<UUID> accessibleDocumentIds = accessibleMetadataIds.stream()
+                .map(metaId -> metadataRepository.findById(metaId)
+                        .map(DocumentMetadata::getDocumentId)
+                        .orElse(null))
+                .filter(id -> id != null)
+                .toList();
+
+        log.info("Filtered {} documents for user {}: {} accessible out of {} requested",
+                documentIds.size(), userId, accessibleDocumentIds.size(), documentIds.size());
+
+        return new FilterAccessibleDocumentsResponse(accessibleDocumentIds, documentIds.size(), accessibleDocumentIds.size());
+    }
+
+    public DocumentAccessCheckResponse checkDocumentAccess(UUID documentId, UUID userId, String roleStr, UUID departmentId) {
+        UUID metadataId = metadataRepository.findByDocumentIdAndDeletedAtIsNull(documentId)
+                .map(DocumentMetadata::getId)
+                .orElse(null);
+
+        if (metadataId == null) {
+            log.warn("Document metadata not found for documentId={}", documentId);
+            return new DocumentAccessCheckResponse(documentId, false, "Tài liệu không tồn tại");
+        }
+
+        UserRole role = null;
+        if (roleStr != null && !roleStr.isBlank()) {
+            try {
+                role = UserRole.valueOf(roleStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return new DocumentAccessCheckResponse(documentId, false, "Vai trò không hợp lệ");
+            }
+        }
+
+        boolean hasAccess = hasAccess(metadataId, userId, role, departmentId);
+        String reason = hasAccess ? "Có quyền truy cập" : "Không có quyền truy cập";
+
+        return new DocumentAccessCheckResponse(documentId, hasAccess, reason);
+    }
+
     public AccessRuleSimulationResult simulateAccess(UUID documentId) {
         UUID metadataId = metadataRepository.findByDocumentIdAndDeletedAtIsNull(documentId)
                 .map(DocumentMetadata::getId)

@@ -1,25 +1,25 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload,
   X,
-  File,
   Loader2,
   CheckCircle,
   AlertCircle,
   ChevronLeft,
-  ChevronRight,
+  CloudUpload,
+  FileCheck,
 } from 'lucide-react';
 import {
   documentService,
-  categoryService,
 } from '@/services/document.service';
 import { api } from '@/lib/api';
 import type {
   DocumentUploadResponse,
   Category,
 } from '@/types/document';
+import styles from './UploadModal.module.css';
 
 interface UploadModalProps {
   onClose: () => void;
@@ -28,8 +28,17 @@ interface UploadModalProps {
   initialDocument?: DocumentUploadResponse | any;
 }
 
+const STEPS = {
+  SELECT: 1,
+  UPLOAD: 2,
+  METADATA: 3,
+  COMPLETE: 4,
+} as const;
+
+const STEP_LABELS = ['Chọn file', 'Đang tải', 'Xác nhận', 'Hoàn thành'];
+
 export function UploadModal({ onClose, onSuccess, categories, initialDocument }: UploadModalProps) {
-  const [step, setStep] = useState(initialDocument ? 3 : 1);
+  const [step, setStep] = useState<number>(initialDocument ? STEPS.METADATA : STEPS.SELECT);
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -37,7 +46,6 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
   const [uploadedDocument, setUploadedDocument] = useState<DocumentUploadResponse | null>(initialDocument || null);
   const [error, setError] = useState<string | null>(null);
 
-  // Metadata form state
   const [formData, setFormData] = useState({
     title: initialDocument?.title || initialDocument?.suggestedTitle || initialDocument?.originalFilename?.replace(/\.[^/.]+$/, '') || '',
     description: initialDocument?.description || initialDocument?.suggestedDescription || '',
@@ -50,6 +58,18 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
   const [confirming, setConfirming] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -65,7 +85,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
@@ -98,7 +118,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
       return;
     }
 
-    const maxSize = 100 * 1024 * 1024; // 100MB
+    const maxSize = 100 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
       setError('Kích thước file vượt quá giới hạn 100MB.');
       return;
@@ -106,7 +126,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
 
     setFile(selectedFile);
     setError(null);
-    setStep(2);
+    setStep(STEPS.UPLOAD);
   };
 
   const handleUpload = async () => {
@@ -120,7 +140,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
       const response = await documentService.uploadDocument(file, (percent) => {
         setUploadProgress(percent);
       });
-      
+
       setUploadedDocument(response);
       setFormData({
         ...formData,
@@ -131,7 +151,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
         language: response.suggestedLanguage || 'vi',
         isPolicy: response.suggestedIsPolicy || false,
       });
-      setStep(3);
+      setStep(STEPS.METADATA);
     } catch (err: any) {
       setError(err.message || 'Tải lên thất bại. Vui lòng thử lại.');
     } finally {
@@ -146,7 +166,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
     setError(null);
 
     try {
-await documentService.confirmMetadata(uploadedDocument.id, {
+      await documentService.confirmMetadata(uploadedDocument.id, {
         title: formData.title,
         description: formData.description,
         categorySlug: formData.categorySlug,
@@ -161,9 +181,9 @@ await documentService.confirmMetadata(uploadedDocument.id, {
         console.warn('Failed to trigger processing, document saved as READY:', processErr);
       }
 
-setStep(4);
+      setStep(STEPS.COMPLETE);
       onSuccess();
-} catch (err: unknown) {
+    } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } }; message?: string };
       setError(axiosError.response?.data?.detail || axiosError.message || 'Có lỗi xảy ra khi xác nhận metadata.');
     } finally {
@@ -203,323 +223,305 @@ setStep(4);
   const getFileIcon = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
     switch (ext) {
-      case 'pdf':
-        return '📄';
+      case 'pdf': return '📄';
       case 'doc':
-      case 'docx':
-        return '📝';
+      case 'docx': return '📝';
       case 'xls':
-      case 'xlsx':
-        return '📊';
-      case 'txt':
-        return '📃';
-      case 'md':
-        return '📋';
+      case 'xlsx': return '📊';
+      case 'txt': return '📃';
+      case 'md': return '📋';
       case 'png':
       case 'jpg':
-      case 'jpeg':
-        return '🖼️';
-      default:
-        return '📁';
+      case 'jpeg': return '🖼️';
+      default: return '📁';
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Backdrop */}
-        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
-
-        {/* Modal */}
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Tải lên tài liệu</h2>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              {[1, 2, 3, 4].map((s) => (
-                <div key={s} className="flex items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      s < step
-                        ? 'bg-indigo-600 text-white'
-                        : s === step
-                        ? 'bg-indigo-100 text-indigo-600 border-2 border-indigo-600'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {s < step ? <CheckCircle className="w-5 h-5" /> : s}
-                  </div>
-                  <span className={`ml-2 text-sm ${s === step ? 'text-indigo-600 font-medium' : 'text-gray-500'}`}>
-                    {s === 1 && 'Chọn file'}
-                    {s === 2 && 'Đang tải lên'}
-                    {s === 3 && 'Xác nhận'}
-                    {s === 4 && 'Hoàn thành'}
-                  </span>
-                  {s < 4 && (
-                    <div className={`w-12 h-0.5 mx-2 ${s < step ? 'bg-indigo-600' : 'bg-gray-200'}`} />
-                  )}
-                </div>
-              ))}
+  const renderProgressSteps = () => (
+    <div className={styles.progressBar}>
+      <div className={styles.stepsContainer}>
+        {[1, 2, 3, 4].map((s, idx) => (
+          <React.Fragment key={s}>
+            <div className={styles.step}>
+              <div
+                className={`${styles.stepDot} ${
+                  s < step ? styles.completed :
+                  s === step ? styles.active :
+                  styles.pending
+                }`}
+              >
+                {s < step ? <CheckCircle className="w-4 h-4" /> : s}
+              </div>
+              <span
+                className={`${styles.stepLabel} ${
+                  s < step ? styles.completed :
+                  s === step ? styles.active :
+                  styles.pending
+                }`}
+              >
+                {STEP_LABELS[idx]}
+              </span>
             </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-6">
-            {/* Step 1: File Selection */}
-            {step === 1 && (
-              <div>
-                <div
-                  className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
-                    dragActive
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-300 hover:border-indigo-400'
-                  }`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Kéo thả file vào đây hoặc</p>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-indigo-600 hover:text-indigo-800 font-medium"
-                  >
-                    chọn file
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.md"
-                  />
-                  <p className="mt-4 text-sm text-gray-500">
-                    PDF, Word, Excel, Text, Markdown, hoặc hình ảnh (tối đa 100MB)
-                  </p>
-                </div>
-                {error && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-                    <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                    <p className="text-sm">{error}</p>
-                  </div>
-                )}
+            {s < 4 && (
+              <div className={`${styles.stepConnector} ${s < step ? styles.completed : ''}`}>
+                {s < step && <div className={styles.stepConnectorFill} style={{ width: '100%' }} />}
               </div>
             )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
 
-            {/* Step 2: Uploading */}
-            {step === 2 && file && (
-              <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center text-4xl">
-                  {getFileIcon(file.name)}
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-1">{file.name}</h3>
-                <p className="text-sm text-gray-500 mb-4">{formatFileSize(file.size)}</p>
-                
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <h2 className={styles.headerTitle}>Tải lên tài liệu</h2>
+          <button onClick={onClose} className={styles.closeBtn}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {step !== STEPS.COMPLETE && renderProgressSteps()}
+
+        <div className={styles.content}>
+          {step === STEPS.SELECT && (
+            <div
+              className={`${styles.dropzone} ${dragActive ? styles.active : ''}`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                className={styles.dropzoneInput}
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.md"
+              />
+              <div className={styles.dropzoneIcon}>
+                <CloudUpload className="w-8 h-8" />
+              </div>
+              <p className={styles.dropzoneText}>
+                Kéo thả file vào đây hoặc{' '}
+                <span className={styles.dropzoneTextBold}>chọn file</span>
+              </p>
+              <p className={styles.dropzoneHint}>
+                PDF, Word, Excel, Text, Markdown, hình ảnh (tối đa 100MB)
+              </p>
+            </div>
+          )}
+
+          {step === STEPS.UPLOAD && file && (
+            <div className={styles.uploadPreview}>
+              <div className={styles.fileIcon}>
+                {getFileIcon(file.name)}
+              </div>
+              <p className={styles.fileName}>{file.name}</p>
+              <p className={styles.fileSize}>{formatFileSize(file.size)}</p>
+
+              <div className={styles.progressContainer}>
+                <div className={styles.uploadProgressBar}>
                   <div
-                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
+                    className={styles.progressFill}
+                    style={{ width: uploading ? `${uploadProgress}%` : '0%' }}
                   />
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className={styles.progressText}>
                   {uploading ? `Đang tải lên... ${uploadProgress}%` : 'Sẵn sàng tải lên'}
                 </p>
-                
-                <button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="mt-6 inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {uploading ? 'Đang tải lên...' : 'Bắt đầu tải lên'}
-                </button>
-                
-                {error && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-                    <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                    <p className="text-sm">{error}</p>
-                  </div>
-                )}
               </div>
-            )}
 
-            {/* Step 3: Confirm Metadata */}
-            {step === 3 && uploadedDocument && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                  <div className="flex items-center">
-                    <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                    <span className="text-sm font-medium text-green-800">Tải lên thành công!</span>
+              <button
+                onClick={handleUpload}
+                disabled={uploading}
+                className={styles.uploadBtn}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className={`${styles.spinner} w-5 h-5`} />
+                    Đang tải lên...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5" />
+                    Bắt đầu tải lên
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {step === STEPS.METADATA && uploadedDocument && (
+            <div className={styles.form}>
+              {error && (
+                <div className={styles.error}>
+                  <AlertCircle className={`${styles.errorIcon} w-5 h-5`} />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className={styles.successBanner}>
+                <div className={styles.successBannerLeft}>
+                  <div className={styles.successIcon}>
+                    <CheckCircle className="w-4 h-4" />
                   </div>
-                  <span className="text-sm text-gray-500">
-                    {getFileIcon(file?.name || '')} {file?.name}
-                  </span>
+                  <span className={styles.successText}>Tải lên thành công!</span>
+                </div>
+                <span className={styles.successFilename}>
+                  {getFileIcon(file?.name || '')} {file?.name}
+                </span>
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>
+                  Tiêu đề <span className={styles.required}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className={styles.fieldInput}
+                  placeholder="Nhập tiêu đề tài liệu"
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Mô tả</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className={`${styles.fieldInput} ${styles.fieldTextarea}`}
+                  placeholder="Nhập mô tả tài liệu"
+                  rows={3}
+                />
+              </div>
+
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Danh mục</label>
+                  <select
+                    value={formData.categorySlug}
+                    onChange={(e) => setFormData({ ...formData, categorySlug: e.target.value })}
+                    className={`${styles.fieldInput} ${styles.fieldSelect}`}
+                  >
+                    <option value="">Chọn danh mục</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.slug}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tiêu đề <span className="text-red-500">*</span>
-                  </label>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Ngôn ngữ</label>
+                  <select
+                    value={formData.language}
+                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                    className={`${styles.fieldInput} ${styles.fieldSelect}`}
+                  >
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">Tiếng Anh</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Tags</label>
+                <div className={styles.tagsContainer}>
+                  {formData.tags.map((tag: string) => (
+                    <span key={tag} className={styles.tag}>
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className={styles.tagRemove}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                   <input
                     type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Nhập tiêu đề tài liệu"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    className={styles.tagInput}
+                    placeholder={formData.tags.length === 0 ? 'Nhập tag và nhấn Enter' : ''}
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Nhập mô tả tài liệu"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
-                    <select
-                      value={formData.categorySlug}
-                      onChange={(e) => setFormData({ ...formData, categorySlug: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="">Chọn danh mục</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.slug}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ngôn ngữ</label>
-                    <select
-                      value={formData.language}
-                      onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="vi">Tiếng Việt</option>
-                      <option value="en">Tiếng Anh</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {formData.tags.map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800"
-                      >
-                        {tag}
-                        <button
-                          onClick={() => handleRemoveTag(tag)}
-                          className="ml-1 hover:text-indigo-900"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Nhập tag và nhấn Enter"
-                    />
-                    <button
-                      onClick={handleAddTag}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Thêm
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isPolicy"
-                    checked={formData.isPolicy}
-                    onChange={(e) => setFormData({ ...formData, isPolicy: e.target.checked })}
-                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <label htmlFor="isPolicy" className="ml-2 text-sm text-gray-700">
-                    Đây là tài liệu chính sách
-                  </label>
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-                    <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                    <p className="text-sm">{error}</p>
-                  </div>
-                )}
-
-                <div className="flex justify-between pt-4">
-                  {!initialDocument && (
-                    <button
-                      onClick={() => setStep(2)}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Quay lại
-                    </button>
-                  )}
-                  {initialDocument && <div />}
-                  <button
-                    onClick={handleConfirm}
-                    disabled={confirming || !formData.title.trim()}
-                    className="inline-flex items-center px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {confirming && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {confirming ? 'Đang xác nhận...' : 'Xác nhận và lưu'}
-                  </button>
                 </div>
               </div>
-            )}
 
-            {/* Step 4: Success */}
-            {step === 4 && (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Tài liệu đã được lưu!</h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  Tài liệu "{formData.title}" đã được tải lên và sẵn sàng sử dụng.
-                </p>
-                <button
-                  onClick={handleFinish}
-                  className="inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  Hoàn thành
-                </button>
+              <div className={`${styles.field} ${styles.checkboxField}`}>
+                <input
+                  type="checkbox"
+                  id="isPolicy"
+                  checked={formData.isPolicy}
+                  onChange={(e) => setFormData({ ...formData, isPolicy: e.target.checked })}
+                  className={styles.checkbox}
+                />
+                <label htmlFor="isPolicy" className={styles.checkboxLabel}>
+                  Đây là tài liệu chính sách
+                </label>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {step === STEPS.COMPLETE && (
+            <div className={styles.successScreen}>
+              <div className={styles.successScreenIcon}>
+                <FileCheck className="w-10 h-10" />
+              </div>
+              <h3 className={styles.successScreenTitle}>Tài liệu đã được lưu!</h3>
+              <p className={styles.successScreenText}>
+                Tài liệu "{formData.title}" đã được tải lên và sẵn sàng sử dụng.
+              </p>
+              <button onClick={handleFinish} className={styles.finishBtn}>
+                Hoàn thành
+              </button>
+            </div>
+          )}
         </div>
+
+        {step === STEPS.METADATA && (
+          <div className={styles.actions}>
+            {!initialDocument && (
+              <button
+                onClick={() => setStep(STEPS.UPLOAD)}
+                className={styles.backBtn}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Quay lại
+              </button>
+            )}
+            <button
+              onClick={handleConfirm}
+              disabled={confirming || !formData.title.trim()}
+              className={styles.primaryBtn}
+            >
+              {confirming ? (
+                <>
+                  <Loader2 className={`${styles.spinner} w-4 h-4`} />
+                  Đang xác nhận...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  Xác nhận và lưu
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

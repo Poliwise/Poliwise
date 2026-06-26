@@ -46,6 +46,16 @@ public class EmailService {
                 buildPasswordResetEmail(username, newPassword));
     }
 
+    public CompletableFuture<Boolean> sendOtpEmail(String toEmail, String username, String otpCode) {
+        if (!emailProperties.enabled()) {
+            log.warn("[EMAIL DISABLED] Would send OTP to {} for user {}", toEmail, username);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return sendEmailAsync(toEmail, "Mã xác thực Poliwise",
+                buildOtpEmail(username, otpCode));
+    }
+
     public CompletableFuture<Boolean> sendBulkAccountCredentials(
             String toEmail,
             String username,
@@ -528,6 +538,59 @@ public class EmailService {
                 .replace("__ADMINNAME__", escapeHtml(adminName))
                 .replace("__USERNAME__", escapeHtml(username))
                 .replace("__PASSWORD__", escapeHtml(password));
+    }
+
+    private String buildOtpEmail(String username, String otpCode) {
+        String html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; border-radius: 16px 16px 0 0; text-align: center; }
+                .content { background: #fafafa; padding: 30px; border-radius: 0 0 16px 16px; }
+                .otp-box { background: white; border-radius: 12px; padding: 30px; margin: 25px 0; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+                .otp-code { font-size: 2.5rem; font-weight: 700; letter-spacing: 0.5em; color: #6366f1; margin: 10px 0; }
+                .otp-label { font-size: 0.875rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; }
+                .warning { background: #fef3c7; border: 1px solid #fbbf24; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 0.875rem; }
+                .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Xác thực đặt lại mật khẩu</h1>
+                <p>Poliwise</p>
+            </div>
+            <div class="content">
+                <p>Xin chào <strong>__USERNAME__</strong>,</p>
+                <p>Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng sử dụng mã xác thực bên dưới:</p>
+
+                <div class="otp-box">
+                    <div class="otp-label">Mã xác thực</div>
+                    <div class="otp-code">__OTPCODE__</div>
+                    <div style="font-size: 0.8125rem; color: #6b7280; margin-top: 8px;">Mã có hiệu lực trong 5 phút</div>
+                </div>
+
+                <div class="warning">
+                    <strong>Lưu ý bảo mật:</strong>
+                    <ul style="margin: 8px 0 0; padding-left: 20px;">
+                        <li>Không chia sẻ mã này với bất kỳ ai</li>
+                        <li>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này</li>
+                        <li>Đội ngũ Poliwise không bao giờ hỏi mã OTP của bạn</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer">
+                <p>Email này được gửi tự động từ hệ thống Poliwise.</p>
+                <p>Không trả lời email này.</p>
+            </div>
+        </body>
+        </html>
+        """;
+        return html
+                .replace("__USERNAME__", escapeHtml(username))
+                .replace("__OTPCODE__", escapeHtml(otpCode));
     }
 
     private String escapeHtml(String input) {
