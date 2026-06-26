@@ -82,7 +82,7 @@ class LLMClient:
                     model=active_profile.model_name,
                     messages=messages,
                     temperature=0.3,
-                    max_tokens=1024,
+                    max_tokens=2048,
                     timeout=httpx.Timeout(30.0, connect=connect_timeout),
                 )
                 latency_ms = int((time.time() - start_time) * 1000)
@@ -168,7 +168,7 @@ class LLMClient:
                     model=active_profile.model_name,
                     messages=messages,
                     temperature=temperature,
-                    max_tokens=max_tokens,
+                    max_tokens=2048,
                     stream=True,
                     timeout=httpx.Timeout(30.0, connect=connect_timeout),
                 )

@@ -160,8 +160,7 @@ class ModelRegistry:
                 model=profile.model_name,
                 messages=messages,
                 temperature=0.3,
-                max_tokens=1024,
-            )
+                max_tokens=2048,            )
             latency_ms = int((time.time() - start_time) * 1000)
             usage = response.usage
             
@@ -207,8 +206,7 @@ class ModelRegistry:
                 model=profile.model_name,
                 messages=messages,
                 temperature=0.3,
-                max_tokens=1024,
-                stream=True
+                max_tokens=2048,                stream=True
             )
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:

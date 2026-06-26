@@ -49,7 +49,7 @@ class ExtractionOrchestrator:
         extractor = self._extractors.get(ext)
 
         if not extractor:
-            raise ValueError(f"No extractor for extension: .{ext}")
+            raise ValueError(f"No extractor for extension: {ext}")
 
         logger.info(
             "extraction_started",

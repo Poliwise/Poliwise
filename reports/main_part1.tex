@@ -1,0 +1,2296 @@
+\documentclass[12pt,a4paper]{report}
+
+% =====================================================
+% GÓI HỖ TRỢ TIẾNG VIỆT
+% =====================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+
+% =====================================================
+% ĐỊNH DẠNG TRANG
+% =====================================================
+\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=3cm,right=2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{indentfirst}
+\setlength{\parindent}{1.5em}
+
+% =====================================================
+% ĐỒ HỌA, BẢNG BIỂU
+% =====================================================
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{tabularx}
+
+% =====================================================
+% TOÁN HỌC
+% =====================================================
+\usepackage{amsmath}
+
+% =====================================================
+% MỤC LỤC, LIÊN KẾT
+% =====================================================
+\usepackage[titles]{tocloft}
+\usepackage[
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=blue
+]{hyperref}
+
+% =====================================================
+% ĐỊNH DẠNG CHƯƠNG
+% =====================================================
+\usepackage{titlesec}
+
+% Định dạng số thứ tự chương (La Mã) và phần (Ả Rập)
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\arabic{chapter}.\arabic{section}}
+\renewcommand{\thesubsection}{\thesection.\arabic{subsection}}
+
+\titleformat{\chapter}[block]
+{\normalfont\bfseries\large\centering}
+{\MakeUppercase{\chaptertitlename}\ \thechapter.}
+{0.5em}
+{\MakeUppercase}
+
+\titleformat{\section}[block]
+{\normalfont\bfseries\normalsize}
+{\thesection.\ }
+{0.5em}
+{}
+
+\titleformat{\subsection}[block]
+{\normalfont\bfseries\normalsize}
+{\thesubsection.\ }
+{0.5em}
+{}
+
+% =====================================================
+% MỤC LỤC (CẤU HÌNH TOCLOFT)
+% =====================================================
+\renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftchappagefont}{\bfseries}
+\renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}} % Hiện dấu chấm lửng cho chương
+
+% Định dạng chương trong mục lục: Chương I. TÊN CHƯƠNG
+\renewcommand{\cftchappresnum}{Chương\ }
+\renewcommand{\cftchapaftersnum}{.}
+\setlength{\cftchapnumwidth}{2.5cm}
+
+% Định dạng phần trong mục lục: 1.1. Tên phần
+\renewcommand{\cftsecaftersnum}{.}
+\setlength{\cftsecnumwidth}{1.2cm}
+
+\renewcommand{\cftsubsecaftersnum}{.}
+\setlength{\cftsubsecnumwidth}{1.5cm}
+
+\setlength{\cftfignumwidth}{1.8cm}
+\setlength{\cfttabnumwidth}{1.8cm}
+
+% Lệnh tùy chỉnh để gom hình và bảng chung một trang
+\makeatletter
+\newcommand{\customlistoffigures}{%
+    \section*{\listfigurename}%
+    \@starttoc{lof}%
+}
+\newcommand{\customlistoftables}{%
+    \section*{\listtablename}%
+    \@starttoc{lot}%
+}
+\makeatother
+
+% =====================================================
+% HEADER / FOOTER
+% =====================================================
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Báo cáo thực tập cơ sở}
+\fancyhead[R]{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% =====================================================
+% CÁC LỆNH TÙY CHỈNH
+% =====================================================
+\newcommand{\blankpage}{
+    \newpage
+    \thispagestyle{empty}
+    \null
+    \newpage
+}
+
+\newcommand{\coverpage}{
+    \thispagestyle{empty}
+    \pagenumbering{gobble}
+}
+
+\setcounter{tocdepth}{2}
+
+% =====================================================
+% BẮT ĐẦU TÀI LIỆU
+% =====================================================
+\begin{document}
+
+% Đánh số hình, bảng, phương trình theo chương
+\numberwithin{figure}{chapter}
+\numberwithin{table}{chapter}
+\numberwithin{equation}{chapter}
+
+% =====================================================
+% TRANG BÌA
+% =====================================================
+\coverpage
+
+\begin{titlepage}
+\begin{center}
+
+{\large \textbf{BỘ KHOA HỌC VÀ CÔNG NGHỆ}}\\[0.3cm]
+{\large \textbf{HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG}}\\[0.2cm]
+
+\rule{0.7\textwidth}{0.5pt}\\[0.4cm]
+
+\includegraphics[height=3.5cm,keepaspectratio]{images/ptit-icon.png}\\[0.4cm]
+
+{\Large \textbf{BÁO CÁO}}\\[0.2cm]
+{\LARGE \textbf{ĐỒ ÁN MÔN HỌC}}\\[0.2cm]
+{\large \textbf{Báo cáo thực tập cơ sở}}\\[0.6cm]
+
+\begin{minipage}{0.9\textwidth}
+\centering
+{\Large \textbf{
+ĐỀ TÀI:\\[0.3cm]
+PoliWise - Hệ thống Trợ lý AI hỗ trợ quản trị chính sách và tri thức nội bộ
+}}
+\end{minipage}
+
+\vfill
+
+\begin{flushleft}
+\hspace{2.2cm}
+\begin{minipage}{0.75\textwidth}
+\textbf{Môn học:} Thực tập cơ sở\\[0.3cm]
+\textbf{Giảng viên hướng dẫn:} Nguyễn Thị Tuyết Hải\\[0.3cm]
+\textbf{Thực hiện bởi nhóm sinh viên:}\\[0.2cm]
+1. Lâm Nhật Tiên \hfill Mã SV: N23DCCN198 \hfill (Trưởng nhóm)\\[0.2cm]
+2. Lê Viết Xuân \hfill Mã SV: N23DCCN069 \hfill (Thành viên)
+\end{minipage}
+\end{flushleft}
+
+\vfill
+
+{\large \textbf{TP. Hồ Chí Minh, tháng 02/2026}}
+
+\end{center}
+\end{titlepage}
+
+% =====================================================
+% MỤC LỤC
+% =====================================================
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{2}
+
+\phantomsection
+\addcontentsline{toc}{chapter}{MỤC LỤC}
+\tableofcontents
+\clearpage
+
+% =====================================================
+% DANH SÁCH HÌNH, BẢNG
+% =====================================================
+\phantomsection
+\addcontentsline{toc}{chapter}{DANH SÁCH HÌNH, BẢNG}
+\chapter*{DANH SÁCH HÌNH, BẢNG}
+
+\renewcommand{\listfigurename}{Danh sách hình}
+\renewcommand{\listtablename}{Danh sách bảng}
+
+\customlistoffigures
+\vspace{1.5cm}
+\customlistoftables
+\clearpage
+
+% =====================================================
+% TÓM TẮT
+% =====================================================
+\phantomsection
+\addcontentsline{toc}{chapter}{TÓM TẮT}
+\chapter*{TÓM TẮT}
+
+Trong bối cảnh chuyển đổi số hiện nay, các doanh nghiệp ngày càng phụ thuộc vào hệ thống văn bản chính sách và quy trình nội bộ để vận hành và đảm bảo tuân thủ pháp lý. Tuy nhiên, các tài liệu này thường có dung lượng lớn, nội dung phức tạp và được lưu trữ phân tán, gây khó khăn cho nhân viên trong việc tra cứu và áp dụng chính xác.
+
+Đề tài này tập trung nghiên cứu và xây dựng một Hệ thống Trợ lý AI hỗ trợ quản trị chính sách và tri thức nội bộ, dựa trên phương pháp Retrieval-Augmented Generation (RAG). Hệ thống cho phép người dùng đặt câu hỏi bằng ngôn ngữ tự nhiên và nhận được câu trả lời chính xác, có trích dẫn trực tiếp từ tài liệu nội bộ của doanh nghiệp.
+
+Phương pháp thực hiện bao gồm thu thập và chuẩn hóa dữ liệu chính sách, xây dựng kho tri thức dạng vector, áp dụng tìm kiếm ngữ nghĩa để truy xuất thông tin liên quan, kết hợp với mô hình ngôn ngữ lớn nhằm sinh câu trả lời phù hợp. Bên cạnh đó, hệ thống còn hỗ trợ phân quyền truy cập và cá nhân hóa nội dung theo vai trò người dùng.
+
+Kết quả kỳ vọng của đề tài là giúp giảm đáng kể thời gian tra cứu thông tin, nâng cao độ chính xác và tính nhất quán trong việc hiểu và áp dụng chính sách nội bộ, đồng thời góp phần nâng cao hiệu quả quản trị tri thức trong doanh nghiệp.
+
+Mã nguồn triển khai của đề tài được quản lý tại kho GitHub: \url{https://github.com/Poliwise/Poliwise}.
+
+\clearpage
+
+% =====================================================
+% BẢNG PHÂN CÔNG CÔNG VIỆC TRONG NHÓM
+% =====================================================
+\phantomsection
+\addcontentsline{toc}{chapter}{BẢNG PHÂN CÔNG CÔNG VIỆC TRONG NHÓM}
+\chapter*{BẢNG PHÂN CÔNG CÔNG VIỆC TRONG NHÓM}
+
+\begin{table}[H]
+\centering
+\singlespacing
+\small
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\textbf{STT} & \textbf{Họ} & \textbf{Tên} & \textbf{Nhiệm vụ đảm nhiệm} \\ \hline
+1 & Lâm Nhật & Tiên & 
+\textbf{1. Nghiên cứu lý thuyết:} \newline
+Tìm hiểu, trình bày công nghệ ReactJS, Spring Boot, PostgreSQL + pgvector, FastAPI, LangChain, NLP, RAG, các mô hình nhúng và tạo sinh (Embedding, Generation, Serving). \newline
+\textbf{2. Xây dựng phân hệ AI \& Pipeline dữ liệu:} \newline
+- Phát triển \texttt{ingestion-service} (FastAPI): Ingestion Pipeline, OCR, Phân mảnh tài liệu phân cấp (Hierarchical Parent-Child Chunking), BGE-M3 Embedding và lập chỉ mục pgvector. \newline
+- Phát triển \texttt{ai-qa-service} (FastAPI): Tìm kiếm lai Hybrid Search + RRF, cơ chế Reranker cấu hình được, lọc phân quyền trực tiếp tại Vector DB, tích hợp LLM (Groq/Gemini), SSE Streaming. \newline
+- Xây dựng Frontend Chat AI (Next.js): Giao diện chat, lịch sử trò chuyện, hiển thị nguồn tham chiếu và tỷ lệ tương đồng, feedback loop. \newline
+- Xây dựng giao diện \texttt{/admin/unanswered} để xem xét và nhập câu trả lời thủ công.
+\\ \hline
+2 & Lê Viết & Xuân & 
+\textbf{1. Nghiên cứu lý thuyết:} \newline
+Tìm hiểu, trình bày công nghệ Next.js, NestJS, MongoDB, kiến trúc Microservices, các mô hình và mẫu thiết kế Web. \newline
+\textbf{2. Thiết lập hạ tầng \& Core Backend:} \newline
+- Cấu hình hạ tầng Docker Compose (PostgreSQL, RabbitMQ, Redis, MinIO, OnlyOffice), viết kịch bản SQL khởi tạo 5 DB schema, thiết lập RabbitMQ. \newline
+- Phát triển API Gateway (\texttt{api-gateway} - NestJS): reverse proxy, JWT Auth/Refresh, Rate Limiting, Circuit Breaker, Health checks. \newline
+- Phát triển các dịch vụ Spring Boot: \texttt{auth-service} (Auth/Session), \texttt{user-service} (User/RBAC/Org), \texttt{knowledge-service} (MinIO, OnlyOffice co-editing, versioning), \texttt{metadata-service} (Category/Tag/Access Rules), \texttt{feedback-service} (Audit Logs, Analytics, Reports, Unanswered Queue). \newline
+- Xây dựng Frontend Nghiệp vụ \& Quản trị (Next.js): Giao diện tài khoản, quản lý tri thức, OnlyOffice, Access Rules, Access Simulation, so sánh phiên bản, dashboard analytics, quản trị user/department/metadata.
+\\ \hline
+\end{tabularx}
+\end{table}
+
+\clearpage
+
+% =====================================================
+% CHƯƠNG I: GIỚI THIỆU
+% =====================================================
+\chapter{GIỚI THIỆU}
+
+\section{Lý do chọn đề tài}
+Trong nhiều doanh nghiệp hiện nay, các quy định và chính sách nội bộ thường có độ dài lớn, nội dung phức tạp và được lưu trữ phân tán trên nhiều tài liệu khác nhau. Điều này khiến nhân viên gặp khó khăn trong quá trình tra cứu, vừa tốn nhiều thời gian vừa dễ bỏ sót những thông tin quan trọng. Theo một số thống kê, trung bình mỗi nhân viên phải dành khoảng 2 đến 3,6 giờ mỗi ngày chỉ để tìm kiếm thông tin nội bộ cần thiết cho công việc.
+
+Bên cạnh đó, dữ liệu liên quan đến chính sách và pháp lý đòi hỏi độ chính xác tuyệt đối. Chỉ một sai sót nhỏ trong việc hiểu hoặc áp dụng quy định cũng có thể dẫn đến các rủi ro nghiêm trọng như vi phạm tuân thủ, bị xử phạt pháp lý hoặc gây thiệt hại về tài chính cho doanh nghiệp.
+
+Ngoài ra, mỗi nhân viên hoặc bộ phận trong doanh nghiệp có vai trò, quyền lợi và trách nhiệm khác nhau, do đó nhu cầu tra cứu thông tin cũng không giống nhau. Vì vậy, hệ thống hỗ trợ cần có khả năng cá nhân hóa nội dung trả lời, đảm bảo thông tin cung cấp phù hợp với từng đối tượng cụ thể.
+
+Cuối cùng, tri thức nội bộ được xem là tài sản chiến lược của doanh nghiệp, yêu cầu mức độ bảo mật cao. Do đó, các giải pháp công nghệ được ưu tiên triển khai theo mô hình on-premise, giúp doanh nghiệp giữ toàn quyền kiểm soát dữ liệu. Các nghiên cứu và giải pháp dựa trên mô hình Retrieval-Augmented Generation (RAG) hiện nay cũng tập trung vào việc đảm bảo kiểm soát truy cập chi tiết và vận hành trong môi trường an toàn, tuân thủ các tiêu chuẩn và quy định bảo mật như GDPR.
+
+\section{Mục tiêu của đề tài}
+Mục tiêu chính của đề tài là phát triển một Trợ lý AI nội bộ giúp nhân viên truy cập thông tin chính sách nhanh chóng, chính xác và đồng nhất. Cụ thể:
+
+\begin{itemize}
+    \item \textbf{Cung cấp hệ thống hỏi-đáp tương tác trực quan:} nhân viên có thể đặt câu hỏi bằng ngôn ngữ tự nhiên và nhận kết quả trả lời ngay lập tức, thay vì phải dò tìm trong hàng trăm trang tài liệu.
+    \item \textbf{Công cụ tìm kiếm ngữ nghĩa:} áp dụng RAG với nhúng ngữ nghĩa và cơ sở dữ liệu vector, giúp hệ thống hiểu ý định của câu hỏi và trả về thông tin liên quan chính xác, tránh trường hợp tìm kiếm sai hoặc bỏ sót do khác biệt thuật ngữ.
+    \item \textbf{Đảm bảo độ nhất quán và minh bạch:} mọi câu trả lời được khớp trực tiếp với nguồn tài liệu nội bộ đã chuẩn hóa, loại bỏ tình trạng mỗi người hiểu chính sách khác nhau. Hệ thống sẽ trích dẫn chương/mục hoặc đoạn văn bản gốc tương ứng để xác thực thông tin, tạo niềm tin cho người dùng.
+    \item \textbf{Hỗ trợ so sánh phiên bản:} tự động phát hiện và làm nổi bật sự khác biệt giữa các phiên bản chính sách mới và cũ (nếu có), giúp người dùng dễ dàng cập nhật nội dung thay đổi.
+    \item \textbf{Phân quyền và cá nhân hóa:} kiểm soát phạm vi trả lời dựa trên vai trò, đơn vị của người hỏi, đảm bảo thông tin nhạy cảm chỉ đến đúng đối tượng có thẩm quyền. Đồng thời, hệ thống ghi nhận các câu hỏi chưa trả lời để bổ sung vào kho tri thức.
+\end{itemize}
+
+Những mục tiêu này hướng tới nâng cao hiệu suất và độ tin cậy trong quản trị tri thức nội bộ. Theo nghiên cứu, việc sử dụng RAG giúp giảm đáng kể thời gian tìm kiếm và tăng độ chính xác của câu trả lời – ví dụ thời gian tìm hoặc xác minh thông tin giảm mạnh, trong khi độ tin cậy tăng lên nhờ kết quả luôn dựa trên tài liệu nội bộ.
+
+Kho mã nguồn chính thức phục vụ phát triển và triển khai hệ thống: \url{https://github.com/Poliwise/Poliwise}.
+
+\section{Phạm vi và đối tượng nghiên cứu}
+Đề tài tập trung trên dữ liệu chính sách và quy trình nội bộ của một doanh nghiệp (ví dụ: chính sách nhân sự, quy trình kỹ thuật, quy định tài chính). Toàn bộ văn bản gốc được số hóa, cấu trúc lại và lưu trữ thành kho dữ liệu chung.
+
+Nghiên cứu không đề cập đến tri thức bên ngoài (chỉ sử dụng nguồn nội bộ); cũng không nghiên cứu đào tạo lại mô hình ngôn ngữ toàn cầu. Thay vào đó, hệ thống sẽ truy vấn trực tiếp vào kho tài liệu của doanh nghiệp.
+
+Trong thực tế, tri thức nội bộ thường phân tán khắp nơi: file share, hệ thống quản lý văn bản, wiki, hệ thống CRM/ERP…, và được cập nhật không đồng đều. Ví dụ, các quy trình có thể được ghi ở nhiều định dạng khác nhau, dẫn đến khó khăn khi tìm "phiên bản đúng" của một chính sách nhất định. Do đó, phạm vi nghiên cứu bao gồm cả công tác chuẩn hóa và cấu trúc dữ liệu đầu vào: chia nhỏ tài liệu, gắn nhãn siêu dữ liệu (metadata) như chủ đề, phòng ban, ngày hiệu lực, … để phục vụ truy vấn và quản lý truy cập. Đối tượng sử dụng của hệ thống là nhân viên các phòng ban, quản lý nhân sự, quản trị viên hệ thống… và đội ngũ phát triển/ quản lý nội dung tri thức (kiểm tra, cập nhật).
+
+\section{Phương pháp thực hiện}
+Đề tài ứng dụng phương pháp Retrieval-Augmented Generation (RAG) kết hợp kỹ thuật NLP hiện đại để phát triển hệ trợ lý AI. Các bước chính gồm:
+
+\begin{itemize}
+    \item \textbf{Thu thập và xử lý dữ liệu:} Tập hợp toàn bộ văn bản chính sách, quy trình, thông tư… hiện có; làm sạch và số hóa (OCR) nếu cần. Chia nhỏ (chunk) tài liệu thành các đoạn ý nghĩa, gắn metadata và mã hóa thành vectơ (embeddings).
+    \item \textbf{Thiết kế kiến trúc RAG:} Lưu trữ các vectơ này trong cơ sở dữ liệu vector. Sử dụng chiến lược tìm kiếm ngữ nghĩa (semantic search) hoặc lai (hybrid search) để truy xuất đoạn văn bản phù hợp với truy vấn. Phần sinh ngôn ngữ (LLM) sẽ kết hợp nội dung truy xuất được để tạo câu trả lời cuối cùng.
+    \item \textbf{Phát triển giao diện tương tác:} Xây dựng chatbot hoặc portal cho phép nhân viên đặt câu hỏi tự nhiên, đồng thời hiển thị đoạn trích dẫn nguồn gốc. Tích hợp tính năng tóm tắt nội dung phức tạp, giải thích ngôn ngữ luật pháp đơn giản hơn.
+    \item \textbf{Đánh giá và hoàn thiện:} Triển khai thử nghiệm với nhóm người dùng mẫu. Đánh giá hiệu quả qua thời gian tra cứu giảm bao nhiêu, độ chính xác câu trả lời (đo lường qua phản hồi người dùng), cũng như kiểm thử về bảo mật và phân quyền. Dựa trên phản hồi, điều chỉnh cách chunk tài liệu, tweak tham số truy vấn và tinh chỉnh prompt của LLM cho phù hợp.
+\end{itemize}
+
+Quá trình phát triển tuân theo quy trình lặp (iterations) và có thể kết hợp phương pháp phát triển phần mềm nhanh (Agile) để cải tiến liên tục. Trong giai đoạn thiết kế, tham khảo các nghiên cứu về RAG và các giải pháp tương tự đã triển khai trong ngành (ví dụ như hướng dẫn xây dựng hệ RAG nội bộ), đồng thời đảm bảo hệ thống đáp ứng yêu cầu an toàn và tuân thủ chuẩn mực của doanh nghiệp.
+
+\section{Cấu trúc báo cáo}
+Báo cáo được chia thành các chương sau:
+
+\begin{itemize}
+    \item \textbf{Chương I:} Giới thiệu tổng quan về đề tài, gồm lý do chọn đề tài, mục tiêu, phạm vi, phương pháp, và cấu trúc báo cáo (nội dung hiện tại).
+    \item \textbf{Chương II:} Cơ sở lý thuyết và tổng quan công nghệ liên quan – giới thiệu khái niệm RAG, các mô hình ngôn ngữ lớn, tìm kiếm ngữ nghĩa và các công nghệ hỗ trợ (cơ sở dữ liệu vector, kỹ thuật embedding…).
+    \item \textbf{Chương III:} Phân tích yêu cầu và thiết kế hệ thống – xác định yêu cầu chức năng, thiết kế kiến trúc chi tiết (bao gồm thu thập dữ liệu, lưu trữ, truy vấn, xử lý phản hồi, phân quyền…).
+    \item \textbf{Chương IV:} Triển khai và thực nghiệm – mô tả quá trình cài đặt hệ thống mẫu, các công cụ sử dụng, thí nghiệm minh họa (ví dụ các tình huống câu hỏi về chính sách và kết quả trả lời).
+    \item \textbf{Chương V:} Đánh giá kết quả và rút kinh nghiệm – phân tích hiệu quả của hệ thống (thời gian tra cứu, độ hài lòng người dùng), so sánh với cách thức truyền thống, và đề xuất cải tiến cho tương lai.
+    \item \textbf{Chương VI:} Kết luận và định hướng phát triển – tóm tắt đóng góp của đề tài, hạn chế và đề xuất công việc tiếp theo.
+\end{itemize}
+
+\clearpage
+
+% =====================================================
+% CHƯƠNG II: CƠ SỞ LÝ THUYẾT
+% =====================================================
+\chapter{CƠ SỞ LÝ THUYẾT}
+
+\section{Các khái niệm liên quan}
+
+\subsection{Kiến trúc Microservices}
+Microservices là một kiến trúc phần mềm trong đó ứng dụng được cấu trúc thành một tập hợp các dịch vụ nhỏ, độc lập (services). Mỗi dịch vụ đảm nhiệm một chức năng nghiệp vụ cụ thể, có thể được phát triển, triển khai và mở rộng quy mô một cách riêng biệt. Các dịch vụ này giao tiếp với nhau thông qua các giao thức chuẩn, phổ biến nhất là HTTP/REST hoặc gRPC.
+
+Trong phạm vi đề tài, kiến trúc Microservices được lựa chọn nhằm giải quyết bài toán phức tạp của hệ thống quản trị tri thức, cho phép áp dụng mô hình ``đa ngôn ngữ'' (Polyglot Programming). Cụ thể:
+\begin{itemize}
+    \item \textbf{Tính độc lập:} Các module Frontend (Next.js) và Backend (NestJS, Spring Boot) có thể được phát triển song song bởi các nhóm khác nhau mà không gây xung đột mã nguồn.
+    \item \textbf{Tính linh hoạt về công nghệ:} Hệ thống tận dụng được thế mạnh của nhiều ngôn ngữ khác nhau: JavaScript/TypeScript cho khả năng xử lý bất đồng bộ nhanh chóng ở tầng giao diện và trung gian; Java cho sự ổn định và bảo mật cao ở tầng nghiệp vụ cốt lõi.
+\end{itemize}
+
+\subsection{Mô hình Client--Server}
+Hệ thống được thiết kế dựa trên mô hình Client--Server truyền thống nhưng được hiện đại hóa để phù hợp với kiến trúc phân tán:
+\begin{itemize}
+    \item \textbf{Client (Phía máy khách):} Được xây dựng bằng Next.js, đóng vai trò là lớp trình bày (Presentation Layer), chịu trách nhiệm hiển thị giao diện và tương tác với người dùng.
+    \item \textbf{Server (Phía máy chủ):} Bao gồm tổ hợp các dịch vụ Backend (NestJS và Spring Boot) chịu trách nhiệm xử lý logic nghiệp vụ, xác thực và quản lý dữ liệu. Sự tách biệt rõ ràng này giúp việc nâng cấp giao diện hoặc thay đổi logic xử lý phía sau không ảnh hưởng lẫn nhau, đồng thời tăng khả năng tái sử dụng API cho các nền tảng khác (như Mobile App) trong tương lai.
+\end{itemize}
+
+\subsection{RESTful API}
+RESTful API là chuẩn giao tiếp chính giữa các thành phần trong hệ thống.
+
+Các phương thức HTTP phổ biến:
+\begin{itemize}
+    \item \textbf{GET:} truy vấn dữ liệu.
+    \item \textbf{POST:} tạo mới.
+    \item \textbf{PUT/PATCH:} cập nhật.
+    \item \textbf{DELETE:} xóa.
+\end{itemize}
+
+Trong kiến trúc đề tài:
+\begin{itemize}
+    \item Next.js gọi API từ NestJS.
+    \item NestJS đóng vai trò API Gateway, tiếp tục điều phối request sang Spring Boot.
+    \item Spring Boot xử lý nghiệp vụ chính và trả kết quả về NestJS.
+\end{itemize}
+
+\subsection{Hệ quản trị Cơ sở dữ liệu (DBMS): Quan hệ và Phi quan hệ}
+Hệ quản trị cơ sở dữ liệu (Database Management System - DBMS) là phần mềm tương tác với người dùng cuối, ứng dụng và chính cơ sở dữ liệu để thu thập và phân tích dữ liệu. Sự lựa chọn giữa mô hình quan hệ (RDBMS) và phi quan hệ (NoSQL) quyết định trực tiếp đến tính toàn vẹn, khả năng mở rộng và hiệu suất của hệ thống PoliWise.
+
+\subsubsection{Hệ quản trị Cơ sở dữ liệu Quan hệ (RDBMS)}
+\textbf{Định nghĩa và Lịch sử:} Cơ sở dữ liệu quan hệ (RDBMS) dựa trên mô hình quan hệ do Edgar F. Codd đề xuất vào năm 1970 tại IBM. Trong mô hình này, dữ liệu được tổ chức thành các bảng (tables) gồm các hàng (rows/records) và cột (columns/attributes). Mối quan hệ giữa các bảng được thiết lập thông qua các khóa chính (Primary Key) và khóa ngoại (Foreign Key). Các hệ thống tiêu biểu bao gồm PostgreSQL, MySQL, Oracle và Microsoft SQL Server.
+
+\textbf{Nguyên lý hoạt động và ACID:} Sức mạnh cốt lõi của RDBMS nằm ở việc tuân thủ nghiêm ngặt các thuộc tính ACID, đảm bảo tính tin cậy tuyệt đối cho các giao dịch dữ liệu, đặc biệt quan trọng đối với dữ liệu chính sách và pháp lý:
+\begin{itemize}
+    \item \textbf{Atomicity (Tính nguyên tử):} Một giao dịch (transaction) được xem là một đơn vị không thể chia cắt. Hoặc toàn bộ các thao tác thành công, hoặc không có thao tác nào được thực hiện. Ví dụ, khi cập nhật một chính sách mới, nếu quá trình ghi dữ liệu thất bại ở bất kỳ bước nào, hệ thống phải hoàn tác (rollback) về trạng thái ban đầu.
+    \item \textbf{Consistency (Tính nhất quán):} Giao dịch phải chuyển cơ sở dữ liệu từ một trạng thái hợp lệ này sang một trạng thái hợp lệ khác, tuân thủ mọi ràng buộc (constraints), quy tắc toàn vẹn (integrity rules) và kích hoạt (triggers).
+    \item \textbf{Isolation (Tính cô lập):} Các giao dịch thực hiện đồng thời phải độc lập với nhau. Kết quả của một giao dịch chưa hoàn tất không được hiển thị cho các giao dịch khác. Cơ chế này thường được thực hiện thông qua Multi-Version Concurrency Control (MVCC) trong PostgreSQL.
+    \item \textbf{Durability (Tính bền vững):} Một khi giao dịch đã được cam kết (commit), dữ liệu sẽ được lưu trữ vĩnh viễn, ngay cả trong trường hợp hệ thống gặp sự cố mất điện hay lỗi phần cứng. Cơ chế Write-Ahead Logging (WAL) thường được sử dụng để đảm bảo điều này.
+\end{itemize}
+
+\textbf{Ưu điểm:}
+\begin{itemize}
+    \item \textbf{Tính nhất quán cao:} Đảm bảo dữ liệu luôn chính xác, không bị dư thừa hay mâu thuẫn, điều cực kỳ quan trọng cho hệ thống quản lý văn bản pháp quy như PoliWise.
+    \item \textbf{Ngôn ngữ truy vấn mạnh mẽ (SQL):} Cho phép thực hiện các truy vấn phức tạp, kết nối (JOIN) nhiều bảng dữ liệu để trích xuất thông tin tổng hợp.
+\end{itemize}
+
+\subsubsection{Hệ quản trị Cơ sở dữ liệu Phi quan hệ (NoSQL)}
+\textbf{Định nghĩa:} NoSQL (Not Only SQL) ra đời để giải quyết các hạn chế của RDBMS trong việc xử lý dữ liệu lớn (Big Data), dữ liệu phi cấu trúc và yêu cầu mở rộng linh hoạt.
+
+\textbf{Các loại hình NoSQL chính:}
+\begin{itemize}
+    \item \textbf{Document Store} (ví dụ: MongoDB): Lưu trữ dữ liệu dưới dạng tài liệu (JSON, BSON). Phù hợp cho nội dung có cấu trúc thay đổi liên tục.
+    \item \textbf{Key-Value Store} (ví dụ: Redis): Lưu trữ cặp khóa-giá trị, tối ưu cho tốc độ truy xuất cực nhanh (caching).
+    \item \textbf{Column-Family Store} (ví dụ: Cassandra): Lưu trữ dữ liệu theo họ cột, tối ưu cho khả năng ghi và truy vấn trên tập dữ liệu lớn phân tán.
+    \item \textbf{Graph Database} (ví dụ: Neo4j): Lưu trữ dữ liệu dưới dạng các nút (nodes) và cạnh (edges), tối ưu cho việc truy vấn các mối quan hệ phức tạp.
+\end{itemize}
+
+\textbf{Định lý CAP:} Khác với RDBMS tập trung vào ACID, NoSQL thường tuân theo định lý CAP, trong đó một hệ thống phân tán chỉ có thể đảm bảo 2 trong 3 yếu tố: Consistency (Nhất quán), Availability (Sẵn sàng), và Partition Tolerance (Chịu lỗi phân vùng). Hầu hết NoSQL ưu tiên AP hoặc CP.
+
+\subsection{Cơ sở dữ liệu Vector (Vector Database)}
+\textbf{Định nghĩa:} Cơ sở dữ liệu vector là một hệ thống chuyên dụng để lưu trữ, quản lý và truy vấn các vector embedding – các biểu diễn số học của dữ liệu phi cấu trúc như văn bản, hình ảnh, hoặc âm thanh trong không gian nhiều chiều (high-dimensional space).
+
+\textbf{Nguyên lý hoạt động:} Khác với CSDL truyền thống tìm kiếm dựa trên sự trùng khớp chính xác của từ khóa (exact keyword match), CSDL vector thực hiện tìm kiếm tương đồng (similarity search). Nó tìm các vector ``gần nhất'' với vector truy vấn trong không gian toán học.
+\begin{itemize}
+    \item \textbf{High-dimensional Space:} Mỗi dữ liệu được biểu diễn bởi một vector có $n$ chiều (ví dụ: 1536 chiều với model của OpenAI). Vị trí của vector phản ánh ý nghĩa ngữ nghĩa của dữ liệu đó.
+    \item \textbf{Approximate Nearest Neighbor (ANN):} Do việc tính toán khoảng cách chính xác giữa vector truy vấn và hàng tỷ vector trong CSDL là quá tốn kém (về mặt tính toán), các CSDL vector sử dụng các thuật toán ANN để tìm kiếm kết quả ``đủ tốt'' với tốc độ cực nhanh.
+\end{itemize}
+
+\textbf{Các thuật toán lập chỉ mục (Indexing Algorithms):}
+\begin{itemize}
+    \item \textbf{HNSW (Hierarchical Navigable Small World):} Một cấu trúc đồ thị đa tầng. Ở các tầng trên, các bước nhảy dài giúp thuật toán nhanh chóng tiếp cận vùng chứa kết quả. Ở các tầng dưới, các bước nhảy ngắn giúp tinh chỉnh độ chính xác. HNSW hiện là thuật toán có hiệu năng tốt nhất về cân bằng giữa tốc độ và độ chính xác.
+    \item \textbf{IVF (Inverted File Index):} Phân chia không gian vector thành các cụm (clusters) dựa trên thuật toán Voronoi hoặc K-means. Khi truy vấn, hệ thống chỉ tìm kiếm trong các cụm gần nhất, giảm thiểu không gian tìm kiếm.
+\end{itemize}
+
+\textbf{Vai trò:} Đây là thành phần ``bộ nhớ dài hạn'' cho các ứng dụng AI, cho phép hệ thống RAG truy xuất ngữ cảnh liên quan để cung cấp cho LLM.
+
+\subsection{Vector Embedding (Nhúng Vector)}
+\textbf{Khái niệm:} Vector embedding là kỹ thuật chuyển đổi dữ liệu rời rạc (từ ngữ, văn bản) thành các vector số thực liên tục. Đây là cầu nối để máy tính có thể ``hiểu'' và xử lý ngôn ngữ tự nhiên dưới dạng toán học.
+
+\textbf{Cơ chế:} Các mô hình nhúng (Embedding Models) như Word2Vec, GloVe, BERT, hay OpenAI text-embedding-3 được huấn luyện trên lượng dữ liệu khổng lồ để học mối quan hệ ngữ nghĩa.
+\begin{itemize}
+    \item \textbf{Semantic Preservation:} Các từ/câu có ý nghĩa giống nhau sẽ có vector nằm gần nhau. Ví dụ: $\text{Vector}(\text{``Vua''}) - \text{Vector}(\text{``Nam''}) + \text{Vector}(\text{``Nữ''}) \approx \text{Vector}(\text{``Nữ hoàng''})$.
+    \item \textbf{Dense Vectors:} Khác với phương pháp One-hot encoding tạo ra các vector thưa (sparse) với hầu hết giá trị là 0, embedding tạo ra các vector đặc (dense) chứa nhiều thông tin ngữ nghĩa trong số chiều thấp hơn.
+\end{itemize}
+
+\subsection{Semantic Search (Tìm kiếm ngữ nghĩa)}
+\textbf{Định nghĩa:} Semantic search là phương pháp tìm kiếm dựa trên ý định (intent) và ngữ cảnh (context) của truy vấn thay vì chỉ khớp từ khóa bề mặt.
+
+\textbf{So sánh với Keyword Search:}
+\begin{itemize}
+    \item \textbf{Keyword Search (Lexical):} Dựa trên thuật toán như TF-IDF hoặc BM25. Nó hiệu quả khi người dùng biết chính xác từ khóa (ví dụ: mã sản phẩm, tên riêng) nhưng thất bại khi người dùng dùng từ đồng nghĩa hoặc mô tả trừu tượng.
+    \item \textbf{Semantic Search:} Sử dụng vector embedding. Nếu người dùng tìm ``quy định nghỉ ốm'', hệ thống vẫn tìm thấy tài liệu chứa ``chế độ bảo hiểm sức khỏe'' do vector của chúng gần nhau, dù không chung từ khóa nào.
+\end{itemize}
+
+\textbf{Các thước đo độ tương đồng (Similarity Metrics):}
+\begin{itemize}
+    \item \textbf{Cosine Similarity:} Đo cosin của góc giữa hai vector.
+    \[ \text{Cosine}(A, B) = \frac{A \cdot B}{\|A\| \|B\|} \]
+    Giá trị từ -1 đến 1. Đây là thước đo phổ biến nhất trong NLP vì nó tập trung vào hướng (ngữ nghĩa) và bỏ qua độ lớn (độ dài văn bản), giúp so sánh công bằng giữa các đoạn văn dài ngắn khác nhau.
+    \item \textbf{Euclidean Distance (L2):} Đo khoảng cách đường thẳng giữa hai điểm mút vector.
+    \[ d(A, B) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} \]
+    Thường dùng khi độ lớn vector mang ý nghĩa quan trọng.
+    \item \textbf{Dot Product (Tích vô hướng):}
+    \[ A \cdot B = \sum_{i=1}^{n} A_i B_i \]
+    Nếu các vector đã được chuẩn hóa (normalized) về độ dài đơn vị, Dot Product tương đương với Cosine Similarity nhưng tính toán nhanh hơn.
+\end{itemize}
+
+\subsection{Large Language Models (LLM) - Mô hình Ngôn ngữ Lớn}
+\textbf{Định nghĩa:} LLM là các mô hình học sâu (Deep Learning) sử dụng kiến trúc mạng nơ-ron nhân tạo, thường là Transformer, được huấn luyện trên hàng tỷ, thậm chí hàng nghìn tỷ tham số từ kho dữ liệu văn bản khổng lồ.
+
+\textbf{Kiến trúc Transformer:} Đột phá của Transformer (Google, 2017) là cơ chế Self-Attention, cho phép mô hình xử lý toàn bộ câu cùng lúc và hiểu mối quan hệ giữa các từ bất kể khoảng cách, vượt trội so với các kiến trúc tuần tự cũ như RNN hay LSTM.
+
+\textbf{Hạn chế của LLM trong doanh nghiệp:}
+\begin{itemize}
+    \item \textbf{Ảo giác (Hallucination):} LLM có thể tự tin đưa ra thông tin sai lệch nhưng nghe rất thuyết phục.
+    \item \textbf{Kiến thức lỗi thời (Cut-off date):} LLM chỉ biết thông tin đến thời điểm kết thúc huấn luyện.
+    \item \textbf{Thiếu kiến thức nội bộ:} LLM công cộng (như GPT-4) không biết về các chính sách, quy định riêng tư của một doanh nghiệp cụ thể.
+\end{itemize}
+
+\subsection{Retrieval-Augmented Generation (RAG)}
+\textbf{Định nghĩa:} RAG là một khung kiến trúc kết hợp sức mạnh tạo sinh của LLM với khả năng truy xuất thông tin chính xác từ một nguồn dữ liệu bên ngoài (Knowledge Base), nhằm khắc phục các hạn chế của LLM.
+
+\textbf{Kiến trúc và Quy trình hoạt động:}
+\begin{itemize}
+    \item \textbf{Retriever (Bộ truy xuất):} Khi người dùng đặt câu hỏi, hệ thống mã hóa câu hỏi thành vector và tìm kiếm trong Vector Database để lấy ra Top-k đoạn văn bản (chunks) có độ tương đồng ngữ nghĩa cao nhất.
+    \item \textbf{Augmentation (Tăng cường):} Các đoạn văn bản tìm được được ghép vào một lời nhắc (Prompt) làm ngữ cảnh (Context).
+    \item \textbf{Generator (Bộ tạo sinh):} LLM nhận Prompt chứa cả câu hỏi và ngữ cảnh, sau đó sinh ra câu trả lời dựa trên thông tin được cung cấp, kèm theo trích dẫn.
+\end{itemize}
+
+\textbf{Ưu điểm của RAG:}
+\begin{itemize}
+    \item \textbf{Tính chính xác (Groundedness):} Giảm thiểu ảo giác vì câu trả lời dựa trên tài liệu thực tế.
+    \item \textbf{Tính cập nhật:} Doanh nghiệp chỉ cần cập nhật cơ sở dữ liệu vector khi có chính sách mới, không cần huấn luyện lại LLM.
+    \item \textbf{Bảo mật:} Dữ liệu nội bộ không bị rò rỉ vào quá trình huấn luyện của mô hình công cộng.
+\end{itemize}
+
+
+\section{Công nghệ / mô hình sử dụng}
+
+\subsection{React và Vite (Frontend)}
+\textbf{React:} React là thư viện JavaScript phổ biến nhất để xây dựng giao diện người dùng (UI), sử dụng mô hình Component-based và Virtual DOM để tối ưu hóa hiệu suất hiển thị.
+
+\textbf{Vite: Bước nhảy vọt về hiệu suất phát triển}
+
+Vite (tiếng Pháp nghĩa là ``nhanh'') là công cụ xây dựng (build tool) thế hệ mới, giải quyết các vấn đề hiệu năng của các công cụ đóng gói (bundler) truyền thống như Webpack.
+
+\textbf{Nguyên lý hoạt động và Kiến trúc:}
+\begin{itemize}
+    \item \textbf{Native ESM (ECMAScript Modules):}
+    \begin{itemize}
+        \item \textit{Vấn đề của Webpack:} Webpack phải đóng gói (bundle) toàn bộ ứng dụng trước khi khởi chạy server phát triển. Với các dự án lớn, thời gian này có thể lên tới vài phút.
+        \item \textit{Giải pháp của Vite:} Vite tận dụng tính năng Native ESM có sẵn trong trình duyệt hiện đại. Nó không đóng gói mã nguồn trong quá trình phát triển (dev). Thay vào đó, nó chỉ biên dịch và phục vụ từng file khi trình duyệt yêu cầu (on-demand). Trình duyệt đảm nhận việc import/export module. Điều này giúp thời gian khởi động server gần như tức thì (Instant Start).
+    \end{itemize}
+    \item \textbf{Pre-bundling với Esbuild:}
+    \begin{itemize}
+        \item Vite chia ứng dụng thành hai phần: Source Code (thay đổi thường xuyên) và Dependencies (thư viện ít thay đổi).
+        \item Vite sử dụng Esbuild – một bundler viết bằng ngôn ngữ Go – để xử lý các dependencies. Nhờ viết bằng ngôn ngữ biên dịch (compiled language), Esbuild nhanh hơn 10-100 lần so với các công cụ viết bằng JavaScript. Quá trình này giúp chuyển đổi các định dạng CommonJS/UMD sang ESM và gộp các module nhỏ để tránh ``thác nước'' (waterfall) request mạng.
+    \end{itemize}
+    \item \textbf{Hot Module Replacement (HMR):}
+    \begin{itemize}
+        \item Trong Webpack, khi một file sửa đổi, một phần lớn của bundle phải được xây dựng lại.
+        \item Trong Vite, HMR được thực hiện qua Native ESM. Khi file thay đổi, server chỉ cần báo cho trình duyệt tải lại đúng file đó. Tốc độ HMR của Vite là $O(1)$, không phụ thuộc vào quy mô dự án.
+    \end{itemize}
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{So sánh Vite và Webpack (2025)}
+\label{tab:vite_webpack}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Đặc điểm} & \textbf{Webpack} & \textbf{Vite} \\ \hline
+Cơ chế Dev Server & Bundle-based (Đóng gói toàn bộ trước) & Native ESM (Phục vụ theo yêu cầu) \\ \hline
+Ngôn ngữ lõi & JavaScript (Node.js) & Go (Esbuild cho pre-bundling) + JS \\ \hline
+Khởi động (Cold Start) & Chậm (tăng theo số lượng module) & Cực nhanh (gần như tức thì) \\ \hline
+HMR & Chậm dần khi dự án lớn & Nhanh ổn định ($O(1)$) \\ \hline
+Cấu hình & Phức tạp, nhiều boilerplate & Đơn giản, ``sensible defaults'' \\ \hline
+Production Build & Webpack & Rollup (tối ưu hóa kích thước bundle) \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Next.js (Frontend)}
+Next.js không chỉ là một framework React mà còn cung cấp các giải pháp tối ưu thông qua các cơ chế render linh hoạt:
+\begin{itemize}
+    \item \textbf{SSR (Server-Side Rendering):} Tạo HTML trên server mỗi khi có request, tối ưu cho SEO và dữ liệu động.
+    \item \textbf{SSG (Static Site Generation):} Tạo HTML tại thời điểm build, mang lại tốc độ tải trang cực nhanh qua CDN.
+    \item \textbf{ISR (Incremental Static Regeneration):} Cập nhật nội dung tĩnh mà không cần build lại toàn bộ trang.
+    \item \textbf{App Router \& RSC:} Sử dụng React Server Components để giảm dung lượng JavaScript gửi về phía Client.
+\end{itemize}
+
+\textbf{Lý do lựa chọn:}
+\begin{itemize}
+    \item \textbf{Tối ưu SEO và Hiệu năng:} Cơ chế SSR giúp nội dung trang web được tải nhanh hơn và thân thiện với các công cụ tìm kiếm, điều này đặc biệt quan trọng đối với các trang tra cứu thông tin.
+    \item \textbf{Hỗ trợ TypeScript:} Giúp kiểm soát lỗi kiểu dữ liệu ngay trong quá trình phát triển, tăng tính ổn định cho mã nguồn.
+    \item \textbf{Routing tự động:} Hệ thống định tuyến dựa trên cấu trúc thư mục giúp giảm thiểu thời gian cấu hình và dễ dàng quản lý các trang chức năng.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và Thách thức của Next.js}
+\label{tab:nextjs_pros_cons}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Thách thức} \\ \hline
+SEO Tuyệt Đối: Khắc phục điểm yếu của React SPA bằng cách trả về HTML đầy đủ. & Learning Curve: App Router mới thay đổi hoàn toàn tư duy React truyền thống. \\ \hline
+Hiệu suất: Tự động tối ưu hình ảnh, font chữ và code splitting thông minh. & Routing: Hệ thống File-system routing đôi khi khó tùy biến cho URL phức tạp. \\ \hline
+Hybrid Rendering: Linh hoạt chọn render tĩnh hoặc động cho từng trang. & Phụ thuộc: Việc deploy tối ưu nhất thường gắn liền với nền tảng Vercel. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{NestJS (Backend trung gian / API Gateway)}
+NestJS là một framework Node.js tiên tiến, được xây dựng với TypeScript và chịu ảnh hưởng lớn từ kiến trúc của Angular. Trong hệ thống này, NestJS đóng vai trò là một API Gateway hay lớp Backend For Frontend (BFF).
+
+\textbf{Vai trò và Lý do lựa chọn:}
+\begin{itemize}
+    \item \textbf{Cầu nối trung gian:} NestJS tiếp nhận mọi yêu cầu (request) từ Frontend, thực hiện xác thực (Authentication), phân quyền (Authorization) trước khi điều phối đến các dịch vụ nghiệp vụ phía sau.
+    \item \textbf{Kiến trúc Module hóa:} Với cấu trúc rõ ràng gồm Controller, Service và Module, NestJS giúp mã nguồn dễ bảo trì và mở rộng.
+    \item \textbf{Xử lý I/O hiệu quả:} Tận dụng kiến trúc hướng sự kiện (event-driven) của Node.js, NestJS xử lý rất tốt các tác vụ yêu cầu độ trễ thấp và kết nối thời gian thực, giảm tải đáng kể cho Core Backend.
+\end{itemize}
+
+NestJS được thiết kế với cấu trúc chặt chẽ giúp giải quyết các bài toán của hệ thống lớn:
+\begin{itemize}
+    \item \textbf{Kiến trúc Module hóa:} Tổ chức code thành Modules, Controllers và Providers.
+    \item \textbf{Dependency Injection (DI):} Quản lý sự phụ thuộc giữa các thành phần một cách tự động và linh hoạt.
+    \item \textbf{TypeScript First:} Tận dụng tối đa kiểm soát lỗi kiểu dữ liệu ngay từ quá trình phát triển.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và Nhược điểm của NestJS}
+\label{tab:nestjs_pros_cons}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Nhược điểm} \\ \hline
+Cấu trúc chuẩn: Cung cấp kiến trúc ``out-of-the-box'' giúp team tuân thủ quy chuẩn chung. & Learning Curve cao: Cần hiểu về Decorators, DI, Modules (giống kiến trúc Angular). \\ \hline
+Hệ sinh thái đa dạng: Hỗ trợ cực tốt cho GraphQL, WebSockets, và Microservices. & Boilerplate Code: Phải viết nhiều file cấu hình (module, decorator) hơn Express. \\ \hline
+Testability: Thiết kế DI giúp việc viết Unit Test và Integration Test trở nên đơn giản. & Phụ thuộc TypeScript: Chỉ thực sự hiệu quả khi sử dụng với TypeScript. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Spring Boot (Backend nghiệp vụ)}
+Spring Boot được xây dựng trên nền tảng Spring Framework, nhằm mục đích đơn giản hóa việc phát triển các ứng dụng Java cấp doanh nghiệp (Enterprise Application).
+\begin{itemize}
+    \item \textbf{Convention over Configuration (Quy ước hơn Cấu hình):} Spring Boot loại bỏ nhu cầu cấu hình XML rườm rà của Spring cũ. Nó sử dụng các giá trị mặc định thông minh (``opinionated defaults'') để giúp lập trình viên bắt đầu dự án nhanh chóng.
+    \item \textbf{Auto-Configuration (Tự động cấu hình):} Đây là cơ chế cốt lõi. Khi ứng dụng khởi động, Spring Boot quét các thư viện (jar dependencies) trong classpath và tự động cấu hình các Bean tương ứng. Ví dụ: Nếu có \texttt{spring-boot-starter-web}, nó tự động cấu hình Tomcat và DispatcherServlet. Nếu có \texttt{spring-boot-starter-data-jpa} và driver PostgreSQL, nó tự động cấu hình DataSource và EntityManager. Cơ chế: Sử dụng các annotation điều kiện như \texttt{@ConditionalOnClass} (chỉ chạy nếu class tồn tại), \texttt{@ConditionalOnMissingBean} (chỉ chạy nếu chưa có Bean nào được định nghĩa).
+    \item \textbf{Dependency Injection (DI) và Inversion of Control (IoC):}
+    \begin{itemize}
+        \item \textit{IoC Container:} Là ``trái tim'' của Spring, chịu trách nhiệm khởi tạo, cấu hình và quản lý vòng đời của các đối tượng (Beans). Thay vì lập trình viên dùng \texttt{new Object()}, Container sẽ làm việc đó (Inversion of Control - Đảo ngược điều khiển).
+        \item \textit{DI:} Là kỹ thuật thực hiện IoC. Các phụ thuộc (dependencies) của một đối tượng được ``tiêm'' vào thông qua Constructor, Setter hoặc Field (sử dụng \texttt{@Autowired}). Điều này giúp giảm sự phụ thuộc chặt chẽ (Decoupling), làm mã nguồn dễ bảo trì và kiểm thử (Unit Test).
+    \end{itemize}
+    \item \textbf{Aspect-Oriented Programming (AOP) và Proxy:} Spring sử dụng AOP để tách biệt các mối quan tâm cắt ngang (cross-cutting concerns) như logging, security, transaction. Cơ chế này hoạt động dựa trên Proxy Pattern. Khi một Bean được gọi, thực chất ta đang gọi qua một Proxy bao bọc Bean đó để thực thi các đoạn mã phụ trợ trước hoặc sau hàm chính.
+\end{itemize}
+
+\textbf{Vai trò và Lý do lựa chọn:}
+\begin{itemize}
+    \item \textbf{Xử lý nghiệp vụ cốt lõi:} Quản lý toàn bộ logic về lưu trữ tài liệu, xử lý dữ liệu RAG và các quy trình nghiệp vụ quan trọng.
+    \item \textbf{Tính ổn định và Bảo mật:} Với hệ sinh thái Spring Security và khả năng quản lý giao dịch (Transaction Management) mạnh mẽ, Spring Boot đảm bảo tính toàn vẹn và an toàn cho dữ liệu doanh nghiệp.
+    \item \textbf{Tương tác Cơ sở dữ liệu:} Sử dụng Spring Data JPA và Hibernate để thao tác với cơ sở dữ liệu một cách hiệu quả và chặt chẽ.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và Nhược điểm của Spring Boot}
+\label{tab:springboot_pros_cons}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Nhược điểm} \\ \hline
+Tốc độ phát triển: Giảm 40-50\% thời gian setup dự án nhờ Starters. & Tiêu tốn tài nguyên: JVM chiếm dụng RAM và CPU cao hơn so với Go hoặc Rust. \\ \hline
+Hệ sinh thái mạnh mẽ: Tích hợp hoàn hảo với Spring Security, Data, Cloud. & Startup Time: Thời gian khởi động chậm do cơ chế quét component lúc runtime. \\ \hline
+Cộng đồng lớn: Hỗ trợ giải quyết vấn đề nhanh chóng với tài liệu phong phú. & Tính ``Magic'': Nhiều thứ tự động ẩn bên dưới khiến việc debug cấu hình khó khăn. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Các công nghệ khác đã xem xét nhưng không lựa chọn}
+Trong quá trình thiết kế kiến trúc Microservices cho hệ thống PoliWise, nhóm thực hiện đã cân nhắc các công nghệ phổ biến khác như C\# (.NET Core) và Golang (Go). Tuy nhiên, sau khi đánh giá dựa trên yêu cầu nghiệp vụ và nguồn lực, nhóm quyết định không lựa chọn hai công nghệ này vì các lý do sau:
+
+\subsubsection{C\# và nền tảng .NET Core}
+C\# là ngôn ngữ lập trình hiện đại, mạnh mẽ được phát triển bởi Microsoft, thường đi kèm với nền tảng .NET Core (nay là .NET 5/6+) để xây dựng các ứng dụng doanh nghiệp hiệu năng cao.
+
+\textbf{Lý do không lựa chọn:}
+\begin{itemize}
+    \item \textbf{Sự trùng lặp vai trò với Java (Spring Boot):} C\# và Java có vị thế tương đương nhau trong việc xử lý các nghiệp vụ doanh nghiệp phức tạp (Enterprise Business Logic). Trong dự án này, nhóm đã lựa chọn Spring Boot làm Core Backend nhờ hệ sinh thái Spring Security và Spring Data JPA mạnh mẽ. Việc đưa thêm C\# vào sẽ không mang lại lợi ích khác biệt rõ rệt so với Java mà còn làm tăng độ phức tạp khi phải quản lý môi trường triển khai cho hai nền tảng ``hạng nặng'' (Java JVM và .NET CLR) cùng lúc.
+    \item \textbf{Tính nhất quán trong môi trường học thuật và mã nguồn mở:} Mặc dù .NET Core đã hỗ trợ đa nền tảng, nhưng hệ sinh thái Java/Spring Boot vẫn có sự hỗ trợ rộng lớn hơn trong các tài liệu nghiên cứu và thư viện mã nguồn mở liên quan đến xử lý dữ liệu lớn và tích hợp các module AI truyền thống, phù hợp với định hướng xử lý dữ liệu RAG của đề tài.
+\end{itemize}
+
+\subsubsection{Golang (Go)}
+Golang là ngôn ngữ lập trình được Google phát triển, nổi tiếng với khả năng xử lý đồng thời (concurrency) vượt trội, tốc độ biên dịch nhanh và cú pháp đơn giản. Đây là lựa chọn phổ biến cho các kiến trúc Microservices hiện đại.
+
+\textbf{Lý do không lựa chọn:}
+\begin{itemize}
+    \item \textbf{Đánh đổi giữa hiệu năng và tính năng sẵn có:} Golang theo triết lý tối giản, đòi hỏi lập trình viên phải tự xây dựng nhiều thành phần cơ bản. Ngược lại, NestJS (được chọn làm API Gateway) cung cấp sẵn một cấu trúc module hóa, Dependency Injection và các bộ chặn (Interceptors/Guards) mạnh mẽ ngay từ đầu. Đối với quy mô đề tài, tốc độ phát triển và tính tổ chức của code (structure) được ưu tiên hơn so với hiệu năng xử lý thô (raw performance) của Go.
+    \item \textbf{Mất đi tính đồng bộ ngôn ngữ (Language Homogeneity):} Dự án đang tận dụng TypeScript cho cả Frontend (Next.js) và Backend Gateway (NestJS). Điều này cho phép chia sẻ các định nghĩa kiểu dữ liệu (Interfaces/DTOs) giữa Frontend và Backend, giúp giảm thiểu lỗi. Việc sử dụng Golang sẽ phá vỡ chuỗi liên kết này, buộc nhóm phát triển phải duy trì thêm một ngữ cảnh ngôn ngữ hoàn toàn khác, gây khó khăn cho việc bảo trì và luân chuyển nhân sự giữa các module.
+    \item \textbf{Hệ sinh thái Framework:} So với Spring Boot (Java), hệ sinh thái của Go cho các tác vụ nghiệp vụ phức tạp như ORM (Object-Relational Mapping) hay Transaction Management chưa phong phú và chặt chẽ bằng. Do đó, Java vẫn là lựa chọn an toàn hơn cho tầng Core Backend xử lý dữ liệu nghiệp vụ quan trọng.
+\end{itemize}
+
+\subsection{So sánh và lựa chọn Cơ sở dữ liệu}
+Trong quá trình thiết kế, nhóm đã cân nhắc giữa PostgreSQL và MongoDB để làm kho lưu trữ chính:
+
+\begin{table}[H]
+\centering
+\caption{So sánh PostgreSQL và MongoDB}
+\label{tab:db_comparison}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Đặc điểm} & \textbf{PostgreSQL (RDBMS)} & \textbf{MongoDB (NoSQL)} \\ \hline
+Tính chất & Tối ưu cho dữ liệu có cấu trúc, quan hệ chặt chẽ và phân quyền (RBAC). & Phù hợp dữ liệu phi cấu trúc, thay đổi liên tục, schema linh hoạt. \\ \hline
+Vector Search & Tích hợp qua extension pgvector, lưu vector ngay trong bảng quan hệ. & Cần sử dụng Atlas Search hoặc cấu hình phức tạp bên ngoài. \\ \hline
+Truy vấn & Hỗ trợ SQL chuẩn, thực hiện Hybrid Search (Vector + Metadata) hiệu quả. & Lookup (Join) thường chậm và phức tạp khi kết nối nhiều bảng dữ liệu. \\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Quyết định:} Nhóm chọn PostgreSQL để đảm bảo tính nhất quán giữa dữ liệu nghiệp vụ, phân quyền và khả năng tìm kiếm ngữ nghĩa trên cùng một nền tảng.
+
+\subsection{Pgvector: Biến PostgreSQL thành Vector Database}
+Pgvector là một extension mã nguồn mở cho phép lưu trữ, truy vấn và lập chỉ mục vector ngay trong PostgreSQL.
+
+\textbf{1. Các phép toán khoảng cách (Distance Metrics):} Pgvector hỗ trợ 3 phép toán chính để so sánh vector, tương ứng với các thuật toán Semantic Search đã nêu:
+\begin{itemize}
+    \item \textbf{L2 Distance} (\texttt{<->}): Khoảng cách Euclid.
+    \item \textbf{Cosine Distance} (\texttt{<=>}): Khoảng cách Cosine (1 - Cosine Similarity).
+    \item \textbf{Inner Product} (\texttt{<\# >}): Tích vô hướng.
+\end{itemize}
+
+\textbf{2. Kỹ thuật Lập chỉ mục (Indexing Techniques):} Để tìm kiếm nhanh trong hàng triệu vector, Pgvector cung cấp hai loại chỉ mục chính:
+\begin{itemize}
+    \item \textbf{IVFFlat} (Inverted File with Flat Compression):
+    \begin{itemize}
+        \item \textit{Nguyên lý:} Sử dụng thuật toán K-means để chia không gian vector thành các danh sách (lists) hay cụm. Khi tìm kiếm, nó xác định cụm gần nhất và chỉ quét các vector trong cụm đó.
+        \item \textit{Cấu hình:} \texttt{lists} (số lượng cụm). Khuyến nghị: \texttt{lists = rows / 1000} cho bộ dữ liệu $<$ 1M dòng.
+        \item \textit{Ưu điểm:} Tốn ít RAM, xây dựng chỉ mục nhanh.
+        \item \textit{Nhược điểm:} Độ chính xác (Recall) thấp hơn, cần ``huấn luyện'' lại chỉ mục nếu dữ liệu thay đổi quá nhiều.
+    \end{itemize}
+    \item \textbf{HNSW} (Hierarchical Navigable Small World):
+    \begin{itemize}
+        \item \textit{Nguyên lý:} Xây dựng một đồ thị nhiều lớp (multi-layered graph). Lớp trên cùng thưa thớt để ``nhảy'' nhanh qua không gian, lớp dưới cùng dày đặc để tìm kiếm chính xác cục bộ. Thuật toán duyệt đồ thị theo phương pháp tham lam (greedy traversal).
+        \item \textit{Cấu hình:} \texttt{m} (số liên kết tối đa mỗi node), \texttt{ef\_construction} (độ sâu tìm kiếm khi xây dựng).
+        \item \textit{Ưu điểm:} Hiệu suất truy vấn cực cao (latency thấp), độ chính xác (Recall) rất cao, không cần bước huấn luyện.
+        \item \textit{Nhược điểm:} Tốn nhiều RAM hơn và thời gian xây dựng chỉ mục lâu hơn IVFFlat.
+    \end{itemize}
+\end{itemize}
+
+\textbf{3. Phân tích so sánh: PostgreSQL + Pgvector vs. Specialized Vector DB (Pinecone/Milvus)}
+
+\begin{table}[H]
+\centering
+\caption{So sánh PostgreSQL + Pgvector và Specialized Vector DB}
+\label{tab:pgvector_vs_specialized}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Tiêu chí} & \textbf{PostgreSQL + Pgvector} & \textbf{Specialized Vector DB (Pinecone, Milvus)} \\ \hline
+Kiến trúc & Tích hợp (Integrated). Vector và Metadata nằm chung 1 nơi. & Tách biệt (Segregated). Cần đồng bộ dữ liệu giữa DB chính và Vector DB. \\ \hline
+Tính nhất quán & ACID Compliance. Đảm bảo dữ liệu vector và metadata luôn đồng bộ. & Eventual Consistency. Có độ trễ khi đồng bộ dữ liệu. \\ \hline
+Truy vấn & Hỗ trợ JOIN, Filter phức tạp bằng SQL chuẩn kết hợp Vector Search. & Khả năng filter hạn chế hơn, thường là pre-filter hoặc post-filter đơn giản. \\ \hline
+Vận hành (Ops) & Đơn giản. Tận dụng hạ tầng, backup, security sẵn có của Postgres. & Phức tạp. Phải quản lý thêm một hệ thống mới, quy trình backup riêng. \\ \hline
+Hiệu năng & Rất tốt cho quy mô $<$ 100 triệu vector (với HNSW). & Tối ưu cực đại cho quy mô tỷ vector (Billions scale). \\ \hline
+Chi phí & Thấp (Open source, tận dụng server hiện có). & Cao (Chi phí license hoặc cloud service đắt đỏ). \\ \hline
+\end{tabularx}
+\end{table}
+
+\textbf{Kết luận:} Với bài toán quản trị chính sách nội bộ (quy mô dữ liệu thường dưới vài triệu văn bản), yêu cầu bảo mật cao và tính nhất quán dữ liệu (metadata đi kèm vector), PostgreSQL + Pgvector là lựa chọn tối ưu về chi phí, vận hành và tính năng so với các giải pháp chuyên biệt.
+
+\subsection{FastAPI (AI Service Layer)}
+FastAPI là một Web Framework hiện đại, có hiệu suất cao, được thiết kế chuyên biệt để xây dựng các API với ngôn ngữ lập trình Python. Dựa trên các tiêu chuẩn như Python type hints, FastAPI cho phép lập trình viên xây dựng các ứng dụng web mạnh mẽ, bảo mật và dễ dàng mở rộng. Đây hiện là một trong những framework phổ biến nhất trong cộng đồng khoa học dữ liệu và trí tuệ nhân tạo nhờ tốc độ thực thi nhanh tương đương với các framework của Go hay Node.js.
+
+Trong kiến trúc đa ngôn ngữ của hệ thống PoliWise, FastAPI được lựa chọn để xây dựng phân hệ AI Service. Đây là tầng trung gian chuyên biệt, đóng vai trò ``bộ não'' xử lý các tác vụ liên quan đến Ngôn ngữ tự nhiên (NLP) và Trí tuệ nhân tạo tạo sinh (GenAI).
+
+\textbf{1. Đặc tính kỹ thuật cốt lõi}
+\begin{itemize}
+    \item \textbf{Hiệu năng vượt trội với ASGI:} Khác với các framework Python truyền thống như Flask hay Django (dựa trên WSGI), FastAPI được xây dựng trên nền tảng Starlette và Pydantic, hoạt động dựa trên giao diện ASGI (Asynchronous Server Gateway Interface). Cơ chế này cho phép xử lý các yêu cầu bất đồng bộ (async/await), giúp hệ thống không bị tắc nghẽn (non-blocking) khi phải chờ đợi phản hồi từ các mô hình ngôn ngữ lớn (LLM) hoặc quá trình tính toán vector vốn tiêu tốn thời gian.
+    \item \textbf{Kiểm soát kiểu dữ liệu với Pydantic:} FastAPI tận dụng Python Type Hints để tự động thực hiện việc kiểm tra tính hợp lệ của dữ liệu đầu vào (Data Validation) và chuyển đổi dữ liệu (Serialization). Điều này giúp giảm thiểu các lỗi runtime khi giao tiếp giữa các service và đảm bảo tính nhất quán của dữ liệu trong pipeline AI.
+    \item \textbf{Tự động hóa tài liệu (OpenAPI):} FastAPI tự động sinh ra giao diện tương tác Swagger UI và ReDoc. Đặc điểm này cực kỳ hữu ích trong mô hình Microservices, giúp các nhóm phát triển Backend (NestJS, Spring Boot) dễ dàng nắm bắt cấu trúc các endpoint của AI Service mà không cần trao đổi thủ công.
+\end{itemize}
+
+\textbf{2. Vai trò của FastAPI trong hệ thống PoliWise}
+
+Trong quy trình vận hành của PoliWise, FastAPI không chỉ đơn thuần là một Web API mà đóng vai trò là AI Gateway:
+\begin{itemize}
+    \item \textbf{Thực thi Pipeline RAG:} FastAPI nhận câu hỏi từ người dùng, thực hiện quá trình nhúng (Embedding) câu hỏi, sau đó truy vấn vào PostgreSQL (Pgvector) để tìm kiếm các đoạn văn bản có ngữ nghĩa tương đồng nhất.
+    \item \textbf{Quản lý Prompt Engineering:} Dịch vụ này chịu trách nhiệm cấu trúc hóa ``Lời nhắc'' (Prompt) bằng cách kết hợp câu hỏi của người dùng với ngữ cảnh (context) đã truy xuất được trước khi gửi tới mô hình ngôn ngữ (như GPT-4 hoặc các mô hình mã nguồn mở).
+    \item \textbf{Tiền xử lý dữ liệu NLP:} Thực hiện các tác vụ nặng về tính toán như làm sạch văn bản chính sách, thực hiện chia nhỏ tài liệu (Chunking) theo các chiến lược tối ưu (Recursive Character, Semantic Chunking) trước khi đưa vào kho tri thức.
+\end{itemize}
+
+\textbf{3. Lý do lựa chọn và Ưu điểm so với các Framework khác}
+
+Việc đưa FastAPI vào hệ thống thay vì gộp chung logic AI vào Spring Boot hay NestJS dựa trên các yếu tố chiến lược sau:
+\begin{itemize}
+    \item \textbf{Sự cộng sinh với Hệ sinh thái AI:} Python là ngôn ngữ thống trị trong lĩnh vực AI/ML. Bằng cách sử dụng FastAPI, dự án có thể tận dụng trực tiếp các thư viện mạnh mẽ như LangChain, LlamaIndex, Hugging Face Transformers và PyTorch mà không cần qua các lớp bọc (wrapper) phức tạp.
+    \item \textbf{Tối ưu hóa tài nguyên:} Các tác vụ AI thường yêu cầu thư viện nặng và đôi khi cần GPU. Việc tách rời FastAPI thành một Microservice độc lập giúp nhóm dễ dàng triển khai nó trên các container có cấu hình phần cứng phù hợp, tránh làm ảnh hưởng đến hiệu năng của Core Backend (Spring Boot).
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và nhược điểm của FastAPI}
+\label{tab:fastapi_pros_cons}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Nhược điểm} \\ \hline
+Tốc độ thực thi: Nhanh tương đương với Go và Node.js nhờ cơ chế bất đồng bộ. & Quản lý Dependency: Các thư viện AI thường rất nặng, đòi hỏi quản lý môi trường (Conda/Docker) chặt chẽ. \\ \hline
+Phát triển thần tốc: Cú pháp hiện đại, ngắn gọn, giảm thiểu mã nguồn ``rác'' (boilerplate). & Tính bảo mật: Mặc dù mạnh mẽ, nhưng các tính năng về Security/Auth nâng cao thường phải tự cấu hình hoặc tích hợp thêm, không ``out-of-the-box'' như Spring Security. \\ \hline
+Tích hợp AI: Khả năng tương thích 100\% với các công cụ nghiên cứu AI mới nhất. & Độ phức tạp kiến trúc: Việc duy trì thêm một ngữ cảnh ngôn ngữ (Python) đòi hỏi đội ngũ phải có kỹ năng đa dạng. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{LangChain (AI Orchestration Framework)}
+\textbf{1. Khái niệm}
+
+LangChain là một framework mã nguồn mở được thiết kế để đơn giản hóa quá trình xây dựng các ứng dụng tích hợp Mô hình ngôn ngữ lớn (LLM). Thay vì phải lập trình thủ công các bước xử lý phức tạp, LangChain cung cấp các công cụ và giao diện chuẩn hóa để kết nối LLM với các nguồn dữ liệu bên ngoài, bộ nhớ và các công cụ tính toán khác, giúp hiện thực hóa các ứng dụng AI có khả năng ``suy luận'' dựa trên dữ liệu thực tế.
+
+\textbf{2. Vai trò trong hệ thống PoliWise}
+
+Trong các hệ thống RAG, LangChain thường đóng vai trò là lớp điều phối pipeline AI:
+\begin{itemize}
+    \item \textbf{Kết nối Retriever và Generator:} Tự động hóa việc lấy dữ liệu từ cơ sở dữ liệu vector (Retriever) và đưa vào mô hình sinh (Generator) một cách chính xác.
+    \item \textbf{Quản lý Prompt Templates:} Chuẩn hóa các lời nhắc (Prompts) để đảm bảo LLM sinh câu trả lời bám sát nội dung tri thức nội bộ, hạn chế hiện tượng ảo giác.
+    \item \textbf{Xử lý văn bản thông minh:} Sử dụng các bộ tách văn bản (Text Splitters) để đảm bảo dữ liệu được chia nhỏ nhưng vẫn giữ nguyên vẹn ngữ nghĩa.
+\end{itemize}
+
+\textbf{3. Các thành phần chính sử dụng trong dự án}
+\begin{itemize}
+    \item \textbf{LangChain Expression Language (LCEL):} Ngôn ngữ khai báo giúp xây dựng các chuỗi xử lý (chains) tùy biến một cách linh hoạt và dễ đọc.
+    \item \textbf{Document Loaders:} Hỗ trợ đọc dữ liệu từ nhiều định dạng như PDF, Docx của các văn bản chính sách.
+    \item \textbf{Vector Store Wrapper:} Lớp trung gian giúp FastAPI tương tác mượt mà với phần mở rộng pgvector của PostgreSQL.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và nhược điểm của LangChain}
+\label{tab:langchain_pros_cons}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Nhược điểm} \\ \hline
+Hệ sinh thái khổng lồ: Hỗ trợ hầu hết các công nghệ AI/Vector DB mới nhất trên thị trường hiện nay. & Độ phức tạp tăng dần: Việc nắm vững các khái niệm trừu tượng (Chains, Agents, Memory) đòi hỏi thời gian nghiên cứu sâu. \\ \hline
+Tiêu chuẩn hóa: Giúp mã nguồn AI trở nên chuyên nghiệp, dễ bảo trì hơn so với việc viết các hàm xử lý thủ công. & Tốc độ thay đổi nhanh: Thư viện cập nhật phiên bản liên tục, đôi khi gây ra các lỗi không tương thích với phiên bản cũ (breaking changes). \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{NLP Pipeline: Quy trình tiền xử lý dữ liệu văn bản}
+\textbf{1. Khái niệm}
+
+NLP Pipeline (Luồng xử lý ngôn ngữ tự nhiên) là một tập hợp các công đoạn kỹ thuật được sắp xếp theo trình tự nhằm biến đổi dữ liệu văn bản thô (unstructured data) từ các nguồn tài liệu chính sách thành định dạng dữ liệu có cấu trúc, sạch và tối ưu cho các mô hình học máy. Trong hệ thống RAG, chất lượng của câu trả lời phụ thuộc trực tiếp vào chất lượng dữ liệu đầu vào; do đó, một pipeline NLP chuẩn chỉnh là điều kiện tiên quyết để giảm thiểu hiện tượng ``ảo giác'' và tăng tính chính xác của LLM.
+
+\textbf{2. Các giai đoạn thực thi trong hệ thống PoliWise}
+
+Để tối ưu hóa cho việc tìm kiếm ngữ nghĩa (Semantic Search), hệ thống triển khai pipeline với các bước cụ thể sau:
+
+\textbf{a. Làm sạch và chuẩn hóa văn bản (Text Cleaning \& Normalization)}
+
+Dữ liệu chính sách và quy trình nội bộ thường chứa nhiều thành phần ``nhiễu'' có thể làm giảm độ chính xác của vector embedding:
+\begin{itemize}
+    \item \textbf{Chuẩn hóa Unicode:} Chuyển đổi toàn bộ văn bản về bảng mã chuẩn, xử lý lỗi font chữ hoặc lỗi trích xuất ký tự từ các file cũ.
+    \item \textbf{Loại bỏ nhiễu định dạng:} Loại bỏ các thành phần không mang giá trị ngữ nghĩa như Header, Footer, số trang và watermark trong file PDF.
+    \item \textbf{Chuẩn hóa cấu trúc:} Hiệu chỉnh khoảng trắng thừa, dấu câu và định dạng đoạn văn để đảm bảo tính liên tục của nội dung văn bản.
+    \item \textbf{Phát hiện ngôn ngữ:} Tự động nhận diện ngôn ngữ để áp dụng các bộ quy tắc xử lý thống nhất, đảm bảo tính nhất quán trong không gian vector.
+\end{itemize}
+
+\textbf{b. Chiến lược Chunking (Chia nhỏ tài liệu)}
+
+Do các mô hình ngôn ngữ lớn (LLM) có giới hạn về cửa sổ ngữ cảnh (Context Window), tài liệu cần được chia thành các đoạn nhỏ (chunks) để tối ưu việc truy xuất và xử lý:
+\begin{itemize}
+    \item \textbf{Chunking theo ngữ nghĩa (Semantic/Paragraph-based):} Đây là chiến lược ưu tiên, sử dụng các dấu hiệu cấu trúc (như dấu xuống dòng kép \texttt{\textbackslash n\textbackslash n}) để đảm bảo các đoạn văn bản được giữ nguyên vẹn ý nghĩa.
+    \item \textbf{Cấu hình Size và Overlap:}
+    \begin{itemize}
+        \item \textit{Chunk Size:} Thiết lập kích thước cố định (ví dụ: 512–1024 tokens) để cân bằng giữa lượng thông tin cung cấp và độ chính xác khi tìm kiếm.
+        \item \textit{Chunk Overlap:} Duy trì sự chồng lấn (ví dụ: 50–200 tokens) giữa các đoạn kế tiếp để tránh việc mất thông tin ngữ cảnh tại ranh giới các điểm cắt.
+    \end{itemize}
+\end{itemize}
+
+\textbf{c. Gắn nhãn Metadata (Metadata Tagging)}
+
+Mỗi đoạn văn sau khi chia nhỏ sẽ được gắn kèm thông tin bổ trợ, hỗ trợ cho việc lọc (Filtering) và thực hiện Hybrid Search (tìm kiếm lai) trên PostgreSQL:
+\begin{itemize}
+    \item \textbf{Thông tin định danh:} Tên tài liệu, ID chính sách, chương/mục.
+    \item \textbf{Thông tin quản trị:} Phòng ban sở hữu, ngày hiệu lực của chính sách.
+    \item \textbf{Mục tiêu:} Giúp thu hẹp không gian tìm kiếm và đảm bảo LLM có thể trích dẫn chính xác nguồn gốc thông tin trong câu trả lời.
+\end{itemize}
+
+\textbf{3. Tầm quan trọng của Pipeline đối với hệ thống}
+
+Việc triển khai pipeline NLP chặt chẽ mang lại những lợi ích trực tiếp cho PoliWise:
+\begin{itemize}
+    \item \textbf{Giảm nhiễu (Noise Reduction):} Giúp mô hình embedding tạo ra các vector đặc (dense vectors) phản ánh chính xác ý nghĩa ngữ nghĩa của văn bản.
+    \item \textbf{Tăng độ chính xác (Groundedness):} Giảm thiểu hiện tượng ảo giác bằng cách chỉ cung cấp cho LLM những đoạn văn bản liên quan nhất và đã được chuẩn hóa.
+    \item \textbf{Tối ưu hóa tài nguyên:} Giảm thiểu lượng token thừa gửi đến LLM, từ đó tối ưu hóa chi phí và thời gian phản hồi của hệ thống.
+\end{itemize}
+
+\subsection{Mô hình Embedding và biểu diễn ngữ nghĩa}
+\textbf{1. Khái niệm}
+
+Mô hình Embedding (Nhúng) là kỹ thuật chuyển đổi các đơn vị dữ liệu rời rạc như từ ngữ, câu hoặc đoạn văn thành các vector số thực liên tục trong không gian nhiều chiều. Đây là ``cầu nối'' cốt lõi cho phép máy tính có thể thực hiện các phép toán trên ngôn ngữ tự nhiên, hiểu được ý nghĩa ngữ nghĩa thay vì chỉ khớp các từ khóa bề mặt.
+
+\textbf{2. Vai trò trong hệ thống PoliWise}
+
+Trong kiến trúc RAG của dự án, các mô hình nhúng đóng vai trò then chốt tại hai thời điểm:
+\begin{itemize}
+    \item \textbf{Giai đoạn chuẩn bị (Indexing):} Chuyển đổi các đoạn văn bản (chunks) sau khi đã qua pipeline NLP thành các vector đặc (dense vectors) để lưu trữ vào cơ sở dữ liệu vector.
+    \item \textbf{Giai đoạn truy vấn (Retrieval):} Chuyển đổi câu hỏi của người dùng thành một vector truy vấn cùng không gian để tìm kiếm các đoạn văn bản có ý nghĩa tương đồng nhất.
+\end{itemize}
+
+\textbf{3. Các mô hình được lựa chọn}
+
+Hệ thống ưu tiên sử dụng các mô hình mã nguồn mở thuộc họ Sentence-Transformers, được thiết kế để tạo ra các biểu diễn (representation) tối ưu cho cấp độ câu và đoạn văn.
+
+\textbf{a. Mô hình all-MiniLM-L6-v2}
+
+Đây là mô hình được tối ưu hóa cho tốc độ và hiệu quả tài nguyên:
+\begin{itemize}
+    \item \textbf{Đặc điểm:} Sử dụng kiến trúc Transformer thu nhỏ với 6 tầng (layers).
+    \item \textbf{Kích thước vector:} 384 chiều.
+    \item \textbf{Ưu điểm:} Tốc độ sinh embedding cực nhanh, yêu cầu bộ nhớ RAM thấp, phù hợp cho các môi trường triển khai có tài nguyên hạn chế hoặc yêu cầu độ trễ thấp nhất.
+\end{itemize}
+
+\textbf{b. Mô hình all-mpnet-base-v2}
+
+Đây là mô hình tập trung vào độ chính xác cao nhất trong họ mô hình Sentence-Transformers:
+\begin{itemize}
+    \item \textbf{Đặc điểm:} Dựa trên kiến trúc MPNet, kết hợp các ưu điểm của cả Masked Language Modeling (như BERT) và Permuted Language Modeling (như XLNet).
+    \item \textbf{Kích thước vector:} 768 chiều.
+    \item \textbf{Ưu điểm:} Khả năng nắm bắt ngữ cảnh và mối quan hệ giữa các từ trong câu cực kỳ tốt, đạt điểm số cao trong các bài kiểm tra về độ tương đồng văn bản (Semantic Text Similarity).
+\end{itemize}
+
+\textbf{4. Đặc điểm kỹ thuật và Chuẩn hóa}
+\begin{itemize}
+    \item \textbf{Biểu diễn ngữ nghĩa (Semantic Preservation):} Các mô hình này đảm bảo rằng các đoạn văn bản có nội dung tương đồng sẽ nằm gần nhau trong không gian vector. Ví dụ: Vector của ``quy định nghỉ phép'' sẽ nằm gần vector của ``chế độ nghỉ dưỡng sức''.
+    \item \textbf{Chuẩn hóa L2 (L2 Normalization):} Các vector đầu ra được chuẩn hóa để có độ dài bằng 1. Việc chuẩn hóa này giúp phép toán Tích vô hướng (Dot Product) trở nên tương đương với Độ tương đồng Cosine (Cosine Similarity).
+    \item \textbf{Phép toán tương đồng:} Hệ thống sử dụng công thức tính khoảng cách Cosine để đo lường mức độ liên quan.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{So sánh các mô hình Embedding sử dụng}
+\label{tab:embedding_comparison}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Đặc điểm} & \textbf{all-MiniLM-L6-v2} & \textbf{all-mpnet-base-v2} \\ \hline
+Kích thước (Dimensions) & 384 chiều & 768 chiều \\ \hline
+Hiệu năng (Tốc độ) & Rất nhanh (Ưu tiên) & Trung bình \\ \hline
+Độ chính xác (Quality) & Tốt & Xuất sắc \\ \hline
+Ngữ cảnh (Max Seq Length) & 256 tokens & 384 tokens \\ \hline
+Mục đích sử dụng & Xử lý yêu cầu thời gian thực. & Xử lý các tài liệu chính sách phức tạp. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Mô hình sinh ngôn ngữ (LLM) và Hệ thống phục vụ mô hình (Model Serving)}
+\textbf{1. Khái niệm chung}
+\begin{itemize}
+    \item \textbf{Large Language Model (LLM):} Là các mô hình học sâu có hàng tỷ tham số, được huấn luyện trên tập dữ liệu khổng lồ để hiểu và tạo ra văn bản tự nhiên. Trong hệ thống RAG, LLM đóng vai trò là ``bộ não'' tiếp nhận câu hỏi và ngữ cảnh để tổng hợp thành câu trả lời hoàn chỉnh.
+    \item \textbf{Model Serving:} Là lớp hạ tầng phần mềm cho phép triển khai các mô hình LLM thành các dịch vụ API. Hệ thống phục vụ mô hình đảm bảo việc quản lý tài nguyên GPU, tối ưu hóa tốc độ phản hồi và khả năng chịu tải khi có nhiều người dùng đồng thời.
+\end{itemize}
+
+\textbf{2. Các mô hình sinh ngôn ngữ (LLM) được lựa chọn}
+
+Hệ thống ưu tiên các mô hình mã nguồn mở thế hệ mới, được tinh chỉnh theo dạng Instruction-tuned (huấn luyện theo chỉ dẫn) để tối ưu cho bài toán hỏi đáp tri thức nội bộ.
+
+\textbf{a. LLaMA 3 (Large Language Model Meta AI)}
+
+LLaMA 3 là dòng mô hình ngôn ngữ lớn mạnh mẽ nhất của Meta tính đến hiện tại.
+\begin{itemize}
+    \item \textbf{Đặc điểm:} Sử dụng kiến trúc Transformer tiêu chuẩn nhưng được huấn luyện trên 15 nghìn tỷ token. Mô hình có khả năng hiểu ngữ cảnh cực tốt và hỗ trợ tiếng Việt hiệu quả hơn các phiên bản trước.
+    \item \textbf{Ưu điểm:} Khả năng suy luận logic mạnh mẽ, tuân thủ nghiêm ngặt các chỉ dẫn trong Prompt. Bản 8B (8 tỷ tham số) đủ gọn nhẹ để chạy on-premise nhưng vẫn mang lại chất lượng phản hồi tương đương các mô hình đóng.
+\end{itemize}
+
+\textbf{b. Mistral / Mixtral (Mistral AI)}
+
+Đến từ Mistral AI, các mô hình này nổi tiếng với hiệu quả tính toán vượt trội.
+\begin{itemize}
+    \item \textbf{Mistral 7B:} Sử dụng kỹ thuật Sliding Window Attention, cho phép xử lý các chuỗi văn bản dài với chi phí tính toán thấp.
+    \item \textbf{Mixtral 8x7B (MoE):} Sử dụng kiến trúc Mixture of Experts (Hỗn hợp các chuyên gia). Thay vì kích hoạt toàn bộ tham số, mô hình chỉ sử dụng một nhóm nhỏ các ``chuyên gia'' cho mỗi token, giúp đạt hiệu suất của mô hình lớn với tốc độ của mô hình nhỏ.
+    \item \textbf{Ưu điểm:} Khả năng xử lý ngữ cảnh dài ổn định, rất phù hợp khi cần đưa nhiều tài liệu chính sách vào prompt của PoliWise.
+\end{itemize}
+
+\textbf{3. Hệ thống phục vụ mô hình (Model Serving)}
+
+Để phục vụ các mô hình LLM nêu trên một cách hiệu quả trên hạ tầng nội bộ, hệ thống triển khai các nền tảng tối ưu hóa inference chuyên dụng.
+
+\textbf{a. vLLM (Versatile LLM Serving)}
+
+vLLM là một thư viện mã nguồn mở tốc độ cao để phục vụ LLM, nổi tiếng với thuật toán quản lý bộ nhớ đột phá.
+\begin{itemize}
+    \item \textbf{PagedAttention:} Đây là kỹ thuật cốt lõi của vLLM, lấy cảm hứng từ quản lý bộ nhớ ảo trong hệ điều hành. Nó cho phép lưu trữ các KV Cache (dữ liệu trung gian của LLM) trong các khối bộ nhớ không liên tục, giảm thiểu việc lãng phí tài nguyên GPU lên đến 96\%.
+    \item \textbf{Ưu điểm:} Tăng thông lượng (throughput) lên gấp nhiều lần so với các thư viện truyền thống, cho phép xử lý đồng thời hàng chục request mà không gây treo hệ thống.
+\end{itemize}
+
+\textbf{b. Hugging Face Text Generation Inference (TGI)}
+
+Một bộ công cụ được viết bằng Rust và Python, thiết kế để triển khai LLM trong môi trường production thực tế.
+\begin{itemize}
+    \item \textbf{Tính năng:} Hỗ trợ Continuous Batching (ghép các request mới vào quá trình xử lý đang chạy), tối ưu hóa các toán tử nhân ma trận (Flash Attention) và hỗ trợ sẵn các cơ chế bảo mật API.
+    \item \textbf{Ưu điểm:} Cực kỳ ổn định, dễ dàng triển khai dưới dạng Docker container và tương thích hoàn hảo với hệ sinh thái Hugging Face.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Tổng hợp các thành phần triển khai LLM trong hệ thống}
+\label{tab:llm_serving_components}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Thành phần} & \textbf{Công nghệ sử dụng} & \textbf{Mục tiêu chính trong PoliWise} \\ \hline
+Core LLM & LLaMA 3 (8B), Mixtral & Sinh câu trả lời thông minh dựa trên tri thức nội bộ. \\ \hline
+Inference Server & vLLM / TGI & Tối ưu hóa hiệu suất GPU và giảm độ trễ phản hồi (latency). \\ \hline
+Deployment & Self-hosted (On-premise) & Đảm bảo an toàn thông tin, dữ liệu không đi ra ngoài doanh nghiệp. \\ \hline
+Interface & OpenAI Compatible API & Cho phép FastAPI và LangChain kết nối dễ dàng qua chuẩn chung. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Mô hình tổng thể hệ thống}
+Hệ thống được thiết kế theo kiến trúc Microservices đa ngôn ngữ, vận hành theo luồng xử lý khép kín sau:
+\begin{enumerate}
+    \item \textbf{Giao tiếp Client-Side (Next.js):} Người dùng tương tác trên giao diện, Next.js đóng gói dữ liệu và gửi yêu cầu RESTful API đến địa chỉ của API Gateway.
+    \item \textbf{Cổng bảo mật \& Định tuyến (NestJS):} Đóng vai trò API Gateway, NestJS chặn bắt yêu cầu để xác thực danh tính (JWT). Sau khi xác thực thành công, yêu cầu được điều hướng (routing) chính xác đến dịch vụ nghiệp vụ phía sau.
+    \item \textbf{Xử lý nghiệp vụ trung tâm (Spring Boot):} Spring Boot tiếp nhận yêu cầu, thực hiện các logic nghiệp vụ (CRUD, phân quyền) và truy xuất dữ liệu quan hệ từ PostgreSQL. Đối với các tác vụ thông minh, Spring Boot đóng vai trò client gọi API nội bộ sang AI Service.
+    \item \textbf{Xử lý trí tuệ nhân tạo (FastAPI):} Dịch vụ FastAPI thực thi quy trình RAG: chuyển đổi văn bản thành vector, tìm kiếm tương đồng trên Pgvector và kích hoạt LLM để sinh câu trả lời, sau đó trả kết quả về Spring Boot.
+    \item \textbf{Tổng hợp \& Phản hồi:} Dữ liệu từ Spring Boot (bao gồm kết quả từ AI) được trả ngược về NestJS. Tại đây, phản hồi được chuẩn hóa cấu trúc, lọc bỏ thông tin nhạy cảm trước khi gửi về Client (Next.js) hiển thị.
+\end{enumerate}
+
+\subsection{Ưu và nhược điểm kiến trúc}
+
+\textbf{1. Ưu điểm}
+\begin{itemize}
+    \item \textbf{Tối ưu hóa công nghệ (Polyglot Advantage):} Hệ thống tận dụng được thế mạnh đặc thù của từng ngôn ngữ: Node.js xử lý I/O nhanh cho Gateway, Java đảm bảo sự chặt chẽ cho nghiệp vụ cốt lõi, và Python cung cấp hệ sinh thái thư viện AI mạnh mẽ nhất.
+    \item \textbf{Khả năng mở rộng độc lập (Independent Scalability):} Có thể cấp phát tài nguyên riêng biệt cho từng dịch vụ. Contoh: Dịch vụ AI (FastAPI) có thể được chạy trên server có GPU để xử lý tính toán nặng mà không làm ảnh hưởng đến tài nguyên của dịch vụ nghiệp vụ (Spring Boot).
+    \item \textbf{Phân tách trách nhiệm (Separation of Concerns):} Việc tách biệt rõ ràng giữa Frontend, Gateway, Business Logic và AI Service giúp mã nguồn dễ quản lý, giảm thiểu sự phụ thuộc và rủi ro khi một thành phần gặp sự cố (Fault Isolation).
+\end{itemize}
+
+\textbf{2. Nhược điểm}
+\begin{itemize}
+    \item \textbf{Độ phức tạp vận hành (Operational Complexity):} Việc triển khai và quản lý nhiều dịch vụ (containers) đòi hỏi quy trình DevOps phức tạp hơn (Docker Compose, cấu hình mạng) so với mô hình nguyên khối truyền thống.
+    \item \textbf{Độ trễ giao tiếp (Network Latency):} Request phải đi qua nhiều bước trung gian (Next.js $\rightarrow$ NestJS $\rightarrow$ Spring Boot $\rightarrow$ FastAPI) có thể phát sinh độ trễ nhỏ, tuy nhiên điều này chấp nhận được nhờ tốc độ mạng nội bộ server.
+    \item \textbf{Thách thức trong gỡ lỗi (Debugging \& Tracing):} Việc truy vết nguyên nhân lỗi khó khăn hơn do luồng xử lý trải rộng trên nhiều dịch vụ khác nhau, đòi hỏi phải có cơ chế ghi log tập trung hiệu quả.
+\end{itemize}
+
+
+\section{Các nghiên cứu hoặc hệ thống liên quan}
+Để đánh giá tính khả thi và hiệu quả của kiến trúc đề xuất, đề tài tham khảo các mô hình hệ thống thực tế đang áp dụng kiến trúc Microservices đa ngôn ngữ (Polyglot Programming) và mẫu thiết kế Backend For Frontend (BFF).
+
+\subsection{Kiến trúc Microservices đa ngôn ngữ (Polyglot Architecture) trong các nền tảng thương mại điện tử (E-commerce)}
+Trong các hệ thống thương mại điện tử lớn (như Shopee, Amazon, hoặc các kiến trúc mẫu của Tiki Engineering), việc sử dụng một ngôn ngữ duy nhất là không tối ưu. Thay vào đó, họ áp dụng mô hình đa ngôn ngữ tương tự như đề tài:
+\begin{itemize}
+    \item \textbf{Tầng giao diện (Frontend):} Sử dụng các Framework JavaScript (React/Next.js) để tối ưu hóa SEO (Search Engine Optimization) và trải nghiệm người dùng (UX), đảm bảo tốc độ tải trang nhanh cho khách hàng cuối.
+    \item \textbf{Tầng xử lý logic nghiệp vụ (Core Backend):} Các phân hệ quan trọng như Quản lý đơn hàng (Order), Thanh toán (Payment) thường được xây dựng bằng Java (Spring Boot) hoặc Go. Lý do tương tự như sự lựa chọn của đề tài: Java có tính ổn định cao, quản lý transaction (giao dịch) tốt và bảo mật chặt chẽ cho dữ liệu nhạy cảm.
+    \item \textbf{Sự tương đồng:} Đề tài áp dụng cách chia tách này nhằm tận dụng điểm mạnh của Next.js cho giao diện và sự mạnh mẽ của Spring Boot cho các nghiệp vụ cốt lõi.
+\end{itemize}
+
+\subsection{Mô hình Backend For Frontend (BFF) tại Netflix và các nền tảng Streaming}
+Netflix là đơn vị tiên phong trong việc áp dụng kiến trúc Microservices. Một trong những bài học quan trọng từ Netflix là việc sử dụng mô hình Backend For Frontend (BFF).
+\begin{itemize}
+    \item \textbf{Cách hoạt động:} Thay vì để Frontend gọi trực tiếp vào hàng trăm microservices nhỏ lẻ phía dưới, hệ thống xây dựng một lớp trung gian (API Gateway/BFF) thường được viết bằng Node.js.
+    \item \textbf{Vai trò của Node.js:} Lớp này chịu trách nhiệm tổng hợp dữ liệu (Aggregation) từ các service Java phía dưới, lọc bỏ các trường thừa và trả về một JSON gọn nhẹ nhất cho Client.
+    \item \textbf{Áp dụng vào đề tài:} Trong hệ thống này, NestJS đóng vai trò tương tự như lớp BFF của Netflix. NestJS nhận request từ Next.js, thực hiện xác thực, sau đó mới gọi sang Spring Boot. Điều này giúp giảm độ trễ mạng (latency) cho Client và giảm tải xử lý logic hiển thị cho Spring Boot.
+\end{itemize}
+
+\subsection{Xu hướng chuyển dịch từ Monolith sang Microservices}
+Nghiên cứu của Martin Fowler và các báo cáo công nghệ từ ThoughtWorks chỉ ra xu hướng tách biệt giữa lớp ``Trình bày'' (Presentation) và lớp ``Nghiệp vụ'' (Business Logic):
+\begin{itemize}
+    \item Các hệ thống cũ thường dùng JSP/Thymeleaf (Java thuần) để render giao diện, gây khó khăn khi muốn phát triển ứng dụng Mobile hoặc thay đổi UI.
+    \item Hệ thống hiện đại (như kiến trúc đề tài đề xuất) tách hẳn Frontend (Next.js) ra khỏi Backend. Việc sử dụng NestJS làm cầu nối giúp hệ thống dễ dàng mở rộng sang các nền tảng khác (Mobile App) trong tương lai mà không cần viết lại logic nghiệp vụ tại Spring Boot.
+\end{itemize}
+
+\textbf{Kết luận:} Việc kết hợp Next.js - NestJS - Spring Boot không chỉ là sự lắp ghép ngẫu nhiên mà là sự tuân thủ các mẫu thiết kế (Design Patterns) đã được kiểm chứng trong công nghiệp phần mềm: tận dụng Node.js cho các tác vụ I/O non-blocking (xử lý kết nối, realtime) và Java cho các tác vụ CPU-intensive (xử lý nghiệp vụ phức tạp).
+
+\subsection{Thomson Reuters: Hỗ trợ khách hàng và chuyên gia pháp lý}
+\begin{itemize}
+    \item \textbf{Bối cảnh:} Thomson Reuters là tập đoàn cung cấp thông tin thông minh cho doanh nghiệp và chuyên gia. Họ đối mặt với thách thức khi nhân viên hỗ trợ phải tra cứu hàng trăm nghìn tài liệu kỹ thuật, pháp lý phức tạp để trả lời khách hàng.
+    \item \textbf{Giải pháp:} Xây dựng hệ thống RAG sử dụng vector embeddings để tìm kiếm tài liệu liên quan. Hệ thống chia nhỏ văn bản, lưu vào Vector DB (Milvus), sau đó dùng mô hình Sequence-to-Sequence (như GPT-4) để tổng hợp câu trả lời từ các đoạn văn bản tìm được.
+    \item \textbf{Kết quả:} Hệ thống giúp nhân viên truy xuất thông tin chính xác, giảm thiểu ảo giác (hallucinations) nhờ việc câu trả lời luôn được căn cứ (grounded) vào tài liệu nội bộ. Điều này giúp nâng cao đáng kể chất lượng dịch vụ khách hàng và giảm tải nhận thức (cognitive overload) cho nhân viên.
+\end{itemize}
+
+\subsection{Grab: Tự động hóa báo cáo và điều tra gian lận (Fraud Investigation)}
+\begin{itemize}
+    \item \textbf{Bối cảnh:} Đội ngũ phân tích dữ liệu tại Grab tốn quá nhiều thời gian cho các tác vụ lặp lại như viết truy vấn SQL để tạo báo cáo định kỳ hoặc tra cứu dữ liệu để điều tra các vụ việc gian lận.
+    \item \textbf{Giải pháp:} Grab phát triển hai công cụ nội bộ dựa trên RAG:
+    \begin{itemize}
+        \item \textit{Report Summarizer:} Tự động lấy dữ liệu từ các API nội bộ (Data-Arks) và dùng LLM tóm tắt thành báo cáo gửi qua Slack.
+        \item \textit{A* Bot:} Trợ lý ảo giúp nhân viên điều tra gian lận bằng cách tự động tìm kiếm và thực thi các truy vấn dữ liệu liên quan.
+    \end{itemize}
+    \item \textbf{Kết quả định lượng:} Tiết kiệm trung bình 3–4 giờ làm việc cho mỗi báo cáo được tạo ra. Giúp nhân viên không chuyên về kỹ thuật cũng có thể tự khai thác dữ liệu (self-service), tăng tốc độ ra quyết định.
+\end{itemize}
+
+\subsection{LinkedIn: Hỗ trợ kỹ thuật khách hàng với Knowledge Graph}
+\begin{itemize}
+    \item \textbf{Bối cảnh:} LinkedIn cần giải quyết lượng lớn các phiếu yêu cầu hỗ trợ (tickets) từ khách hàng một cách nhanh chóng.
+    \item \textbf{Giải pháp:} Họ không chỉ dùng RAG trên văn bản thuần túy mà kết hợp với Đồ thị tri thức (Knowledge Graph) để hiểu mối quan hệ giữa các lỗi kỹ thuật và giải pháp. Hệ thống trích xuất các thực thể (entities) và quan hệ từ các ticket cũ để xây dựng cơ sở tri thức.
+    \item \textbf{Kết quả định lượng:} Giảm thời gian giải quyết trung bình (median resolution time) xuống 28.6\% cho mỗi vấn đề hỗ trợ khách hàng, một con số ấn tượng về hiệu quả hoạt động.
+\end{itemize}
+
+\clearpage
+
+% =====================================================
+% CHƯƠNG III: THIẾT KẾ HỆ THỐNG
+% =====================================================
+\chapter{THIẾT KẾ HỆ THỐNG}
+
+
+
+Chương này trình bày chi tiết quá trình khảo sát hiện trạng, thu thập và phân tích yêu cầu, thiết kế tổng thể kiến trúc hệ thống, thiết kế cơ sở dữ liệu và đặc tả chức năng của hệ thống trợ lý AI PoliWise.
+
+
+\rule{\textwidth}{0.5pt}
+
+
+\section{Khảo sát hệ thống và thu thập yêu cầu}
+
+\subsection{Thực trạng hệ thống hiện tại (AS-IS)}
+Qua khảo sát thực tế, nhóm nghiên cứu nhận thấy hệ thống quản lý tri thức nội bộ tại nhiều doanh nghiệp hiện nay đang tồn tại những hạn chế nghiêm trọng:
+\begin{itemize}
+    \item \textbf{Lưu trữ phân tán:} Tài liệu chính sách và quy trình đang nằm rải rác trên nhiều nền tảng khác nhau như Google Drive, SharePoint, email và các file PDF scan. Điều này dẫn đến tình trạng thiếu một kho tri thức tập trung, buộc nhân viên phải tìm kiếm thủ công (Ctrl+F) từng tài liệu riêng lẻ mà không có công cụ tìm kiếm ngữ nghĩa hỗ trợ.
+    \item \textbf{Quản lý và bảo mật yếu:} Không có hệ thống quản lý phiên bản rõ ràng, dẫn đến rủi ro sử dụng nhầm tài liệu đã lỗi thời. Phân quyền truy cập chưa chặt chẽ, khó kiểm soát ai được phép truy cập tài liệu nào. Đồng thời, doanh nghiệp thiếu các báo cáo phân tích để nắm bắt nhu cầu tra cứu thực tế của nhân viên.
+\end{itemize}
+
+\subsection{Các vấn đề tồn tại}
+Theo báo cáo của McKinsey \& Company và APQC (American Productivity \& Quality Center — Trung tâm Năng suất và Chất lượng Hoa Kỳ), trung bình mỗi nhân viên lãng phí khoảng \textbf{9,3 giờ mỗi tuần} cho việc tìm kiếm thông tin nội bộ. Báo cáo cũng chỉ ra ba vấn đề cốt lõi:
+
+\textbf{1.} \textbf{Thông tin tách rời khỏi chuyên gia (Information vs. Creators):} Tri thức được ghi nhận trong tài liệu nhưng không gắn liền với người tạo ra nó, khiến việc tra cứu bối cảnh và ý nghĩa trở nên khó khăn.
+
+
+\textbf{2.} \textbf{Thông tin bị cô lập (Information Silos):} Dữ liệu bị phân mảnh giữa các bộ phận, phòng ban, không có sự liên thông.
+
+
+\textbf{3.} \textbf{Thông tin lỗi thời, thiếu cập nhật (Outdated Information):} Các tài liệu không được cập nhật kịp thời, dẫn đến rủi ro sử dụng thông tin sai lệch.
+
+
+Ngoài ra, các khảo sát bổ sung cho thấy \textbf{62\%} người lao động kỹ thuật số mất quá nhiều thời gian tìm kiếm thông tin cần thiết, và \textbf{47\%} gặp khó khăn trong việc tìm đúng thông tin phù hợp. Theo Bloomfire (2025), hiệu quả hợp tác liên phòng ban giảm khoảng 30\% do tình trạng silo kiến thức. Bên cạnh đó, nếu sử dụng nhầm phiên bản tài liệu cũ, doanh nghiệp có thể đối mặt với rủi ro tuân thủ và vi phạm chính sách nghiêm trọng.
+
+\subsection{Đối tượng liên quan (Stakeholders)}
+Qua quá trình phân tích, nhóm xác định ba nhóm đối tượng chính chịu ảnh hưởng trực tiếp từ hệ thống:
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\rowcolor{gray!10}
+Đối tượng & Vấn đề gặp phải \\ \hline
+\textbf{Nhân viên (End-users)} & Gặp khó khăn và lãng phí thời gian khi tra cứu chính sách. Dễ hoang mang vì thông tin không đầy đủ hoặc lỗi thời; bực bội với cách tìm kiếm thủ công. \\ \hline
+\textbf{Bộ phận HR / Legal} & Thiếu thông tin về thói quen tra cứu của người dùng. Khó nắm bắt nhu cầu để cải thiện nội dung. Quá bận rộn với việc soạn thảo và cập nhật thủ công. \\ \hline
+\textbf{Quản trị viên IT} & Khối lượng công việc lớn trong việc nhập liệu, vận hành và duy trì hệ thống. Thiếu công cụ tự động hóa; chịu áp lực lớn về bảo mật và cấu hình phân quyền. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Khảo sát hệ thống trên thị trường}
+Nhóm đã tiến hành khảo sát các giải pháp quản trị tri thức doanh nghiệp tiêu biểu trên thị trường để rút ra bài học kinh nghiệm:
+\begin{itemize}
+    \item \textbf{IBM Watson Discovery:} Nền tảng Enterprise AI Search mạnh mẽ, kết hợp NLP và tìm kiếm ngữ nghĩa (Semantic Search). Có khả năng trích xuất insight từ lượng lớn dữ liệu phi cấu trúc và hỗ trợ tốt cho môi trường bảo mật cao.
+    \item \textbf{Microsoft Viva:} Giải pháp quản lý tri thức tích hợp trong hệ sinh thái Microsoft 365, tự động tạo và nhóm chủ đề (topic) bằng AI, tích hợp sâu với SharePoint/Teams và hỗ trợ cá nhân hóa theo vai trò người dùng.
+\end{itemize}
+
+\subsection{Định vị giải pháp PoliWise và phương pháp thu thập yêu cầu}
+Qua khảo sát, nhóm nhận thấy Enterprise AI Search đã trở thành tiêu chuẩn ngành với các tính năng như Semantic Search, trích dẫn nguồn, RBAC và Analytics. Tuy nhiên, các giải pháp lớn thường có chi phí cao, kiến trúc phức tạp và ưu tiên triển khai trên Cloud. Do đó, \textbf{PoliWise} được định vị là giải pháp nội bộ tối ưu, ưu tiên triển khai On-premise để đảm bảo mức độ bảo mật cao nhất cho dữ liệu doanh nghiệp.
+
+\textbf{Phương pháp thu thập yêu cầu} được nhóm áp dụng bao gồm:
+\begin{itemize}
+    \item Phỏng vấn trực tiếp và tổ chức Focus Group với các nhóm đối tượng liên quan.
+    \item Khảo sát trực tuyến (Survey online) trên diện rộng.
+    \item Phân tích tài liệu hiện có và rà soát quy trình nghiệp vụ.
+\end{itemize}
+
+\textbf{Tóm tắt các yêu cầu chính thu thập được:}
+
+\textbf{1.} \textbf{Hỏi đáp ngôn ngữ tự nhiên:} Hệ thống tự động hiểu và phản hồi câu hỏi tra cứu bằng ngôn ngữ tự nhiên.
+
+
+\textbf{2.} \textbf{Trích dẫn nguồn minh bạch:} Mọi câu trả lời của AI đều phải kèm đoạn trích dẫn và liên kết đến tài liệu gốc.
+
+
+\textbf{3.} \textbf{Phân quyền theo phòng ban:} Đảm bảo nhân viên chỉ truy cập được các chính sách phù hợp với quyền hạn.
+
+
+\textbf{4.} \textbf{So sánh phiên bản:} Cho phép đối chiếu và làm nổi bật sự khác biệt giữa chính sách mới và cũ.
+
+
+\textbf{5.} \textbf{Ghi nhận phản hồi (Feedback):} Thu thập đánh giá từ người dùng để liên tục cải thiện chất lượng AI.
+
+
+\textbf{6.} \textbf{Triển khai On-premise:} Ưu tiên bảo mật cao, có khả năng mở rộng lên Cloud trong tương lai.
+
+
+
+\rule{\textwidth}{0.5pt}
+
+
+\section{Phân tích yêu cầu}
+
+\subsection{Mục tiêu và phạm vi hệ thống}
+\begin{itemize}
+    \item \textbf{Mục tiêu hệ thống:}
+    \item \textbf{Về kinh doanh:} Giảm thời gian tìm kiếm thông tin, tăng hiệu suất làm việc, đảm bảo tuân thủ quy định và tiết kiệm chi phí vận hành.
+    \item \textbf{Về kỹ thuật:} Xây dựng hệ thống tìm kiếm ngữ nghĩa tích hợp đa nguồn, hỗ trợ truy vấn bằng ngôn ngữ tự nhiên và triển khai an toàn trên hạ tầng On-premise.
+    \item \textbf{Phạm vi hệ thống (System Boundary):}
+    \item \textbf{Dữ liệu:} Chỉ áp dụng cho dữ liệu nội bộ (Google Drive, SharePoint, Email, PDF). Tuyệt đối không tìm kiếm trên Internet.
+    \item \textbf{Định dạng hỗ trợ:} Text, PDF, Email; tích hợp công nghệ OCR cho các file scan.
+\end{itemize}
+
+\subsection{Yêu cầu chức năng}
+Dựa trên kết quả khảo sát và phân tích, các yêu cầu chức năng của hệ thống được phân thành ba nhóm chính:
+\begin{itemize}
+    \item \textbf{Nhóm chức năng cốt lõi:}
+    \item \textbf{Hỏi đáp tự nhiên:} Người dùng tương tác trực tiếp bằng ngôn ngữ tự nhiên thông qua giao diện chatbot.
+    \item \textbf{Tìm kiếm ngữ nghĩa (Semantic Search):} Tìm kiếm dựa trên ý nghĩa nội dung với Vector Database, thay vì khớp từ khóa đơn thuần.
+    \item \textbf{Trích dẫn nguồn:} Hiển thị nguồn tài liệu gốc minh bạch, rõ ràng kèm theo mỗi câu trả lời.
+    \item \textbf{Quản trị tri thức:} Hỗ trợ Upload tài liệu, OCR, Chunking và Embedding dữ liệu tự động.
+    \item \textbf{Phân quyền RBAC:} Kiểm soát truy cập tài liệu dựa trên vai trò người dùng (User, Manager, Admin).
+    \item \textbf{Nhóm chức năng quản trị và nghiệp vụ:}
+    \item \textbf{So sánh phiên bản:} Theo dõi và hiển thị sự thay đổi giữa các bản chính sách/tài liệu.
+    \item \textbf{Quản lý siêu dữ liệu (Metadata):} Gắn nhãn phòng ban, ngày hiệu lực, loại văn bản cho tài liệu.
+    \item \textbf{Ghi nhận câu hỏi chưa trả lời:} Lưu trữ các câu hỏi mà AI chưa có lời giải để phân tích và bổ sung tri thức.
+    \item \textbf{Chuẩn hóa dữ liệu:} Tự động làm sạch và chuẩn hóa dữ liệu đầu vào.
+    \item \textbf{Nhóm trải nghiệm người dùng (UX):}
+    \item \textbf{Thông minh:} Tóm tắt văn bản dài và giải thích các thuật ngữ pháp lý/chuyên ngành phức tạp.
+    \item \textbf{Cá nhân hóa:} Cá nhân hóa câu trả lời theo phòng ban, vai trò; thiết lập vòng lặp phản hồi (Feedback Loop) để cải thiện AI.
+    \item \textbf{Linh hoạt:} Giao diện Chatbot/Portal linh hoạt, hỗ trợ chế độ On-premise (Offline Secure Mode).
+\end{itemize}
+
+\subsection{Yêu cầu phi chức năng}
+\begin{itemize}
+    \item \textbf{An toàn và bảo mật:} Triển khai on-premise, mã hóa dữ liệu đầu cuối (end-to-end encryption), phân quyền RBAC chặt chẽ, ghi log chi tiết mọi hoạt động trên hệ thống.
+    \item \textbf{Hiệu năng cao:} Thời gian phản hồi dưới 2 giây cho mỗi truy vấn, hỗ trợ hàng trăm người dùng đồng thời, vận hành ổn định 24/7. Đảm bảo tính sẵn sàng cao với cơ chế Backup \& Disaster Recovery toàn diện.
+    \item \textbf{Khả năng mở rộng và tích hợp:} Dễ dàng tăng quy mô tính toán (Scale-out), sẵn sàng tích hợp Cloud và đa nguồn dữ liệu. Tương thích với Office 365, SharePoint, Email và hệ thống CRM hiện tại. Giao diện thân thiện, hỗ trợ gợi ý tự động (Auto-suggest) trên cả Web và Di động.
+\end{itemize}
+
+\subsection{Rủi ro và ràng buộc dự án}
+Trong quá trình phân tích, nhóm cũng nhận diện các rủi ro và ràng buộc cần lưu ý:
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\rowcolor{gray!10}
+Rủi ro / Ràng buộc & Mô tả \\ \hline
+\textbf{Chất lượng dữ liệu} & Nội dung cũ hoặc file scan kém chất lượng sẽ làm giảm độ chính xác của kết quả tìm kiếm và sinh câu trả lời. \\ \hline
+\textbf{Rủi ro mô hình AI} & Nguy cơ AI trả lời sai ngữ cảnh (Hallucination) đòi hỏi quy trình kiểm thử và giám sát chặt chẽ. \\ \hline
+\textbf{Hạn chế On-premise} & Tài nguyên phần cứng hạn chế hơn Cloud, kéo theo chi phí và thời gian thiết lập ban đầu cao hơn. \\ \hline
+\textbf{Rào cản người dùng} & Thách thức trong việc thay đổi thói quen tra cứu thủ công đã hình thành lâu năm của nhân viên. \\ \hline
+\textbf{Nguồn lực dự án} & Đây là đồ án học tập nên thời gian, ngân sách và dữ liệu huấn luyện còn giới hạn. \\ \hline
+\end{tabularx}
+\end{table}
+
+
+\rule{\textwidth}{0.5pt}
+
+
+\section{Thiết kế tổng thể hệ thống}
+
+Để đảm bảo các yêu cầu về tính bảo mật dữ liệu, hiệu năng cao và tính linh hoạt trong mở rộng, hệ thống PoliWise được thiết kế theo kiến trúc vi dịch vụ (\textbf{Microservices}) đa ngôn ngữ (\textbf{Polyglot}). Các dịch vụ giao tiếp với nhau bằng phương thức đồng bộ (HTTP/REST) hoặc bất đồng bộ thông qua Message Broker (RabbitMQ).
+
+\subsection{Kiến trúc tổng thể}
+Hệ thống phân tách thành 4 tầng xử lý cốt lõi, đảm bảo khả năng mở rộng (scalability) và tính linh hoạt trong việc lựa chọn công nghệ:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/system-architecture.png}
+\caption{Kiến trúc tổng thể hệ thống PoliWise}
+\label{fig:system_architecture}
+\end{figure}
+
+\subsubsection{Tầng Trình diễn \& Cổng giao tiếp}
+\begin{itemize}
+    \item \textbf{Tầng Trình diễn (Next.js):} Tối ưu hóa hiệu suất hiển thị và SEO thông qua cơ chế Server-Side Rendering (SSR) và Static Site Generation (SSG). Cung cấp các giao diện chính:
+    \begin{itemize}
+        \item \textit{Chatbot Interface:} Giao diện tương tác bằng ngôn ngữ tự nhiên, phản hồi thời gian thực cho nhân viên.
+        \item \textit{Admin Portal:} Giao diện quản trị hệ thống, xử lý vòng đời tài liệu và cấu hình phân quyền nghiệp vụ phức tạp.
+        \item \textit{User Interface:} Tra cứu tài liệu gốc, xem thông tin cá nhân, v.v.
+    \end{itemize}
+    \item \textbf{Tầng Giao tiếp (NestJS / RabbitMQ):}
+    \begin{itemize}
+        \item \textit{API Gateway (NestJS):} Điểm truy cập duy nhất, xử lý Authentication, Routing và Rate Limiting để bảo vệ hệ thống.
+        \item \textit{Message Broker (RabbitMQ):} Trục giao tiếp bất đồng bộ, đảm bảo tính rời rạc (\textit{loose coupling}) giữa các dịch vụ. Hỗ trợ đẩy các tác vụ nặng (như OCR, Chunking) vào hàng đợi xử lý ngầm, tránh tắc nghẽn giao diện người dùng.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Tầng Dịch vụ \& Dữ liệu}
+\begin{itemize}
+    \item \textbf{Tầng Microservices (Logic / AI):}
+    \begin{itemize}
+        \item \textit{Core Services (Spring Boot):} Xử lý nghiệp vụ quản trị cốt lõi bao gồm quản lý người dùng, phân quyền chi tiết (RBAC), nhật ký hệ thống (Audit Trail), và quy trình phê duyệt tài liệu.
+        \item \textit{AI \& Search Services (LitServe/TEI):} Động cơ RAG tối ưu hóa tối đa cho môi trường tự lưu trữ (On-premise). Sử dụng TEI (Text Embeddings Inference) và vLLM / llama.cpp để cung cấp khả năng suy luận và tính toán vector với thông lượng cực cao.
+    \end{itemize}
+    \item \textbf{Tầng Dữ liệu (Storage Layer):}
+    \begin{itemize}
+        \item \textit{PostgreSQL + pgvector:} Giải pháp lưu trữ hợp nhất cả dữ liệu quan hệ và vector embeddings trong cùng một cơ sở dữ liệu.
+        \item \textit{MinIO (Object Storage):} Kho lưu trữ đối tượng tương thích chuẩn S3, đảm bảo an toàn cho các tệp tài liệu gốc (PDF, DOCX).
+        \item \textit{Redis (Cache):} Bộ nhớ đệm trong bộ nhớ (In-memory caching) giúp giảm tối đa độ trễ khi truy xuất phiên làm việc (Session) và phản hồi nhanh các câu hỏi thường gặp (FAQ).
+    \end{itemize}
+\end{itemize}
+
+\subsection{API Gateway (NestJS)}
+API Gateway đóng vai trò là trạm kiểm soát và điều phối trung tâm, đồng thời là lá chắn bảo vệ an toàn cho toàn bộ hệ thống backend.
+
+\subsubsection{Cơ chế bảo vệ cấu trúc hệ thống}
+\begin{itemize}
+    \item \textbf{Cổng đi vào chính (Single Entry Point):} Phần lớn luồng giao tiếp từ Client (Next.js Web / Mobile) đi qua Gateway để xác thực, phân quyền, giới hạn tần suất và định tuyến. Riêng thao tác upload tài liệu dạng \texttt{multipart/form-data} được thiết kế như một ngoại lệ kỹ thuật: Frontend gửi trực tiếp đến \texttt{knowledge-service} để tránh lỗi xử lý stream lớn tại Gateway, nhưng vẫn truyền JWT và vẫn được kiểm tra quyền ở service đích.
+    \item \textbf{Ẩn cấu trúc hệ thống (Topology Hiding):} Client hoàn toàn không biết đến sự tồn tại hoặc địa chỉ IP/Port của các dịch vụ backend nội bộ như Spring Boot hay AI Services. Điều này giúp giảm thiểu tối đa bề mặt tấn công mạng và đơn giản hóa việc tích hợp cho Frontend.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/api-gateway-architecture.png}
+\caption{Mô hình trạm kiểm soát API Gateway}
+\label{fig:api_gateway_architecture}
+\end{figure}
+
+\subsubsection{Các chức năng trọng yếu của Gateway}
+\begin{itemize}
+    \item \textbf{Xác thực \& Phân quyền (AuthN/AuthZ):} Xác thực tính hợp lệ của JSON Web Token (JWT) từ người gửi. Thực hiện kiểm tra quyền truy cập dựa trên vai trò (RBAC) ở lớp ngoài cùng trước khi chuyển tiếp yêu cầu sâu hơn vào hệ thống (ví dụ: ngăn chặn nhân viên thông thường gọi API tải lên tài liệu).
+    \item \textbf{Điều hướng động (Dynamic Routing):} Phân tích URL và phương thức HTTP của yêu cầu để chuyển tiếp (\textit{proxy}) chính xác tới Microservice tương ứng (Spring Boot xử lý nghiệp vụ hoặc LitServe xử lý AI).
+    \item \textbf{Giới hạn tần suất truy cập (Rate Limiting):} Cơ chế tối quan trọng để bảo vệ hạ tầng tính toán GPU. Gateway giới hạn số lượng câu hỏi mỗi phút của từng người dùng hoặc IP, ngăn chặn tình trạng spam hoặc tấn công từ chối dịch vụ (DDoS) làm sập hệ thống AI.
+\end{itemize}
+
+\subsubsection{So sánh phân luồng xử lý tại Gateway}
+Dưới đây là sự so sánh giữa hai luồng xử lý đồng bộ và bất đồng bộ tại cổng Gateway:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\rowcolor{gray!10}
+\textbf{Luồng Đồng bộ (Sync) - Chat / Tra cứu} & \textbf{Luồng Bất đồng bộ (Async) - Upload / Xử lý} \\ \hline
+\textbf{Mục tiêu:} Tối ưu hóa thời gian phản hồi thực tế cho người dùng. & \textbf{Mục tiêu:} Giải phóng tài nguyên hệ thống ngay lập tức và xử lý ngầm. \\ \hline
+1. Client gửi câu hỏi lên Gateway. & 1. Admin tải lên tệp tin chính sách mới. \\ \hline
+2. Gateway xác thực tính hợp lệ của token JWT lập tức. & 2. Frontend gửi file trực tiếp đến \texttt{knowledge-service} theo cơ chế \texttt{multipart/form-data}; service này xác thực JWT và kiểm tra quyền Admin. \\ \hline
+3. Gateway chuyển tiếp (\textit{Proxy}) yêu cầu trực tiếp tới AI Service. & 3. \texttt{knowledge-service} lưu tệp gốc vào MinIO, tạo bản ghi tài liệu/phiên bản và publish sự kiện \texttt{ingestion.requested} vào RabbitMQ. \\ \hline
+4. Gateway đợi AI Service tính toán và trả kết quả (dạng Stream từng chữ) rồi trả ngay về cho Client. & 4. \texttt{ingestion-service} tiêu thụ sự kiện, thực hiện OCR/trích xuất, phân mảnh, embedding và lập chỉ mục pgvector ở chế độ nền. \\ \hline
+5. Đảm bảo độ trễ toàn trình thấp nhất có thể. & 5. Khi xử lý xong, hệ thống cập nhật trạng thái tài liệu và phát sự kiện \texttt{document.uploaded}/hoàn tất xử lý cho các dịch vụ liên quan. \\ \hline
+\end{tabularx}
+\caption{So sánh luồng xử lý Đồng bộ và Bất đồng bộ qua Gateway}
+\label{tab:gateway_sync_async}
+\end{table}
+
+\subsection{Dịch vụ lõi (Business Core - Spring Boot)}
+Dịch vụ lõi được xây dựng trên nền tảng Spring Boot, đóng vai trò là xương sống quản trị dữ liệu kinh doanh, đồng thời là trung tâm định hình quyền hạn của toàn hệ thống.
+
+\subsubsection{Phạm vi nghiệp vụ (Scope)}
+\begin{itemize}
+    \item \textbf{Quản trị danh tính \& Phân quyền (IAM \& RBAC):} Quản lý thông tin tài khoản, cấu trúc phòng ban cha-con và phân quyền vai trò. Đây là nguồn dữ liệu tin cậy duy nhất (\textit{Single Source of Truth}) giúp dịch vụ AI kiểm tra quyền truy cập tài liệu của người dùng khi trả lời câu hỏi.
+    \item \textbf{Quản lý vòng đời tài liệu:} Xử lý các logic nghiệp vụ liên quan đến tài liệu bao gồm: Tải lên (Upload), Cập nhật phiên bản mới, Phê duyệt tài liệu, Thu hồi/Xóa bỏ và quản lý siêu dữ liệu (Metadata) đi kèm.
+    \item \textbf{Lưu vết hệ thống (Audit Logging):} Ghi nhận chi tiết mọi hành động của người dùng (ai thực hiện thao tác gì, lúc nào, trên tài liệu nào) để đáp ứng các tiêu chuẩn về tuân thủ bảo mật doanh nghiệp.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/spring-boot-eco-system.png}
+\caption{Hệ sinh thái dịch vụ Spring Boot Core}
+\label{fig:spring_boot_eco_system}
+\end{figure}
+
+\subsubsection{Kiến trúc phân tầng nội bộ (N-Tier)}
+Spring Boot Core tuân thủ kiến trúc phân tầng chuẩn để đảm bảo code sạch và dễ bảo trì:
+\begin{enumerate}
+    \item \textbf{Controller Layer:} Tiếp nhận và kiểm tra tính hợp lệ của dữ liệu đầu vào từ API Gateway, xử lý HTTP requests/responses.
+    \item \textbf{Service Layer:} Chứa toàn bộ logic nghiệp vụ cốt lõi của hệ thống (Business Logic).
+    \item \textbf{Repository Layer:} Giao tiếp với cơ sở dữ liệu PostgreSQL thông qua Spring Data JPA.
+    \item \textbf{Integration Layer:} Thực hiện tích hợp với các hệ thống bên ngoài như RabbitMQ (Message Broker) và MinIO (Object Storage).
+\end{enumerate}
+
+\subsubsection{Luồng xử lý tiêu biểu: Tải lên tài liệu}
+Chu trình tải lên tài liệu được thực hiện bất đồng bộ theo các bước sau:
+\begin{itemize}
+    \item \textbf{Bước 1: Lưu trữ vật lý:} Tệp tin gốc được tải lên và lưu trữ an toàn trong MinIO Object Storage.
+    \item \textbf{Bước 2: Ghi nhận siêu dữ liệu (Metadata):} Spring Boot lưu trữ thông tin mô tả tài liệu (tên file, kích thước, phòng ban được phép truy cập, trạng thái chờ xử lý) vào PostgreSQL.
+    \item \textbf{Bước 3: Kích hoạt Pipeline:} Đẩy một thông điệp chứa ID tài liệu vừa tạo vào hàng đợi RabbitMQ để đánh thức dịch vụ AI chạy tiến trình xử lý nền.
+    \item \textbf{Bước 4: Phản hồi giao diện (UX):} Trả về thông tin cho giao diện người dùng hiển thị trạng thái "Đang xử lý", giải phóng kết nối HTTP ngay lập tức.
+\end{itemize}
+
+\subsection{Dịch vụ AI (AI \& Search Services)}
+Đây được xem là trái tim của hệ thống RAG, được thiết kế để tối ưu hóa hiệu quả sử dụng tài nguyên phần cứng tự host (On-premise) và tăng tối đa thông lượng xử lý.
+
+\subsubsection{Các động cơ chuyên biệt (Core Engines)}
+\begin{itemize}
+    \item \textbf{AI Worker (Background):} Tiến trình chạy ngầm chuyên lắng nghe các sự kiện nạp tài liệu từ RabbitMQ. Đảm nhận việc trích xuất văn bản từ tệp tin gốc (PDF/DOCX) và cắt nhỏ văn bản (Chunking) dựa trên các quy tắc ngữ nghĩa.
+    \item \textbf{Embedding Engine (TEI):} Sử dụng công nghệ Text Embeddings Inference từ Hugging Face. Việc tách riêng dịch vụ này giúp biến đổi văn bản thành vector embeddings siêu tốc, hỗ trợ cơ chế xử lý hàng loạt (Batching) cực tốt khi nạp tài liệu số lượng lớn.
+    \item \textbf{Generation Engine:} Sử dụng framework LitServe để đóng gói API kết hợp với LLM Engine (như vLLM hoặc llama.cpp). Giúp tối ưu hóa VRAM (thông qua PagedAttention) và trả về câu trả lời dưới dạng truyền phát (Streaming) với độ trễ cực thấp.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/ai-rag-eco-system.png}
+\caption{Hệ sinh thái các dịch vụ AI và RAG}
+\label{fig:ai_rag_eco_system}
+\end{figure}
+
+Để hiểu rõ hơn về hoạt động của các động cơ này, dưới đây là chi tiết luồng nạp tài liệu (Ingestion Pipeline) và luồng trò chuyện hỏi đáp (Chat Pipeline):
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{images/ingest-flow.png}
+    \caption{Luồng nạp dữ liệu (Ingestion)}
+    \label{fig:ingest_flow}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{images/chat-flow.png}
+    \caption{Luồng hỏi đáp (Chat)}
+    \label{fig:chat_flow}
+\end{minipage}
+\end{figure}
+
+\subsubsection{Chiến lược tối ưu hóa hiệu năng RAG}
+\begin{itemize}
+    \item \textbf{Tách biệt tính toán (Compute Isolation):} Việc chia tách TEI (tạo Vector) và vLLM (sinh Text) thành hai cụm dịch vụ riêng biệt giúp đảm bảo tiến trình LLM sinh văn bản không bị nghẽn tài nguyên CPU/GPU khi hệ thống đang xử lý nhúng một tài liệu nội bộ dài hàng ngàn trang.
+    \item \textbf{Gom cụm động (Dynamic Batching):} Framework LitServe tự động gom nhóm nhiều yêu cầu câu hỏi độc lập được gửi đến cùng thời điểm vào một mẻ tính toán duy nhất, giúp tăng đáng kể thông lượng phục vụ của GPU.
+    \item \textbf{Quản lý bộ nhớ VRAM thông minh (PagedAttention):} Áp dụng giải pháp PagedAttention của vLLM để chia sẻ bộ nhớ đệm KV Cache linh hoạt, ngăn ngừa phân mảnh VRAM và hỗ trợ phục vụ đồng thời hàng ngàn yêu cầu cùng lúc.
+\end{itemize}
+
+\subsection{Tầng dữ liệu và Lưu trữ (Data \& Storage)}
+Hệ thống sử dụng các giải pháp lưu trữ hợp nhất và tối ưu bảo mật cho hạ tầng tự vận hành (On-premise).
+
+\subsubsection{Cơ sở dữ liệu cốt lõi: PostgreSQL + pgvector}
+\begin{itemize}
+    \item \textbf{Kiến trúc lưu trữ hợp nhất (2-in-1):} PostgreSQL lưu trữ đồng thời dữ liệu quan hệ truyền thống (thông tin người dùng, quyền, metadata tài liệu) và dữ liệu vector (embeddings của các chunk văn bản). Điều này giảm đáng kể chi phí và độ phức tạp khi vận hành hệ thống.
+    \item \textbf{Tối ưu hóa bộ lọc kết hợp (Joint Filtering):} Điểm mạnh lớn nhất của pgvector là cho phép thực hiện tính toán khoảng cách Cosine kết hợp với các điều kiện lọc phân quyền SQL (\texttt{JOIN} với bảng phân quyền RBAC) trong cùng một câu truy vấn duy nhất.
+    \item \textbf{Bảo mật dữ liệu tuyệt đối:} Đảm bảo an toàn thông tin, tránh hoàn toàn rủi ro lộ dữ liệu giữa các phòng ban nhờ cơ chế kiểm tra quyền truy cập chặt chẽ ngay tại tầng cơ sở dữ liệu.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/data-storage-architect.png}
+\caption{Kiến trúc cơ sở dữ liệu PostgreSQL và pgvector}
+\label{fig:data_storage_architecture}
+\end{figure}
+
+\subsubsection{Hệ thống lưu trữ đối tượng và Bộ nhớ đệm}
+\begin{itemize}
+    \item \textbf{MinIO (Object Storage):}
+    \begin{itemize}
+        \item \textit{S3 On-premise:} Đóng vai trò là kho lưu trữ phân tán cho toàn bộ tệp tài liệu gốc (PDF, Word, Excel).
+        \item \textit{Bảo vệ tài sản số:} Thay vì cấp đường dẫn tĩnh (Static URLs), MinIO hỗ trợ tạo đường dẫn có giới hạn thời gian (Presigned URLs) khi người dùng muốn đọc tài liệu nguồn, ngăn chặn hành vi khai thác hoặc tải xuống hàng loạt tệp tin của hệ thống.
+    \end{itemize}
+    \item \textbf{Redis (In-memory Cache):}
+    \begin{itemize}
+        \item \textit{Giảm thiểu độ trễ tối đa:} Lưu trữ bộ đệm các câu hỏi thường gặp (FAQ) và câu trả lời tương ứng, giúp phản hồi ngay lập tức (dưới 50ms) mà không cần gọi mô hình AI xử lý lại.
+        \item \textit{Hỗ trợ API Gateway:} Lưu trữ trạng thái phiên hoạt động (Session) và đếm tần suất gửi yêu cầu để thực thi cơ chế Rate Limiting.
+    \end{itemize}
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/minio-redis-architecture.png}
+\caption{Mô hình tích hợp MinIO Object Storage và Redis Cache}
+\label{fig:minio_redis_architecture}
+\end{figure}
+
+\rule{\textwidth}{0.5pt}
+
+
+\section{Thiết kế cơ sở dữ liệu}
+
+Cơ sở dữ liệu của hệ thống PoliWise được thiết kế để lưu trữ cả dữ liệu quan hệ truyền thống và dữ liệu vector hỗ trợ tìm kiếm ngữ nghĩa (Pgvector).
+
+\subsection{Sơ đồ thực thể liên kết (ERD) tổng quan}
+Sơ đồ ERD cấp logic dưới đây thể hiện cấu trúc các bảng và mối liên kết giữa chúng trong hệ thống:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/Poliwise_ERD_Logical.drawio.png}
+\caption{Sơ đồ ERD tổng quan}
+\label{fig:Poliwise_ERD_Logical_drawio_png}
+\end{figure}
+
+Hệ thống bao gồm \textbf{14 thực thể} chính được phân loại như sau:
+
+\begin{table}[H]
+\centering
+\small
+\caption{Danh sách các thực thể trong hệ thống (Phần 1)}
+\label{tab:entities_part1}
+\begin{tabularx}{\textwidth}{|c|l|X|}
+\hline
+\rowcolor{gray!10}
+STT & Thực thể & Mô tả \\ \hline
+1 & \textbf{USER} & Lưu thông tin tài khoản và hồ sơ người dùng trong hệ thống, bao gồm dữ liệu đăng nhập, vai trò, trạng thái và thông tin cá nhân. \\ \hline
+2 & \textbf{DEPARTMENT} & Đại diện cho các phòng ban trong tổ chức, hỗ trợ cấu trúc phân cấp (cha–con) để quản lý tổ chức nội bộ. \\ \hline
+3 & \textbf{DOCUMENT} & Lưu trữ thông tin metadata của tài liệu (file), bao gồm trạng thái, quyền truy cập, phiên bản và thông tin xử lý nội dung. \\ \hline
+4 & \textbf{DOCUMENT\_VERSION} & Quản lý các phiên bản khác nhau của một tài liệu, lưu nội dung đã trích xuất tại từng thời điểm (bất biến). \\ \hline
+5 & \textbf{CHUNK} & Đơn vị nhỏ của tài liệu sau khi được chia (chunking), chứa nội dung và vector embedding để phục vụ tìm kiếm ngữ nghĩa (RAG). \\ \hline
+6 & \textbf{CATEGORY} & Dùng để phân loại tài liệu theo danh mục, hỗ trợ cấu trúc phân cấp để tổ chức nội dung. \\ \hline
+7 & \textbf{TAG} & Nhãn gắn vào tài liệu để hỗ trợ tìm kiếm, phân loại linh hoạt và thống kê mức độ sử dụng. \\ \hline
+8 & \textbf{ACCESS\_RULE} & Định nghĩa các quy tắc kiểm soát truy cập tài liệu theo vai trò, phòng ban hoặc cá nhân. \\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Danh sách các thực thể trong hệ thống (Phần 2)}
+\label{tab:entities_part2}
+\begin{tabularx}{\textwidth}{|c|l|X|}
+\hline
+\rowcolor{gray!10}
+STT & Thực thể & Mô tả \\ \hline
+9 & \textbf{CONVERSATION} & Đại diện cho một cuộc hội thoại giữa người dùng và hệ thống AI, giúp quản lý lịch sử trao đổi. \\ \hline
+10 & \textbf{MESSAGE} & Lưu từng tin nhắn trong hội thoại, bao gồm nội dung, nguồn tham khảo và mức độ tin cậy của câu trả lời. \\ \hline
+11 & \textbf{FEEDBACK} & Ghi nhận phản hồi của người dùng đối với câu trả lời của AI, giúp cải thiện chất lượng hệ thống. \\ \hline
+12 & \textbf{UNANSWERED\_QUESTION} & Lưu các câu hỏi mà hệ thống chưa trả lời được để xử lý sau, kèm mức độ ưu tiên. \\ \hline
+13 & \textbf{AUDIT\_LOG} & Ghi lại toàn bộ hành động quan trọng trong hệ thống để phục vụ kiểm tra, truy vết và bảo mật. \\ \hline
+14 & \textbf{REPORT\_EXPORT} & Quản lý việc tạo và lưu trữ các báo cáo xuất ra từ hệ thống (thống kê, phân tích, v.v.). \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Danh sách các mối quan hệ giữa các bảng}
+
+Hệ thống thiết lập \textbf{16 mối quan hệ} chính giữa các thực thể:
+
+\begin{table}[H]
+\centering
+\small
+\caption{Danh sách các mối quan hệ giữa các bảng (Phần 1)}
+\label{tab:relations_part1}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=0.8\hsize\raggedright\arraybackslash}X|>{\hsize=1.1\hsize\raggedright\arraybackslash}X|>{\hsize=0.8\hsize\raggedright\arraybackslash}X|>{\hsize=1.3\hsize\raggedright\arraybackslash}X|}
+\hline
+\rowcolor{gray!10}
+STT & Thực thể A & Quan hệ (Tỷ lệ A - B) & Thực thể B & Mô tả \\ \hline
+1 & USER & BELONGS\_\allowbreak TO \texttt{(1,N) - (1,1)} & DEPARTMENT & Mỗi người dùng bắt buộc thuộc về một phòng ban. Một phòng ban có nhiều người dùng. \\ \hline
+2 & DEPARTMENT & HAS\_\allowbreak CHILD \texttt{(0,N) - (0,1)} & DEPARTMENT & Quan hệ tự tham chiếu tạo cây phân cấp tổ chức. Phòng ban con có thể có hoặc không có phòng ban cha. \\ \hline
+3 & USER & OWNS \texttt{(0,N) - (1,1)} & CONVERSATION & Người dùng sở hữu nhiều cuộc hội thoại. Mỗi cuộc hội thoại chỉ thuộc một người dùng. \\ \hline
+4 & CONVERSATION & CONTAINS \texttt{(1,1) - (1,N)} & MESSAGE & Cuộc hội thoại chứa ít nhất một tin nhắn. \\ \hline
+5 & MESSAGE & HAS \texttt{(0,1) - (0,N)} & FEEDBACK & Một tin nhắn có thể nhận được các phản hồi (like/dislike) từ người dùng. \\ \hline
+6 & MESSAGE & GENERATES \texttt{(0,N) - (1,1)} & UNANSWERED\_\allowbreak QUESTION & Tin nhắn sinh ra bản ghi câu hỏi chưa trả lời khi hệ thống AI không tìm thấy tài liệu liên quan. \\ \hline
+7 & USER & UPLOADS \texttt{(0,N) - (0,1)} & DOCUMENT & Quản trị viên (Admin) tải lên nhiều tài liệu. Mỗi tài liệu có một người tải lên. \\ \hline
+8 & DOCUMENT & HAS\_\allowbreak VERSION \texttt{(1,1) - (1,N)} & DOCUMENT\_\allowbreak VERSION & Mỗi tài liệu phải có ít nhất một phiên bản. Nội dung phiên bản là bất biến. \\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Danh sách các mối quan hệ giữa các bảng (Phần 2)}
+\label{tab:relations_part2}
+\begin{tabularx}{\textwidth}{|c|>{\hsize=0.8\hsize\raggedright\arraybackslash}X|>{\hsize=1.1\hsize\raggedright\arraybackslash}X|>{\hsize=0.8\hsize\raggedright\arraybackslash}X|>{\hsize=1.3\hsize\raggedright\arraybackslash}X|}
+\hline
+\rowcolor{gray!10}
+STT & Thực thể A & Quan hệ (Tỷ lệ A - B) & Thực thể B & Mô tả \\ \hline
+9 & DOCUMENT & IS\_\allowbreak SPLIT\_\allowbreak INTO \texttt{(1,1) - (1,N)} & CHUNK & Tài liệu được chia nhỏ thành nhiều chunk phục vụ cho tìm kiếm ngữ nghĩa RAG. \\ \hline
+10 & DOCUMENT & CLASSIFIED\_\allowbreak INTO \texttt{(0,N) - (0,N)} & CATEGORY & Tài liệu có thể được phân vào nhiều danh mục khác nhau. \\ \hline
+11 & CATEGORY & HAS\_\allowbreak CHILD \texttt{(0,N) - (0,1)} & CATEGORY & Danh mục tự tham chiếu để tạo cấu trúc danh mục nhiều cấp. \\ \hline
+12 & DOCUMENT & TAGGED\_\allowbreak WITH \texttt{(0,N) - (0,N)} & TAG & Tài liệu có thể được gắn nhiều nhãn khác nhau để phân loại nhanh. \\ \hline
+13 & DOCUMENT & GOVERNS \texttt{(1,1) - (0,N)} & ACCESS\_\allowbreak RULE & Một tài liệu có thể cấu hình nhiều quy tắc truy cập bổ sung. \\ \hline
+14 & DOCUMENT & BELONGS\_\allowbreak TO\_\allowbreak DEPT \texttt{(0,N) - (0,1)} & DEPARTMENT & Tài liệu có thể thuộc về quyền sở hữu của một phòng ban nhất định. \\ \hline
+15 & USER & PERFORMED\_\allowbreak BY \texttt{(1,N) - (1,1)} & AUDIT\_\allowbreak LOG & Ghi nhận hoạt động kiểm toán do người dùng thực hiện. \\ \hline
+16 & USER & REQUESTS \texttt{(0,N) - (1,1)} & REPORT\_\allowbreak EXPORT & Người dùng yêu cầu xuất báo cáo. File báo cáo được tạo bất đồng bộ và lưu trên MinIO/S3. \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Đặc tả chi tiết các bảng cơ sở dữ liệu}
+
+Dưới đây là chi tiết các thuộc tính của từng thực thể trong thiết kế cơ sở dữ liệu hệ thống PoliWise:
+
+\subsubsection{1. Bảng USER}
+Bảng này lưu trữ thông tin tài khoản người dùng, vai trò và thông tin cá nhân.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{userId} & UUID & PK & Khóa định danh duy nhất của người dùng \\ \hline
+\texttt{username} & VARCHAR(50) & Unique & Tên đăng nhập duy nhất dùng để xác thực \\ \hline
+\texttt{email} & VARCHAR(100) & Unique & Địa chỉ email duy nhất dùng để liên hệ và xác thực \\ \hline
+\texttt{passwordHash} & VARCHAR(255) &  & Mật khẩu đã được mã hóa bằng BCrypt \\ \hline
+\texttt{role} & VARCHAR(20) &  & Vai trò: \texttt{USER}, \texttt{MANAGER}, \texttt{ADMIN} \\ \hline
+\texttt{status} & VARCHAR(20) &  & Trạng thái tài khoản: \texttt{ACTIVE}, \texttt{DEACTIVATED}, \texttt{REVOKED} \\ \hline
+\texttt{fullName} & VARCHAR(100) &  & Họ và tên đầy đủ của người dùng \\ \hline
+\texttt{phone} & VARCHAR(15) &  & Số điện thoại liên hệ \\ \hline
+\texttt{position} & VARCHAR(50) &  & Chức vụ công việc hiện tại \\ \hline
+\texttt{avatarUrl} & VARCHAR(255) &  & Đường dẫn URL đến ảnh đại diện \\ \hline
+\texttt{employeeCode} & VARCHAR(20) & Unique & Mã nhân viên nội bộ \\ \hline
+\texttt{joinedDate} & TIMESTAMP &  & Ngày gia nhập công ty hoặc ngày tạo tài khoản \\ \hline
+\texttt{dateOfBirth} & DATE &  & Ngày tháng năm sinh \\ \hline
+\texttt{bio} & TEXT &  & Mô tả ngắn về bản thân, lĩnh vực chuyên môn \\ \hline
+\texttt{mustChangePassword} & BOOLEAN &  & Cờ yêu cầu đổi mật khẩu ngay lần đầu đăng nhập \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{2. Bảng DEPARTMENT}
+Bảng này quản lý sơ đồ tổ chức, phòng ban của doanh nghiệp.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{departmentId} & UUID & PK & Khóa định danh duy nhất của phòng ban \\ \hline
+\texttt{name} & VARCHAR(100) &  & Tên đầy đủ của phòng ban \\ \hline
+\texttt{code} & VARCHAR(20) & Unique & Mã viết tắt duy nhất của phòng ban (ví dụ: IT, HR) \\ \hline
+\texttt{parentDepartmentId} & UUID & FK & Tham chiếu đến phòng ban cha (tự tham chiếu) \\ \hline
+\texttt{isActive} & BOOLEAN &  & Trạng thái hoạt động của phòng ban \\ \hline
+\texttt{description} & TEXT &  & Mô tả chức năng, nhiệm vụ của phòng ban \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{3. Bảng DOCUMENT}
+Bảng này lưu trữ thông tin siêu dữ liệu (metadata) của các file tài liệu tải lên.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{documentId} & UUID & PK & Khóa định danh duy nhất của tài liệu \\ \hline
+\texttt{originalFilename} & VARCHAR(255) &  & Tên file gốc khi được upload lên \\ \hline
+\texttt{fileKey} & VARCHAR(255) &  & Đường dẫn lưu trữ file trên MinIO/S3 \\ \hline
+\texttt{fileType} & VARCHAR(10) &  & Định dạng file: PDF, DOCX, XLSX, TXT... \\ \hline
+\texttt{fileSizeBytes} & BIGINT &  & Dung lượng file tính bằng byte \\ \hline
+\texttt{title} & VARCHAR(200) &  & Tiêu đề hoặc tên mô tả tài liệu \\ \hline
+\texttt{description} & TEXT &  & Mô tả ngắn nội dung tài liệu \\ \hline
+\texttt{status} & VARCHAR(20) &  & Trạng thái: \texttt{DRAFT}, \texttt{PUBLISHED}, \texttt{ARCHIVED}, \texttt{EXPIRED} \\ \hline
+\texttt{language} & VARCHAR(10) &  & Ngôn ngữ chính của nội dung (vi, en...) \\ \hline
+\texttt{currentVersion} & INT &  & Số phiên bản hiện tại của tài liệu \\ \hline
+\texttt{processingStatus} & VARCHAR(20) &  & Trạng thái xử lý: \texttt{STAGING}, \texttt{READY}, \texttt{FAILED}, \texttt{PROCESSING} \\ \hline
+\texttt{accessLevel} & VARCHAR(20) &  & Mức truy cập: \texttt{PUBLIC}, \texttt{DEPARTMENT}, \texttt{RESTRICTED} \\ \hline
+\texttt{effectiveDate} & TIMESTAMP &  & Ngày có hiệu lực áp dụng \\ \hline
+\texttt{expiryDate} & TIMESTAMP &  & Ngày hết hạn áp dụng \\ \hline
+\texttt{chunkingStrategy} & VARCHAR(20) &  & Chiến lược chia nhỏ: \texttt{RECURSIVE}, \texttt{SEMANTIC}, \texttt{FIXED\_SIZE} \\ \hline
+\texttt{createdAt} & TIMESTAMP &  & Thời điểm tài liệu được tạo trên hệ thống \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{4. Bảng DOCUMENT\_VERSION}
+Bảng này quản lý các phiên bản khác nhau của tài liệu để phục vụ việc so sánh.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{versionId} & UUID & PK & Khóa định danh duy nhất của phiên bản \\ \hline
+\texttt{documentId} & UUID & FK & Tham chiếu đến tài liệu gốc \\ \hline
+\texttt{versionNumber} & INT &  & Số thứ tự phiên bản (1, 2, 3...) \\ \hline
+\texttt{extractedText} & TEXT &  & Nội dung văn bản đã trích xuất từ file (bất biến) \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{5. Bảng CHUNK}
+Bảng này chứa các đoạn văn bản nhỏ đã chia và các vector embedding của chúng phục vụ tìm kiếm ngữ nghĩa.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{chunkId} & UUID & PK & Khóa định danh duy nhất của đoạn văn \\ \hline
+\texttt{documentId} & UUID & FK & Tham chiếu đến tài liệu gốc \\ \hline
+\texttt{content} & TEXT &  & Nội dung văn bản thuần túy của đoạn \\ \hline
+\texttt{embeddingVector} & VECTOR(d) &  & Vector số biểu diễn ngữ nghĩa (Pgvector) \\ \hline
+\texttt{chunkIndex} & INT &  & Thứ tự sắp xếp các chunk trong tài liệu gốc \\ \hline
+\texttt{allowedRoles} & VARCHAR[] &  & Mảng danh sách các vai trò được phép truy cập \\ \hline
+\texttt{allowedDepartments} & UUID[] &  & Mảng danh sách mã phòng ban được phép truy cập \\ \hline
+\texttt{sectionTitle} & VARCHAR(200) &  & Tiêu đề phần mà chunk này thuộc về \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{6. Bảng CATEGORY}
+Bảng này hỗ trợ phân loại tài liệu theo cây danh mục.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{categoryId} & UUID & PK & Khóa định danh duy nhất của danh mục \\ \hline
+\texttt{name} & VARCHAR(100) &  & Tên danh mục (ví dụ: Chính sách nhân sự) \\ \hline
+\texttt{slug} & VARCHAR(100) & Unique & Chuỗi URL-friendly, duy nhất \\ \hline
+\texttt{parentCategoryId} & UUID & FK & Tham chiếu đến danh mục cha (tự tham chiếu) \\ \hline
+\texttt{displayOrder} & INT &  & Thứ tự hiển thị danh mục \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{7. Bảng TAG}
+Bảng nhãn dùng để phân loại tài liệu nhanh chóng.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{tagId} & UUID & PK & Khóa định danh duy nhất của nhãn \\ \hline
+\texttt{name} & VARCHAR(50) &  & Tên nhãn (ví dụ: urgent, internal) \\ \hline
+\texttt{slug} & VARCHAR(50) & Unique & Chuỗi URL-friendly, duy nhất \\ \hline
+\texttt{color} & VARCHAR(7) &  & Mã màu hex hiển thị nhãn (ví dụ: \#FF5733) \\ \hline
+\texttt{usageCount} & INT &  & Số lượng tài liệu đang sử dụng nhãn này \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{8. Bảng ACCESS\_RULE}
+Bảng này định nghĩa các quy tắc kiểm soát truy cập bổ sung cho tài liệu.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{ruleId} & UUID & PK & Khóa định danh duy nhất của quy tắc \\ \hline
+\texttt{documentId} & UUID & FK & Tham chiếu đến tài liệu áp dụng \\ \hline
+\texttt{targetType} & VARCHAR(20) &  & Loại đối tượng áp dụng: \texttt{ROLE}, \texttt{DEPARTMENT}, \texttt{USER} \\ \hline
+\texttt{permission} & VARCHAR(20) &  & Quyền được cấp: \texttt{VIEW}, \texttt{DENY} \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{9. Bảng CONVERSATION}
+Bảng này quản lý các cuộc hội thoại giữa người dùng và chatbot AI.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{conversationId} & UUID & PK & Khóa định danh duy nhất của cuộc hội thoại \\ \hline
+\texttt{userId} & UUID & FK & Tham chiếu đến người dùng sở hữu cuộc hội thoại \\ \hline
+\texttt{title} & VARCHAR(200) &  & Tiêu đề cuộc hội thoại (tự động hoặc do người dùng đặt) \\ \hline
+\texttt{messageCount} & INT &  & Tổng số tin nhắn trong cuộc hội thoại \\ \hline
+\texttt{lastMessageAt} & TIMESTAMP &  & Thời điểm tin nhắn cuối cùng được gửi \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{10. Bảng MESSAGE}
+Bảng này lưu trữ từng tin nhắn (câu hỏi hoặc câu trả lời) trong hội thoại.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{messageId} & UUID & PK & Khóa định danh duy nhất của tin nhắn \\ \hline
+\texttt{conversationId} & UUID & FK & Tham chiếu đến cuộc hội thoại \\ \hline
+\texttt{role} & VARCHAR(20) &  & Vai trò người gửi: \texttt{USER}, \texttt{ASSISTANT} \\ \hline
+\texttt{content} & TEXT &  & Nội dung văn bản của tin nhắn \\ \hline
+\texttt{sources} & JSONB &  & Danh sách tài liệu tham khảo được AI sử dụng \\ \hline
+\texttt{confidence} & VARCHAR(20) &  & Mức độ tự tin: \texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}, \texttt{UNKNOWN} \\ \hline
+\texttt{tokensTotal} & INT &  & Tổng số token đã sử dụng (để thống kê chi phí) \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{11. Bảng FEEDBACK}
+Bảng này lưu nhận xét và đánh giá của người dùng về câu trả lời của AI.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{feedbackId} & UUID & PK & Khóa định danh duy nhất của phản hồi \\ \hline
+\texttt{userId} & UUID & FK & Tham chiếu đến người dùng đưa ra phản hồi \\ \hline
+\texttt{messageId} & UUID & FK & Tham chiếu đến tin nhắn được đánh giá \\ \hline
+\texttt{type} & VARCHAR(10) &  & Loại phản hồi: \texttt{LIKE}, \texttt{DISLIKE} \\ \hline
+\texttt{comment} & TEXT &  & Bình luận tùy chọn của người dùng \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{12. Bảng UNANSWERED\_QUESTION}
+Bảng này lưu trữ các câu hỏi chưa được giải đáp để quản trị viên theo dõi và bổ sung tri thức.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{uqId} & UUID & PK & Khóa định danh duy nhất của câu hỏi chưa trả lời \\ \hline
+\texttt{userId} & UUID & FK & Tham chiếu đến người dùng đã đặt câu hỏi \\ \hline
+\texttt{conversationId} & UUID & FK & Tham chiếu đến cuộc hội thoại liên quan \\ \hline
+\texttt{question} & TEXT &  & Nội dung câu hỏi gốc của người dùng \\ \hline
+\texttt{resolved} & BOOLEAN &  & Cờ đánh dấu đã được giải quyết hay chưa \\ \hline
+\texttt{priority} & VARCHAR(20) &  & Mức độ ưu tiên: \texttt{LOW}, \texttt{NORMAL}, \texttt{HIGH}, \texttt{CRITICAL} \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{13. Bảng AUDIT\_LOG}
+Bảng lưu nhật ký hệ thống nhằm mục đích bảo mật và kiểm toán hoạt động.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{auditId} & UUID & PK & Khóa định danh duy nhất của bản ghi nhật ký \\ \hline
+\texttt{userId} & UUID & FK & Tham chiếu đến người dùng thực hiện hành động \\ \hline
+\texttt{action} & VARCHAR(50) &  & Tên hành động (ví dụ: LOGIN, DOCUMENT\_UPLOAD) \\ \hline
+\texttt{resourceType} & VARCHAR(50) &  & Loại tài nguyên bị tác động (USER, DOCUMENT...) \\ \hline
+\texttt{resourceId} & UUID &  & Khóa của tài nguyên cụ thể bị tác động \\ \hline
+\texttt{oldValue} & JSONB &  & Giá trị cũ của tài nguyên trước khi thay đổi \\ \hline
+\texttt{newValue} & JSONB &  & Giá trị mới của tài nguyên sau khi thay đổi \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{14. Bảng REPORT\_EXPORT}
+Bảng này quản lý việc xuất báo cáo phân tích sử dụng và phản hồi của hệ thống.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|c|l|l|X|}
+\hline
+\rowcolor{gray!10}
+Tên trường & Kiểu dữ liệu & Khóa & Mô tả \\ \hline
+\texttt{reportId} & UUID & PK & Khóa định danh duy nhất của báo cáo \\ \hline
+\texttt{reportType} & VARCHAR(50) &  & Loại báo cáo: \texttt{USAGE\_STATS}, \texttt{FEEDBACK\_ANALYTICS}... \\ \hline
+\texttt{format} & VARCHAR(10) &  & Định dạng file xuất ra: CSV, PDF, XLSX, JSON \\ \hline
+\texttt{status} & VARCHAR(20) &  & Trạng thái xử lý: \texttt{PENDING}, \texttt{PROCESSING}, \texttt{COMPLETED} \\ \hline
+\texttt{fileKey} & VARCHAR(255) &  & Đường dẫn tải file báo cáo đã xuất trên MinIO/S3 \\ \hline
+\texttt{requestedBy} & UUID & FK & Tham chiếu đến người dùng yêu cầu xuất báo cáo \\ \hline
+\end{tabularx}
+\end{table}
+
+
+\rule{\textwidth}{0.5pt}
+
+
+\section{Thiết kế chức năng}
+
+Hệ thống PoliWise được thiết kế dựa trên các quy trình nghiệp vụ rõ ràng, phân chia quyền hạn tương ứng theo từng tác nhân tham gia vào hệ thống.
+
+\subsection{Sơ đồ Use Case tổng quan}
+Sơ đồ Use Case dưới đây mô tả tổng quát các chức năng và mối quan hệ giữa các tác nhân (User, Manager, Admin) trong hệ thống:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/overview-usecase.png}
+\caption{Sơ đồ Use Case tổng quan}
+\label{fig:overview_usecase_png}
+\end{figure}
+
+\subsection{Đặc tả chi tiết các Use Case}
+
+\subsubsection{Use Case 1: Đăng nhập (Authentication \& RBAC Service)}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Đăng nhập
+    \item \textbf{Actor:} User, Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân sử dụng usecase này để xác thực danh tính và truy cập vào hệ thống.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng đăng nhập trên giao diện Frontend.
+    \item \textbf{Tiền điều kiện:} Tác nhân đã có tài khoản trên hệ thống.
+    \item \textbf{Hậu điều kiện:}
+    \item Nếu thành công: Cấp phát JWT access token (hết hạn sau 15 phút) và refresh token (hết hạn sau 7 ngày).
+    \item Nếu thất bại: Hiển thị lỗi tương ứng (sai mật khẩu, tài khoản bị khóa...).
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng nhập thông tin tài khoản (username/password).
+
+
+\textbf{2.} Hệ thống kiểm tra thông tin và hash password bằng Bcrypt để so sánh.
+
+
+\textbf{3.} Kiểm tra trạng thái tài khoản đang là \texttt{Active}.
+
+
+\textbf{4.} Trả về token và điều hướng vào trang chủ hệ thống.
+
+
+\textbf{5.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Luồng sự kiện phụ:}
+    \item \textbf{Dòng sự kiện phụ 1 (Tài khoản tạm ngưng):}
+\end{itemize}
+
+\textbf{1.} Trạng thái tài khoản là \texttt{Deactivated}.
+
+
+\textbf{2.} Hệ thống trả lỗi \texttt{ACCOUNT\_DEACTIVATED}.
+
+
+\textbf{3.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Dòng sự kiện phụ 2 (Tài khoản đã nghỉ việc):}
+\end{itemize}
+
+\textbf{1.} Trạng thái tài khoản là \texttt{Revoked}.
+
+
+\textbf{2.} Hệ thống trả lỗi \texttt{ACCOUNT\_REVOKED}.
+
+
+\textbf{3.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Trả về thông tin JWT claims chuẩn bao gồm username, email, role, status và department.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_01.png}
+\caption{Usecase Đăng nhập}
+\label{fig:usecase1_png}
+\end{figure}
+
+\subsubsection{Use Case 2: Hỏi đáp AI Thông minh}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Hỏi đáp AI Thông minh
+    \item \textbf{Actor:} User, Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân nhập câu hỏi, hệ thống sẽ tìm kiếm tài liệu nội bộ và sinh ra câu trả lời bằng AI.
+    \item \textbf{Điều kiện kích hoạt:} Người dùng nhập câu hỏi vào khung chat và nhấn gửi.
+    \item \textbf{Tiền điều kiện:} Người dùng đã đăng nhập thành công.
+    \item \textbf{Hậu điều kiện:} Trả về câu trả lời dưới dạng streaming kèm theo trích dẫn nguồn tài liệu.
+    \item \textbf{Các yêu cầu đặc biệt:} Nội dung câu trả lời được cá nhân hóa dựa trên phòng ban (department) của người dùng nhằm đảm bảo tính bảo mật và mức độ liên quan.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_02.png}
+\caption{Usecase Hỏi đáp AI Thông minh}
+\label{fig:usecase2_png}
+\end{figure}
+
+\subsubsection{Use Case 3: Upload tài liệu tri thức (Knowledge Management Service)}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Upload tài liệu tri thức
+    \item \textbf{Actor:} Admin
+    \item \textbf{Mô tả:} Đưa các tài liệu chính sách, thông tin nội bộ lên hệ thống để AI học và phân tích.
+    \item \textbf{Điều kiện kích hoạt:} Admin chọn chức năng Upload trong mục quản trị kho tri thức.
+    \item \textbf{Tiền điều kiện:} Người dùng đăng nhập với quyền Admin.
+    \item \textbf{Hậu điều kiện:} Tài liệu được lưu trữ, phân tích (chunking), tạo vector và sẵn sàng cho việc tìm kiếm ngữ nghĩa.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Admin chọn file (PDF, DOCX, XLSX, hình ảnh) và tải lên.
+
+
+\textbf{2.} Hệ thống validate định dạng và dung lượng (giới hạn 100MB).
+
+
+\textbf{3.} Lưu file gốc vào hệ thống lưu trữ đối tượng MINIO.
+
+
+\textbf{4.} Trích xuất văn bản (sử dụng thư viện PDFBox, POI, OCR).
+
+
+\textbf{5.} Chia nhỏ văn bản (Chunking) và tạo Embedding vector thông qua mô hình Embedding.
+
+
+\textbf{6.} Lưu vector vào cơ sở dữ liệu PostgreSQL (Pgvector) và đánh tag metadata.
+
+
+\textbf{7.} Tạo phiên bản mới (version control) cho tài liệu.
+
+
+\textbf{8.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Luồng sự kiện phụ:}
+    \item \textbf{Dòng sự kiện phụ 1 (File quá dung lượng):}
+\end{itemize}
+
+\textbf{1.} File tải lên vượt quá 100MB.
+
+
+\textbf{2.} Hệ thống trả về lỗi \texttt{FILE\_TOO\_LARGE} (HTTP 413).
+
+
+\textbf{3.} Kết thúc Usecase.
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_03.png}
+\caption{Usecase Upload tài liệu tri thức}
+\label{fig:usecase3_png}
+\end{figure}
+
+\subsubsection{Use Case 4: Xem lịch sử hỏi đáp cá nhân}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Xem lịch sử hỏi đáp cá nhân
+    \item \textbf{Actor:} User, Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân xem lại danh sách các câu hỏi đã đặt cho AI và các câu trả lời tương ứng.
+    \item \textbf{Điều kiện kích hoạt:} Tác nhân chọn mục Lịch sử trò chuyện/Hỏi đáp trên giao diện.
+    \item \textbf{Tiền điều kiện:} Tác nhân đã đăng nhập vào hệ thống.
+    \item \textbf{Hậu điều kiện:} Hiển thị danh sách lịch sử hội thoại cá nhân.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng chọn chức năng xem lịch sử hội thoại.
+
+
+\textbf{2.} Hệ thống gọi đến AI Q\&A Service để truy xuất dữ liệu.
+
+
+\textbf{3.} Hệ thống trả về danh sách lịch sử bao gồm: câu hỏi (question), câu trả lời (answer), nguồn trích dẫn (sources) và metadata.
+
+
+\textbf{4.} Kết thúc Usecase.
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_04.png}
+\caption{Usecase Xem lịch sử hỏi đáp cá nhân}
+\label{fig:usecase4_png}
+\end{figure}
+
+\subsubsection{Use Case 5: Like / Dislike và Feedback câu trả lời}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Like / Dislike câu trả lời
+    \item \textbf{Actor:} User, Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân đánh giá chất lượng câu trả lời của AI Q\&A để hệ thống thu thập dữ liệu phân tích.
+    \item \textbf{Điều kiện kích hoạt:} Tác nhân nhấn vào biểu tượng Like hoặc Dislike dưới mỗi câu trả lời của AI.
+    \item \textbf{Tiền điều kiện:} Tác nhân đã đăng nhập và đang trong phiên hỏi đáp với AI hoặc đang xem lịch sử hội thoại.
+    \item \textbf{Hậu điều kiện:} Phản hồi được lưu trữ thành công vào cơ sở dữ liệu.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng nhấn Like hoặc Dislike trên câu trả lời của AI.
+
+
+\textbf{2.} Hệ thống cho phép người dùng nhập thêm bình luận (comment) tùy chọn để giải thích chi tiết.
+
+
+\textbf{3.} Hệ thống gửi request lưu feedback thông qua Feedback \& Analytics Service.
+
+
+\textbf{4.} Hệ thống hiển thị thông báo ghi nhận đánh giá thành công.
+
+
+\textbf{5.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Dữ liệu này sẽ được dùng để thống kê tỷ lệ hài lòng (like/dislike ratio) trên dashboard.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_05.png}
+\caption{Usecase Feedback}
+\label{fig:usecase5_png}
+\end{figure}
+
+\subsubsection{Use Case 6: Quản lý tài khoản nhân viên}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Quản lý tài khoản nhân viên
+    \item \textbf{Actor:} Admin
+    \item \textbf{Mô tả:} Tác nhân Admin tạo mới, thay đổi trạng thái hoạt động hoặc xóa tài khoản của người dùng trong hệ thống.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng Quản lý User trên giao diện của Admin.
+    \item \textbf{Tiền điều kiện:} Tác nhân đăng nhập với quyền Admin.
+    \item \textbf{Hậu điều kiện:} Tài khoản được tạo mới, cập nhật trạng thái hoặc xóa thành công.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Admin truy cập danh sách nhân viên và chọn Tạo mới hoặc Cập nhật tài khoản.
+
+
+\textbf{2.} Admin nhập thông tin hoặc thay đổi trạng thái tài khoản giữa các mức: \texttt{Active}, \texttt{Deactivated}, \texttt{Revoked}.
+
+
+\textbf{3.} Hệ thống kiểm tra tính hợp lệ và cập nhật dữ liệu vào database.
+
+
+\textbf{4.} Publish event qua RabbitMQ (\texttt{User.status.changed} hoặc \texttt{User.revoked}) để Auth Service lắng nghe và xử lý (invalidate token, dọn dẹp session).
+
+
+\textbf{5.} Hiển thị thông báo thành công.
+
+
+\textbf{6.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Luồng sự kiện phụ:}
+    \item \textbf{Dòng sự kiện phụ 1 (Xóa tài khoản):}
+\end{itemize}
+
+\textbf{1.} Admin chọn Xóa tài khoản.
+
+
+\textbf{2.} Hệ thống thực hiện Soft delete (chuyển trạng thái sang \texttt{Revoked} và ẩn danh thông tin PII - anonymize PII) thay vì xóa vật lý khỏi database để đảm bảo tính toàn vẹn dữ liệu.
+
+
+\textbf{3.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Trạng thái chuyển từ \texttt{Active}/\texttt{Deactivated} sang \texttt{Revoked} là hành động một chiều và không thể khôi phục lại.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_06.png}
+\caption{Usecase Quản lý tài khoản nhân viên}
+\label{fig:usecase6_png}
+\end{figure}
+
+\subsubsection{Use Case 7: Xem báo cáo thống kê và Dashboard Analytics}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Xem báo cáo và Dashboard Analytics
+    \item \textbf{Actor:} Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân theo dõi các chỉ số tổng quan, mức độ tương tác của người dùng và hiệu suất của AI.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng Xem Dashboard hoặc Báo cáo thống kê.
+    \item \textbf{Tiền điều kiện:} Tác nhân đăng nhập với quyền Manager hoặc Admin.
+    \item \textbf{Hậu điều kiện:} Hiển thị biểu đồ và số liệu thống kê trực quan.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng truy cập vào trang Dashboard.
+
+
+\textbf{2.} Feedback \& Analytics Service tổng hợp và trả về các số liệu thống kê.
+
+
+\textbf{3.} Giao diện hiển thị tổng quan sử dụng hệ thống, phân tích xu hướng (trend analysis), và các chỉ số tương tác (user engagement metrics).
+
+
+\textbf{4.} Hiển thị chi tiết số câu hỏi theo thời gian, tỷ lệ hài lòng, top câu hỏi phổ biến và top tài liệu được trích dẫn nhiều nhất.
+
+
+\textbf{5.} (Tùy chọn) Tác nhân chọn Export báo cáo ra định dạng CSV hoặc PDF.
+
+
+\textbf{6.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Có thể lọc và xem thống kê dữ liệu riêng biệt theo từng phòng ban (Department).
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_07.png}
+\caption{Usecase Dashboard Analytics}
+\label{fig:usecase7_png}
+\end{figure}
+
+\subsubsection{Use Case 8: Quản lý Metadata tài liệu}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Quản lý Metadata tài liệu
+    \item \textbf{Actor:} Admin
+    \item \textbf{Mô tả:} Tác nhân thiết lập và chỉnh sửa các siêu dữ liệu (thông tin mô tả, quyền truy cập, ngày hiệu lực) cho các tài liệu tri thức đã được tải lên.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng Quản lý Metadata trong module Tài liệu.
+    \item \textbf{Tiền điều kiện:} Tác nhân đăng nhập với quyền Admin.
+    \item \textbf{Hậu điều kiện:} Metadata của tài liệu được cập nhật thành công, ảnh hưởng trực tiếp đến bộ lọc tìm kiếm của AI.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Admin chọn một tài liệu cần chỉnh sửa metadata.
+
+
+\textbf{2.} Admin cập nhật thông tin: Tiêu đề, mô tả, tags, document\_type.
+
+
+\textbf{3.} Thiết lập Access control (\texttt{Public}, \texttt{Department-only}, \texttt{Restricted}).
+
+
+\textbf{4.} Thiết lập ngày hiệu lực (\texttt{effective\_date}), ngày hết hạn (\texttt{expiry\_date}) và trạng thái (\texttt{DRAFT} / \texttt{PUBLISHED} / \texttt{ARCHIVED} / \texttt{EXPIRED}).
+
+
+\textbf{5.} Hệ thống kiểm tra và lưu vào cơ sở dữ liệu thông qua Metadata \& Document Service.
+
+
+\textbf{6.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Hệ thống có job chạy ngầm (scheduled job) tự động kiểm tra và đánh dấu trạng thái "Expired" khi tài liệu quá ngày hết hạn.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_08.png}
+\caption{Usecase Quản lý Metadata tài liệu}
+\label{fig:usecase8_png}
+\end{figure}
+
+\subsubsection{Use Case 9: Xem câu hỏi chưa trả lời (Unanswered Questions)}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Xem câu hỏi chưa trả lời
+    \item \textbf{Actor:} Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân xem danh sách các câu hỏi của người dùng mà AI không thể tìm ra câu trả lời, nhằm mục đích bổ sung thêm tài liệu tri thức.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng "Câu hỏi chưa trả lời" trên Dashboard.
+    \item \textbf{Tiền điều kiện:} Tác nhân đăng nhập với quyền Manager hoặc Admin.
+    \item \textbf{Hậu điều kiện:} Hiển thị danh sách các câu hỏi không có câu trả lời.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng truy cập danh sách câu hỏi chưa trả lời.
+
+
+\textbf{2.} Hệ thống lấy dữ liệu từ cơ sở dữ liệu \texttt{poliwise-analytics} (bảng \texttt{unanswered\_questions}).
+
+
+\textbf{3.} Hiển thị danh sách câu hỏi. Dữ liệu này được Feedback \& Analytics Service ghi nhận tự động khi nhận sự kiện \texttt{unanswered.question} từ RabbitMQ.
+
+
+\textbf{4.} Tác nhân phân tích danh sách để chuẩn bị bổ sung tài liệu mới.
+
+
+\textbf{5.} Kết thúc Usecase.
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_09.png}
+\caption{Usecase Xem câu hỏi chưa trả lời}
+\label{fig:usecase9_png}
+\end{figure}
+
+\subsubsection{Use Case 10: Xem và Cập nhật thông tin cá nhân}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Xem và Cập nhật thông tin cá nhân
+    \item \textbf{Actor:} User, Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân xem thông tin tài khoản cá nhân của mình và tiến hành chỉnh sửa các thông tin cơ bản.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng Xem/Cập nhật thông tin cá nhân (Profile) trên giao diện.
+    \item \textbf{Tiền điều kiện:} Tác nhân đã đăng nhập thành công vào hệ thống.
+    \item \textbf{Hậu điều kiện:}
+    \item Nếu thành công: Thông tin mới được cập nhật vào cơ sở dữ liệu và hiển thị lên giao diện.
+    \item Nếu thất bại: Hiển thị thông báo lỗi (ví dụ: email không hợp lệ).
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng truy cập trang thông tin cá nhân. Hệ thống hiển thị thông tin hiện tại của tài khoản.
+
+
+\textbf{2.} Người dùng nhập hoặc chỉnh sửa các thông tin bao gồm: tên, email và ảnh đại diện (avatar).
+
+
+\textbf{3.} Người dùng nhấn nút lưu (Cập nhật).
+
+
+\textbf{4.} Hệ thống (User Service) kiểm tra tính hợp lệ của dữ liệu.
+
+
+\textbf{5.} Cập nhật dữ liệu vào cơ sở dữ liệu \texttt{poliwise-core}.
+
+
+\textbf{6.} Hiển thị thông báo cập nhật thành công.
+
+
+\textbf{7.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Luồng sự kiện phụ:}
+    \item \textbf{Dòng sự kiện phụ 1 (Dữ liệu không hợp lệ):}
+\end{itemize}
+
+\textbf{1.} Người dùng nhập sai định dạng email hoặc bỏ trống trường bắt buộc.
+
+
+\textbf{2.} Hệ thống báo lỗi Validation (mã lỗi \texttt{VALIDATION\_ERROR} hoặc \texttt{INVALID\_FORMAT}).
+
+
+\textbf{3.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Admin có quyền xem thông tin cá nhân của tất cả người dùng khác.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_10.png}
+\caption{Usecase Cập nhật thông tin cá nhân}
+\label{fig:usecase10_png}
+\end{figure}
+
+\subsubsection{Use Case 11: Tìm kiếm nhân viên}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Tìm kiếm nhân viên
+    \item \textbf{Actor:} Manager, Admin
+    \item \textbf{Mô tả:} Tác nhân quản lý sử dụng chức năng này để tìm kiếm và tra cứu danh sách nhân sự trong hệ thống.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng Danh sách nhân viên / Tìm kiếm nhân viên.
+    \item \textbf{Tiền điều kiện:} Tác nhân đăng nhập với quyền Manager hoặc Admin.
+    \item \textbf{Hậu điều kiện:} Hiển thị danh sách nhân viên khớp với điều kiện tìm kiếm và bộ lọc.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Người dùng truy cập trang danh sách nhân viên.
+
+
+\textbf{2.} Người dùng nhập từ khóa tìm kiếm (theo tên) hoặc áp dụng các bộ lọc (theo phòng ban, vai trò).
+
+
+\textbf{3.} Hệ thống (User Service) truy vấn cơ sở dữ liệu và trả về kết quả.
+
+
+\textbf{4.} Giao diện hiển thị danh sách nhân viên hỗ trợ phân trang và sắp xếp.
+
+
+\textbf{5.} Kết thúc Usecase.
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_11.png}
+\caption{Usecase Tìm kiếm nhân viên}
+\label{fig:usecase11_png}
+\end{figure}
+
+\subsubsection{Use Case 12: Quản lý phiên bản tài liệu}
+\begin{itemize}
+    \item \textbf{Tên usecase:} Quản lý phiên bản tài liệu
+    \item \textbf{Actor:} Admin
+    \item \textbf{Mô tả:} Tác nhân sử dụng chức năng này để theo dõi lịch sử cập nhật của tài liệu và so sánh sự khác biệt giữa các phiên bản chính sách.
+    \item \textbf{Điều kiện kích hoạt:} Chọn chức năng Lịch sử phiên bản (Version control) của một tài liệu cụ thể.
+    \item \textbf{Tiền điều kiện:} Tác nhân đăng nhập với quyền Admin và tài liệu đã có ít nhất một phiên bản được tải lên.
+    \item \textbf{Hậu điều kiện:} Hiển thị danh sách các phiên bản hoặc màn hình so sánh chi tiết điểm khác biệt giữa hai tài liệu.
+    \item \textbf{Luồng sự kiện chính:}
+\end{itemize}
+
+\textbf{1.} Tác nhân chọn một tài liệu và mở phần lịch sử phiên bản.
+
+
+\textbf{2.} Hệ thống (Knowledge Management Service) hiển thị danh sách tất cả các phiên bản của tài liệu đó.
+
+
+\textbf{3.} (Tùy chọn) Tác nhân chọn hai phiên bản bất kỳ để thực hiện Policy comparison (So sánh chính sách).
+
+
+\textbf{4.} Hệ thống so sánh text diff và highlight (làm nổi bật) các điểm thay đổi giữa 2 phiên bản.
+
+
+\textbf{5.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Luồng sự kiện phụ:}
+    \item \textbf{Dòng sự kiện phụ 1 (Tạo phiên bản mới):}
+\end{itemize}
+
+\textbf{1.} Admin upload một file mới cho cùng một tài liệu đang có.
+
+
+\textbf{2.} Hệ thống tự động tạo ra một version mới và giữ nguyên lịch sử của các version cũ.
+
+
+\textbf{3.} Kết thúc Usecase.
+
+\begin{itemize}
+    \item \textbf{Các yêu cầu đặc biệt:} Việc versioning được hỗ trợ bởi Object Versioning của MinIO kết hợp với bảng \texttt{document\_versions} trong cơ sở dữ liệu PostgreSQL.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/usecase_12.png}
+\caption{Usecase Quản lý phiên bản tài liệu}
+\label{fig:usecase12_png}
+\end{figure}
+
+
+\clearpage
+
+
+\end{document}

@@ -47,9 +47,9 @@ class PromptBuilder:
             return "No relevant documents found."
 
         formatted = []
-        for i, chunk in enumerate(chunks[:5], 1):
+        for i, chunk in enumerate(chunks[:10], 1):
             doc_name = chunk.document_name or "Unknown Document"
-            content = chunk.content[:1500] + "..." if len(chunk.content) > 1500 else chunk.content
+            content = chunk.content[:2500] + "..." if len(chunk.content) > 2500 else chunk.content
             formatted.append(f"### Document {i}: {doc_name}\n{content}\n")
 
         return "\n\n".join(formatted)

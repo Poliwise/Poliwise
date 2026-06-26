@@ -171,7 +171,13 @@ class PipelineOrchestrator:
             )
 
         # ── COMPLEX path: Query Refinement → Layer 3 ────────────
+        # Load conversation history for the query refiner (de-contextualize follow-up questions)
         layer3_history = []
+        if request.conversation_id:
+            history_limit = self.settings.query_refiner_history_limit if self.settings else 10
+            layer3_history = await self.message_repository.get_by_conversation(
+                request.conversation_id, user_context.user_id, limit=history_limit
+            )
 
         refined = await self.query_refiner.refine(
             original_query=request.message,
@@ -350,9 +356,17 @@ class PipelineOrchestrator:
             return
 
         # ── COMPLEX path: Query Refinement → Layer 3 ────────────
+        # Load conversation history for the query refiner (de-contextualize follow-up questions)
+        layer3_history = []
+        if request.conversation_id:
+            history_limit = self.settings.query_refiner_history_limit if self.settings else 10
+            layer3_history = await self.message_repository.get_by_conversation(
+                request.conversation_id, user_context.user_id, limit=history_limit
+            )
+
         refined = await self.query_refiner.refine(
             original_query=request.message,
-            layer3_history=[],
+            layer3_history=layer3_history,
         )
         search_query = refined.refined
 

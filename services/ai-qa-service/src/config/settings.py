@@ -57,15 +57,17 @@ class Settings(BaseSettings):
     context_layer3_only: bool = True
     max_layer3_context_pairs: int = 5
 
-    retrieval_limit: int = 10
-    rerank_limit: int = 5
-    similarity_threshold: float = 0.3
-    use_reranker: bool = False
+    retrieval_limit: int = 25
+    rerank_limit: int = 10
+    similarity_threshold: float = 0.15
+    use_reranker: bool = True
+    layer2_fallback_intent: str = "COMPLEX"
 
     rate_limit_requests: int = 30
     rate_limit_window_seconds: int = 60
 
     max_history_messages: int = 20
+    query_refiner_history_limit: int = 10
     conversation_title_max_length: int = 255
 
 

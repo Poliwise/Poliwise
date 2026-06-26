@@ -37,7 +37,8 @@ toxic_filter = ToxicFilterService(
 intent_classifier = IntentClassifierService(
     groq_api_key=settings.groq_api_key,
     model=settings.layer2_model,
-    max_tokens=settings.layer2_max_tokens_classify
+    max_tokens=settings.layer2_max_tokens_classify,
+    fallback_intent=settings.layer2_fallback_intent
 )
 
 layer2_responder = Layer2Responder(
