@@ -1,3 +1,0 @@
-Poliwise audit remediation verification sample.
-
-This file is used to verify upload through the API gateway and downstream knowledge-service handling.
