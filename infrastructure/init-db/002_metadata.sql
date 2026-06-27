@@ -39,8 +39,8 @@ CREATE TABLE metadata.categories (
 -- ============================================================
 CREATE TABLE metadata.tags (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50) NOT NULL,
-    slug VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    slug VARCHAR(200) UNIQUE NOT NULL,
     color VARCHAR(7) DEFAULT '#6B7280',
     usage_count INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -143,3 +143,5 @@ CREATE INDEX idx_metadata_doc_access_rules_metadata_id ON metadata.document_acce
 CREATE INDEX idx_metadata_doc_access_rules_target_lookup
     ON metadata.document_access_rules(document_metadata_id, permission, target_type, target_role, target_department_id, target_user_id);
 CREATE INDEX idx_metadata_doc_access_rules_trace_id ON metadata.document_access_rules(trace_id);
+CREATE INDEX idx_access_rules_targets
+    ON metadata.document_access_rules(target_type, target_role, target_department_id, target_user_id);

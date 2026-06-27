@@ -198,7 +198,7 @@ function coercePaginated<T>(
   }
 
   // Handle wrapped ApiResponse with { success, data: [...], pagination: {...} }
-  const dataArr = wrappedData as T[] | undefined;
+  let dataArr = wrappedData as T[] | undefined;
   let pagination = (root.pagination || root.Pagination) as
     | { page: number; limit: number; total: number; totalPages: number }
     | undefined;
@@ -213,8 +213,18 @@ function coercePaginated<T>(
     };
   }
 
+  // CRITICAL: Ensure dataArr is always an array, never a Page object
+  // If wrappedData is a Page-like object with 'content', extract it
+  if (dataArr && typeof dataArr === 'object' && !Array.isArray(dataArr) && 'content' in dataArr) {
+    dataArr = (dataArr as Record<string, unknown>).content as T[];
+  }
+  // If dataArr is still not an array (e.g., a Page object without 'content'), default to empty array
+  if (!Array.isArray(dataArr)) {
+    dataArr = [];
+  }
+
   return {
-    data: Array.isArray(dataArr) ? dataArr : [],
+    data: dataArr,
     pagination: pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
   };
 }
@@ -2698,6 +2708,208 @@ class ApiClient {
             ? (raw.department as any).id
             : raw.departmentId || null,
       };
+    },
+  };
+
+  // ==========================================================================
+  // Violations
+  // ==========================================================================
+  violations = {
+    // User endpoints
+    getMyViolations: async (params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.status !== undefined) mappedParams.status = params.status;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/me",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    getMyWarnings: async (params?: {
+      page?: number;
+      limit?: number;
+      read?: boolean;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.read !== undefined) mappedParams.read = params.read;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/me/warnings",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    submitAppeal: async (violationId: string, appealText: string): Promise<void> => {
+      await this.client.post(`/api/v1/violations/${violationId}/appeal`, {
+        appealText,
+      });
+    },
+
+    acknowledgeWarning: async (warningId: string): Promise<void> => {
+      await this.client.post(`/api/v1/violations/warnings/${warningId}/acknowledge`);
+    },
+
+    // Admin endpoints
+    getQueue: async (params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      severity?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.status !== undefined) mappedParams.status = params.status;
+        if (params.severity !== undefined) mappedParams.severity = params.severity;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/queue",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    getUserViolations: async (
+      userId: string,
+      params?: {
+        page?: number;
+        limit?: number;
+      },
+    ): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        `/api/v1/violations/users/${userId}`,
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    reviewViolation: async (
+      violationId: string,
+      action: string,
+    ): Promise<void> => {
+      await this.client.post(`/api/v1/violations/${violationId}/review`, {
+        action,
+      });
+    },
+
+    getAppeals: async (params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.status !== undefined) mappedParams.status = params.status;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/appeals",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    reviewAppeal: async (
+      appealId: string,
+      approved: boolean,
+    ): Promise<void> => {
+      await this.client.post(`/api/v1/violations/appeals/${appealId}/review`, {
+        approved,
+      });
+    },
+
+    resetStrikes: async (userId: string): Promise<void> => {
+      await this.client.post(`/api/v1/violations/users/${userId}/reset-strikes`);
+    },
+
+    getStats: async (): Promise<{
+      pendingViolations: number;
+      totalViolations?: number;
+      pendingAppeals?: number;
+      totalWarnings?: number;
+    }> => {
+      const res = await this.client.get<{
+        pendingViolations: number;
+        totalViolations?: number;
+        pendingAppeals?: number;
+        totalWarnings?: number;
+      }>("/api/v1/violations/stats");
+      return res.data;
     },
   };
 }

@@ -59,8 +59,11 @@ class IngestionPipeline:
 
             file_bytes = await minio_service.download_file(bucket_name, file_key)
             
+            
             # Layer 1: Exact File Checksum
             dup_file = await deduplicator.check_file_duplicate(file_bytes)
+            
+            
             if dup_file.is_duplicate:
                 return await self._handle_duplicate(job_id, document_id, version_id, dup_file)
 

@@ -6,6 +6,7 @@ import { clsx } from 'clsx';
 import styles from './stat-card.module.css';
 
 type TrendDirection = 'up' | 'down' | 'neutral';
+type StatTone = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
 
 export interface StatCardProps {
   label: string;
@@ -14,6 +15,9 @@ export interface StatCardProps {
   changeLabel?: string;
   icon?: React.ReactNode;
   trend?: TrendDirection;
+  tone?: StatTone;
+  meta?: React.ReactNode;
+  status?: React.ReactNode;
   className?: string;
 }
 
@@ -24,12 +28,15 @@ export function StatCard({
   changeLabel,
   icon,
   trend,
+  tone = 'default',
+  meta,
+  status,
   className,
 }: StatCardProps) {
   const resolvedTrend = trend || (change !== undefined ? (change > 0 ? 'up' : change < 0 ? 'down' : 'neutral') : 'neutral');
 
   return (
-    <div className={clsx(styles.card, className)}>
+    <div className={clsx(styles.card, styles[tone], className)}>
       <div className={styles.header}>
         <span className={styles.label}>{label}</span>
         {icon && <div className={styles.icon}>{icon}</div>}
@@ -49,6 +56,12 @@ export function StatCard({
           </div>
         )}
       </div>
+      {(meta || status) && (
+        <div className={styles.footer}>
+          {meta && <span className={styles.meta}>{meta}</span>}
+          {status && <span className={styles.status}>{status}</span>}
+        </div>
+      )}
     </div>
   );
 }

@@ -21,7 +21,7 @@
 11. [RBAC — Role-Based Access Control](#11-rbac--role-based-access-control)
 12. [API Gateway Cross-Cutting Concerns](#12-api-gateway-cross-cutting-concerns)
 13. [Scheduled Background Jobs](#13-scheduled-background-jobs)
-14. [User Behavior & Violation Management (Planned)](#14-user-behavior--violation-management-planned)
+14. [User Behavior & Violation Management](#14-user-behavior--violation-management)
 15. [Cross-Feature Interactions](#15-cross-feature-interactions)
 
 ---
@@ -1089,9 +1089,9 @@ public DocumentResponse upload(MultipartFile file, UploadRequest request, JwtCon
 
 ---
 
-## 14. User Behavior & Violation Management (Planned)
+## 14. User Behavior & Violation Management
 
-> **Status**: This feature does not exist yet. It is documented here as a planned feature to be implemented.
+> **Status**: ✅ **IMPLEMENTED** - Full implementation as of June 27, 2026
 
 **Owner**: `feedback-service` (port 8085) — or a new `moderation-service`
 **Schema**: `analytics` (new table)
@@ -1105,11 +1105,12 @@ The current system has no mechanism to track, escalate, or act on user misbehavi
 - There is no UI or API for an admin to review a user's behavioral history before making a ban decision.
 - There is no strike/warning system to give users a chance to correct behavior before a permanent ban.
 
-### 14.2 Key Capabilities (Planned)
+### 14.2 Key Capabilities
 
 | Capability | Design |
 |-----------|--------|
 | Violation logging | Every time Layer 1 blocks a toxic query, a violation record is created automatically. Includes: user_id, violation_type, evidence (the blocked query content), severity, timestamp |
+| Admin exemption | **ADMIN users are exempt from violation escalation**. Admins may test the toxic filter with edge cases, so violations are logged but never trigger strikes, warnings, or account actions. |
 | Violation types | `TOXIC_QUERY` (blocked by Layer 1), `ABUSE` (hateful/harassing content past Layer 1), `SPAM` (repeated duplicate queries), `POLICY_BREAK` (attempts to extract sensitive info) |
 | Severity levels | `LOW` (first offense, borderline content), `MEDIUM` (repeat offense), `HIGH` (severe toxicity, repeated after warning) |
 | Strike system | Each violation increments a `strike_count` on the user's profile. Configurable thresholds: 3 strikes → warn, 5 strikes → auto-deactivate pending admin review, 10 strikes → auto-revoke |
@@ -1117,7 +1118,7 @@ The current system has no mechanism to track, escalate, or act on user misbehavi
 | User-facing warning | When a user hits the warn threshold, they see a banner on next login: "Your account has received a warning due to policy violations. Further violations may result in account suspension." |
 | Appeal process | User can submit an appeal (free text) for admin review. Appeal status tracked: `PENDING`, `APPEALED`, `OVERRULED` |
 
-### 14.3 Planned Data Model
+### 14.3 Data Model
 
 **New table** — `analytics.user_violations`:
 ```sql

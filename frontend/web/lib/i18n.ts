@@ -16,6 +16,9 @@ export const vi = {
   'nav.admin': 'Quản trị',
   'nav.logout': 'Đăng xuất',
   'nav.login': 'Đăng nhập',
+  'nav.violations': 'Vi phạm & Cảnh báo',
+  'admin.violations.title': 'Vi phạm',
+  'admin.violations.appeals.title': 'Khiếu nại',
 
   // ── Settings ─────────────────────────────────────────────
   'settings.title': 'Cài đặt',
@@ -634,6 +637,9 @@ export const en: Record<keyof typeof vi, string> = {
   'nav.admin': 'Admin',
   'nav.logout': 'Logout',
   'nav.login': 'Login',
+  'nav.violations': 'Violations & Warnings',
+  'admin.violations.title': 'Violations',
+  'admin.violations.appeals.title': 'Appeals',
 
   // ── Settings ──────────────────────────────────────────────
   'settings.title': 'Settings',

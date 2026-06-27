@@ -82,6 +82,10 @@ public class DocumentManagementService {
         // 3. Upload to MinIO
         String fileKey = storageService.uploadFile(file, documentId);
 
+        // DEBUG: Log upload for deduplication debugging
+        log.info("DEBUG_UPLOAD_REQUEST: documentId={}, fileName={}, fileSize={}, fileKey={}", 
+                documentId, file.getOriginalFilename(), file.getSize(), fileKey);
+
         // 4. Create document entity
         Document document = createDocumentEntity(documentId, fileKey, file, request, uploadedBy);
 

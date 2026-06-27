@@ -57,6 +57,10 @@ CREATE TABLE core.users (
     revoked_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
 
+    -- Strike/Violation tracking (3 -> warn, 5 -> deactivate, 10 -> revoke)
+    strike_count INT DEFAULT 0,
+    last_violation_at TIMESTAMPTZ,
+
     CONSTRAINT chk_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
     CONSTRAINT chk_username_format CHECK (username ~* '^[a-z0-9_]{3,50}$'),
     CONSTRAINT chk_status_revoked CHECK (status != 'REVOKED' OR revoked_at IS NOT NULL),
@@ -144,6 +148,25 @@ CREATE TABLE core.login_history (
 );
 
 -- ============================================================
+-- TABLE: core.password_reset_otp
+-- ============================================================
+CREATE TABLE core.password_reset_otp (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL,
+    otp_code VARCHAR(6) NOT NULL,
+    reset_token VARCHAR(255),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    used_at TIMESTAMP WITH TIME ZONE
+);
+
+COMMENT ON TABLE core.password_reset_otp IS 'Stores OTP codes for password reset functionality';
+COMMENT ON COLUMN core.password_reset_otp.otp_code IS '6-digit OTP code sent to user email';
+COMMENT ON COLUMN core.password_reset_otp.reset_token IS 'Unique token to prevent race conditions during reset';
+COMMENT ON COLUMN core.password_reset_otp.expires_at IS 'Timestamp when OTP expires (default 5 minutes)';
+
+-- ============================================================
 -- INDEXES: Core schema
 -- ============================================================
 CREATE INDEX idx_core_departments_parent_id ON core.departments(parent_id);
@@ -172,3 +195,7 @@ CREATE INDEX idx_core_access_token_blacklist_expired_at ON core.access_token_bla
 
 CREATE INDEX idx_core_login_history_user_id ON core.login_history(user_id);
 CREATE INDEX idx_core_login_history_created_at ON core.login_history(created_at DESC);
+
+CREATE INDEX idx_password_reset_otp_email ON core.password_reset_otp(email);
+CREATE INDEX idx_password_reset_otp_email_used ON core.password_reset_otp(email, used) WHERE used = FALSE;
+CREATE INDEX idx_password_reset_otp_expires ON core.password_reset_otp(expires_at);

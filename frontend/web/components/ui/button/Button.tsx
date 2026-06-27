@@ -5,7 +5,7 @@ import { clsx } from 'clsx';
 import { Loader2 } from 'lucide-react';
 import styles from './button.module.css';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'outline';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'outline' | 'success' | 'dangerOutline' | 'primaryOutline';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -23,6 +23,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   ghost: styles.ghost,
   destructive: styles.destructive,
   outline: styles.outline,
+  success: styles.success,
+  dangerOutline: styles.dangerOutline,
+  primaryOutline: styles.primaryOutline,
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

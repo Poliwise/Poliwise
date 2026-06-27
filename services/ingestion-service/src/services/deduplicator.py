@@ -29,9 +29,11 @@ class Deduplicator:
         """
         file_checksum = hashlib.sha256(file_bytes).hexdigest()
         
+        
         async with async_session() as session:
             repo = VersionRepository(session)
             existing = await repo.find_by_file_checksum(file_checksum)
+            
             
             if existing:
                 logger.info("deduplication_hit_layer1", method="file_checksum", version_id=str(existing.id))

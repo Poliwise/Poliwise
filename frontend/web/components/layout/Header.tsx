@@ -12,6 +12,8 @@ import {
   LogOut,
   Menu,
   ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
   Shield,
 } from 'lucide-react';
 import { useAuthStore, useIsManager } from '@/store';
@@ -26,7 +28,13 @@ const ROLE_BADGE_CLASS: Record<UserRole, string> = {
   [UserRole.USER]: styles.roleUser,
 };
 
-export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
+interface HeaderProps {
+  onMenuClick: () => void;
+  onToggleCollapse?: () => void;
+  sidebarCollapsed?: boolean;
+}
+
+export default function Header({ onMenuClick, onToggleCollapse, sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const { t } = useLanguage();
@@ -51,7 +59,15 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <button className={styles.menuButton} onClick={onMenuClick} aria-label="Toggle menu">
+        <button
+          className={`${styles.menuButton} ${styles.desktopOnly}`}
+          onClick={onToggleCollapse}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+        </button>
+        <button className={`${styles.menuButton} ${styles.mobileOnly}`} onClick={onMenuClick} aria-label="Toggle menu">
           <Menu size={20} />
         </button>
 

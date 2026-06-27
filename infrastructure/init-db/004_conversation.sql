@@ -21,7 +21,7 @@ CREATE TYPE conversation.priority_level AS ENUM ('LOW', 'NORMAL', 'HIGH', 'CRITI
 -- ============================================================
 CREATE TABLE conversation.conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
 
     title VARCHAR(255),
 
@@ -42,6 +42,7 @@ CREATE TABLE conversation.messages (
 
     role conversation.message_role NOT NULL,
     content TEXT NOT NULL,
+    content_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED,
 
     sources JSONB DEFAULT '[]',
 
@@ -115,6 +116,7 @@ CREATE INDEX idx_conversation_messages_role ON conversation.messages(role);
 CREATE INDEX idx_conversation_messages_created_at ON conversation.messages(created_at DESC);
 CREATE INDEX idx_conversation_messages_deleted_at ON conversation.messages(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_conversation_messages_trace_id ON conversation.messages(trace_id);
+CREATE INDEX idx_messages_content_tsv ON conversation.messages USING GIN (content_tsv);
 
 CREATE INDEX idx_conversation_unanswered_questions_user_id ON conversation.unanswered_questions(user_id);
 CREATE INDEX idx_conversation_unanswered_questions_status ON conversation.unanswered_questions(status);

@@ -617,6 +617,136 @@ export class ProxyController {
     );
   }
 
+  // ===== Violation Management Endpoints =====
+  // Admin-only: review queue, user violations, appeals, reset strikes
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/queue')
+  @Roles(UserRole.ADMIN)
+  handleViolationQueue(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/violations/queue'),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/users/:userId')
+  @Roles(UserRole.ADMIN)
+  handleUserViolations(@Req() request: Request) {
+    const userId = (request.params as Record<string, string>).userId;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/violations/users/${userId}`,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/:id/review')
+  @Roles(UserRole.ADMIN)
+  handleReviewViolation(@Req() request: Request) {
+    const id = (request.params as Record<string, string>).id;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/violations/${id}/review`,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/appeals')
+  @Roles(UserRole.ADMIN)
+  handleAppeals(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/violations/appeals'),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/appeals/:id/review')
+  @Roles(UserRole.ADMIN)
+  handleReviewAppeal(@Req() request: Request) {
+    const id = (request.params as Record<string, string>).id;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/violations/appeals/${id}/review`,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/users/:userId/reset-strikes')
+  @Roles(UserRole.ADMIN)
+  handleResetStrikes(@Req() request: Request) {
+    const userId = (request.params as Record<string, string>).userId;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/violations/users/${userId}/reset-strikes`,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/stats')
+  @Roles(UserRole.ADMIN)
+  handleViolationStats(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      '/api/v1/violations/stats',
+    );
+  }
+
+  // User-facing: own violations, warnings, submit appeal
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/me')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleMyViolations(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/violations/me'),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/:id/appeal')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleSubmitAppeal(@Req() request: Request) {
+    const id = (request.params as Record<string, string>).id;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/violations/${id}/appeal`,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/me/warnings')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleMyWarnings(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/violations/me/warnings'),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/warnings/:id/acknowledge')
+  @Roles(UserRole.USER, UserRole.MANAGER, UserRole.ADMIN)
+  handleAcknowledgeWarning(@Req() request: Request) {
+    const id = (request.params as Record<string, string>).id;
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      `/api/v1/violations/warnings/${id}/acknowledge`,
+    );
+  }
+
   // AI Q&A endpoints — route to ai-qa-service
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('ai/unanswered')

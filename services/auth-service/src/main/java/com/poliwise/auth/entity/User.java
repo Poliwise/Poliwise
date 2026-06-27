@@ -118,4 +118,17 @@ public class User {
      */
     @Column(name = "revoked_at")
     private OffsetDateTime revokedAt;
+
+    /**
+     * So lan vi pham chinh sach cua nguoi dung. Duoc tang khi Layer 1 chan query.
+     * Nguong: 3 -> warn, 5 -> deactivate, 10 -> revoke.
+     */
+    @Column(name = "strike_count")
+    private Integer strikeCount;
+
+    /**
+     * Thoi diem vi pham gan nhat. Cap nhat moi khi co vi pham moi.
+     */
+    @Column(name = "last_violation_at")
+    private OffsetDateTime lastViolationAt;
 }

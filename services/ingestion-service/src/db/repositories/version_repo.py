@@ -76,6 +76,7 @@ class VersionRepository:
         """Find version by file checksum for exact duplicate detection.
         Excludes versions from deleted documents.
         """
+        
         result = await self.session.execute(
             select(DocumentVersion)
             .join(Document, DocumentVersion.document_id == Document.id)
@@ -86,7 +87,10 @@ class VersionRepository:
             .order_by(DocumentVersion.created_at.desc())
             .limit(1)
         )
-        return result.scalar_one_or_none()
+        found = result.scalar_one_or_none()
+        
+        
+        return found
 
     async def find_by_content_hash(self, content_hash: str, exclude_version_id: UUID = None) -> list[DocumentVersion]:
         """Find versions with same content hash (for deduplication).

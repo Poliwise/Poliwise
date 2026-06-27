@@ -1,9 +1,9 @@
 @layer components {
   /* ====== Layout ====== */
   .container {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0;
-    padding: 1.5rem 2rem;
+    padding: 2rem;
     min-height: calc(100vh - 64px);
   }
 
@@ -22,10 +22,6 @@
     color: var(--foreground);
     margin: 0 0 0.375rem;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, var(--foreground) 0%, #4f46e5 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
   }
 
   .subtitle {
@@ -47,7 +43,7 @@
   /* ====== Stats Grid ====== */
   .statsGrid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
     margin-bottom: 1.75rem;
   }
@@ -61,13 +57,33 @@
   .statIconWrap {
     width: 52px;
     height: 52px;
-    border-radius: 14px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
+  }
+
+  .statIconPrimary {
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  .statIconSuccess {
+    background: var(--success-soft);
+    color: var(--success-foreground);
+  }
+
+  .statIconInfo {
+    background: var(--info-soft);
+    color: var(--info-foreground);
+  }
+
+  .statIconWarning {
+    background: var(--warning-soft);
+    color: var(--warning-foreground);
   }
 
   .statIconWrap::before {
@@ -115,6 +131,16 @@
     border-radius: 9999px;
   }
 
+  .changePositive {
+    background: var(--success-soft);
+    color: var(--success-foreground);
+  }
+
+  .changeNegative {
+    background: var(--danger-soft);
+    color: var(--danger-foreground);
+  }
+
   .statMeta {
     font-size: 0.75rem;
     color: var(--muted-foreground);
@@ -135,7 +161,7 @@
     min-height: 0;
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 1rem;
+    border-radius: var(--radius-card);
     overflow: hidden;
     transition: all 0.2s ease;
   }
@@ -153,7 +179,7 @@
     min-height: 200px;
     gap: 0.75rem;
     color: var(--muted-foreground);
-    background: var(--muted);
+    background: var(--primary-soft);
     margin: 0.5rem;
     border-radius: 0.75rem;
   }
@@ -224,13 +250,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+    background: var(--primary);
     color: white;
     border-radius: 8px;
     font-size: 0.75rem;
     font-weight: 700;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+    box-shadow: var(--shadow-sm);
   }
 
   .topInfo {
@@ -285,7 +311,7 @@
   /* ====== Responsive ====== */
   @media (max-width: 1400px) {
     .statsGrid {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 
@@ -356,14 +382,14 @@
 .container :global(.statsGrid) > div {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   padding: 1.25rem;
   transition: all 0.2s ease;
 }
 
 .container :global(.statsGrid) > div:hover {
   border-color: var(--ring);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -388,7 +414,7 @@
 .container :global(.listsGrid) > div {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 

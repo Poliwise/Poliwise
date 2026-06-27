@@ -33,22 +33,8 @@ ON CONFLICT (slug) DO NOTHING;
 -- ============================================================
 -- SEED: Default Admin User
 -- ============================================================
--- NOTE: Admin user is created by AdminInitializer.java with random password
--- This fallback ensures there's always an admin available
-INSERT INTO core.users (id, username, email, password_hash, role, status, department_id, must_change_password)
-VALUES (
-    uuid_generate_v4(),
-    'admin',
-    'admin@poliwise.com',
-    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqJ5.KK0Ke',
-    'ADMIN',
-    'ACTIVE',
-    NULL,
-    TRUE
-)
-ON CONFLICT (username) DO NOTHING;
-
--- Create admin profile
+-- NOTE: Admin user is created by AdminInitializer.java at service startup
+-- This script creates the admin profile after the user exists
 INSERT INTO core.user_profiles (id, user_id, full_name)
 VALUES (
     uuid_generate_v4(),

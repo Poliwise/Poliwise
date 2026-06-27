@@ -5,7 +5,7 @@
   margin-bottom: 1.25rem;
   padding: 1rem;
   background: var(--muted);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
 }
 
 .summaryItem {
@@ -28,7 +28,7 @@
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
 }
 
 .table {
@@ -69,7 +69,7 @@
 }
 
 .path {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--foreground);
   word-break: break-all;
@@ -112,6 +112,34 @@
   height: 100%;
   border-radius: 3px;
   transition: width 0.3s;
+}
+
+.barFill[data-health='success'] {
+  background: var(--success);
+}
+
+.barFill[data-health='warning'] {
+  background: var(--warning);
+}
+
+.barFill[data-health='danger'] {
+  background: var(--danger);
+}
+
+.successTone {
+  color: var(--success-foreground);
+}
+
+.warningTone {
+  color: var(--warning-foreground);
+}
+
+.dangerTone {
+  color: var(--danger-foreground);
+}
+
+.neutralTone {
+  color: var(--muted-foreground);
 }
 
 .rateValue {
@@ -185,7 +213,7 @@
 }
 
 .errorMethod {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--foreground);
   min-width: 3rem;
@@ -197,7 +225,7 @@
 }
 
 .errorPath {
-  font-family: monospace;
+  font-family: var(--font-mono);
   color: var(--muted-foreground);
   word-break: break-all;
 }

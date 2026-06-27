@@ -189,7 +189,7 @@ SET escape_string_warning = off;
         if not embedding:
             return "NULL"
         vals = ", ".join([f"{v:.6f}" for v in embedding])
-        return f"[{vals}]"
+        return f"'[{vals}]'::vector"
 
     # -------------------------------------------------------------------------
     # User & Department Seeding
@@ -359,19 +359,6 @@ INSERT INTO knowledge.document_versions (
 ) ON CONFLICT DO NOTHING;
 """)
 
-        # Insert tags
-        if doc_data.get('tags'):
-            self._add("\n-- Tags")
-            for tag_id in doc_data['tags']:
-                self._add(f"""
-INSERT INTO metadata.document_tags (id, document_metadata_id, tag_id)
-VALUES (
-    {self._format_uuid(uuid.uuid4())},
-    {self._format_uuid(doc_data['metadata_id'])},
-    {self._format_uuid(tag_id)}
-) ON CONFLICT DO NOTHING;
-""")
-
         # Insert chunks
         if doc_data.get('chunks'):
             self._add("\n-- Chunks")
@@ -407,7 +394,7 @@ INSERT INTO knowledge.chunks (
     {self._format_vector(chunk.get('embedding')) if chunk.get('embedding') else 'NULL'},
     'BGE_M3',
     1024,
-    'USER', 'MANAGER', 'ADMIN'::core.user_role[],
+    ARRAY['USER', 'MANAGER', 'ADMIN']::core.user_role[],
     {dept_arr},
     NULL,
     'PUBLIC',
@@ -509,12 +496,12 @@ class ParentChildChunker:
                 continue
 
             tokens = enc.encode(section_text)
-            parent_id = str(uuid.uuid4())
+            parent_id = uuid.uuid4()
             section_path = metadata.get("section_path", [])
 
             # Parent chunk
             chunks.append({
-                "id": uuid.uuid4(),
+                "id": parent_id,
                 "type": "parent",
                 "parent_id": None,
                 "content": section_text,
@@ -531,7 +518,7 @@ class ParentChildChunker:
             # Child chunks if section is large
             if len(tokens) > self.child_size:
                 child_chunks = self._create_children(
-                    section_text, parent_id, section, section_path, len(chunks) - 1
+                    section_text, str(parent_id), section, section_path, len(chunks) - 1
                 )
                 chunks.extend(child_chunks)
 

@@ -32,6 +32,8 @@ public class RabbitMQConfig {
     public static final String ROUTING_REPORT_EXPORT = "report.export.requested";
     public static final String DEAD_LETTER_EXCHANGE_NAME = EXCHANGE_NAME + ".dlx";
     public static final String QUEUE_REPORT_EXPORT_DLQ = QUEUE_REPORT_EXPORT + ".dlq";
+    public static final String QUEUE_VIOLATION = "poliwise.feedback.violation";
+    public static final String ROUTING_VIOLATION = "violation.layer1";
 
     @Bean public TopicExchange poliwiseExchange() { return new TopicExchange(EXCHANGE_NAME); }
     @Bean public TopicExchange poliwiseDeadLetterExchange() { return new TopicExchange(DEAD_LETTER_EXCHANGE_NAME); }
@@ -57,6 +59,9 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(QUEUE_REPORT_EXPORT).withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE_NAME).build();
     }
     @Bean public Queue reportExportDeadLetterQueue() { return QueueBuilder.durable(QUEUE_REPORT_EXPORT_DLQ).build(); }
+    @Bean public Queue violationQueue() {
+        return QueueBuilder.durable(QUEUE_VIOLATION).withArgument("x-dead-letter-exchange", EXCHANGE_NAME + ".dlx").build();
+    }
 
     @Bean public Binding unansweredBinding(Queue unansweredQueue, TopicExchange poliwiseExchange) {
         return BindingBuilder.bind(unansweredQueue).to(poliwiseExchange).with(ROUTING_UNANSWERED);
@@ -88,6 +93,9 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(reportExportDeadLetterQueue)
                 .to(poliwiseDeadLetterExchange)
                 .with(ROUTING_REPORT_EXPORT);
+    }
+    @Bean public Binding violationBinding(Queue violationQueue, TopicExchange poliwiseExchange) {
+        return BindingBuilder.bind(violationQueue).to(poliwiseExchange).with(ROUTING_VIOLATION);
     }
 
     @Bean public MessageConverter jsonMessageConverter() { return new Jackson2JsonMessageConverter(); }

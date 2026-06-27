@@ -8,6 +8,7 @@ from .layer1_toxic_filter import ToxicFilterService, ToxicFilterResult
 from .layer2_intent_classifier import IntentClassifierService, IntentResult
 from .layer2_responder import Layer2Responder, Layer2Response
 from .query_refiner import QueryRefiner, RefinedQuery
+from ..violation_publisher import violation_publisher
 
 logger = structlog.get_logger(__name__)
 
@@ -130,6 +131,40 @@ class PipelineOrchestrator:
         except Exception as e:
             logger.error("failed_to_auto_generate_title", error=str(e), conversation_id=str(conversation_id))
 
+    async def _publish_violation(
+        self,
+        user_id: UUID,
+        violation_type: str,
+        severity: str,
+        evidence: str,
+        source: str,
+        user_department_id: Optional[UUID] = None,
+        user_role: str = "USER"
+    ):
+        """Publish violation event to RabbitMQ. Admins are exempt from escalation."""
+        # Admins are exempt - they may be testing the system
+        if user_role == "ADMIN":
+            logger.info(
+                "admin_violation_logged_but_exempt",
+                user_id=str(user_id),
+                violation_type=violation_type
+            )
+            # Still log but don't trigger escalation for admins
+            return
+        
+        try:
+            await violation_publisher.publish_violation(
+                user_id=user_id,
+                violation_type=violation_type,
+                severity=severity,
+                evidence=evidence,
+                source=source,
+                user_department_id=user_department_id,
+                user_role=user_role
+            )
+        except Exception as e:
+            logger.error("failed_to_publish_violation", error=str(e), user_id=str(user_id))
+
     async def process(
         self,
         request: Any,
@@ -140,6 +175,15 @@ class PipelineOrchestrator:
         # ── LAYER 1: Toxic Filter ────────────────────────────────
         layer1_result = await self.toxic_filter.check(request.message)
         if layer1_result.is_toxic:
+            await self._publish_violation(
+                user_id=user_context.user_id,
+                violation_type="TOXIC_QUERY",
+                severity="HIGH" if layer1_result.label in ["JAILBREAK", "INJECTION"] else "LOW",
+                evidence=request.message,
+                source="SYSTEM",
+                user_department_id=user_context.department_id,
+                user_role=user_context.role,
+            )
             return PipelineResult(
                 status="BLOCKED",
                 layer_stopped=1,
@@ -321,6 +365,15 @@ class PipelineOrchestrator:
         # ── LAYER 1: Toxic Filter ────────────────────────────────
         layer1_result = await self.toxic_filter.check(request.message)
         if layer1_result.is_toxic:
+            await self._publish_violation(
+                user_id=user_context.user_id,
+                violation_type="TOXIC_QUERY",
+                severity="HIGH" if layer1_result.label in ["JAILBREAK", "INJECTION"] else "LOW",
+                evidence=request.message,
+                source="SYSTEM",
+                user_department_id=user_context.department_id,
+                user_role=user_context.role,
+            )
             yield f"data: {json.dumps({'conversationId': str(request.conversation_id)})}\n\n"
             yield f"data: {json.dumps({'content': 'Inappropriate content. Please rephrase your question.'})}\n\n"
             yield "data: [DONE]\n\n"
