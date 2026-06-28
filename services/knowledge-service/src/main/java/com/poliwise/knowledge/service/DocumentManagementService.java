@@ -6,11 +6,13 @@ import com.poliwise.knowledge.entity.Document;
 import com.poliwise.knowledge.entity.DocumentAuditLog;
 import com.poliwise.knowledge.entity.DocumentVersion;
 import com.poliwise.knowledge.client.MetadataServiceClient;
+import com.poliwise.knowledge.client.IngestionServiceClient;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
 import com.poliwise.knowledge.enums.FileType;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.event.DocumentEventPublisher;
+import com.poliwise.knowledge.exception.DuplicateDocumentException;
 import com.poliwise.knowledge.repository.DocumentAuditLogRepository;
 import com.poliwise.knowledge.repository.DocumentRepository;
 import com.poliwise.knowledge.repository.DocumentSpecifications;
@@ -32,7 +34,6 @@ import com.poliwise.knowledge.exception.ResourceNotFoundException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,6 +50,7 @@ public class DocumentManagementService {
     private final ObjectMapper objectMapper;
     private final MetadataServiceClient metadataServiceClient;
     private final DocumentParsingService parsingService;
+    private final IngestionServiceClient ingestionServiceClient;
 
     public DocumentManagementService(
             DocumentRepository documentRepository,
@@ -58,7 +60,8 @@ public class DocumentManagementService {
             DocumentEventPublisher eventPublisher,
             ObjectMapper objectMapper,
             MetadataServiceClient metadataServiceClient,
-            DocumentParsingService parsingService) {
+            DocumentParsingService parsingService,
+            IngestionServiceClient ingestionServiceClient) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
         this.auditLogRepository = auditLogRepository;
@@ -67,6 +70,7 @@ public class DocumentManagementService {
         this.objectMapper = objectMapper;
         this.metadataServiceClient = metadataServiceClient;
         this.parsingService = parsingService;
+        this.ingestionServiceClient = ingestionServiceClient;
     }
 
     // ========== Document CRUD ==========
@@ -727,5 +731,279 @@ public class DocumentManagementService {
         eventPublisher.publishIngestionRequested(payload);
         
         log.info("Ingestion triggered: documentId={}, versionId={}, jobId={}", documentId, latestVersionId, jobId);
+    }
+
+    // ========== Duplicate Check ==========
+
+    /**
+     * Pre-confirm duplicate check. Called by GET /check-duplicate.
+     * Checks Layer 1 (file checksum) via ingestion-service.
+     * Returns duplicate info if found, otherwise indicates no duplicate.
+     */
+    public DuplicateCheckResponse checkDuplicate(String fileChecksum) {
+        if (fileChecksum == null || fileChecksum.isBlank()) {
+            return DuplicateCheckResponse.notDuplicate();
+        }
+
+        // Layer 1: exact file checksum via ingestion-service
+        try {
+            DuplicateCheckResponse result = ingestionServiceClient.checkDuplicateByChecksum(fileChecksum);
+            if (result.isDuplicate()) {
+                log.info("Duplicate detected via checksum: {}", fileChecksum);
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to check duplicate via ingestion-service: {}", e.getMessage());
+        }
+
+        // Fallback: check local knowledge schema
+        Optional<DocumentVersion> versionByChecksum = versionRepository.findByFileChecksum(fileChecksum);
+        if (versionByChecksum.isPresent()) {
+            DocumentVersion v = versionByChecksum.get();
+            Document doc = documentRepository.findById(v.getDocumentId()).orElse(null);
+            if (doc != null && doc.getDeletedAt() == null) {
+                DocumentDuplicateInfo docInfo = toDuplicateInfo(doc, v);
+                return DuplicateCheckResponse.duplicate(
+                        DuplicateCheckResponse.BlockAction.BLOCK,
+                        docInfo,
+                        "file_checksum"
+                );
+            }
+        }
+
+        return DuplicateCheckResponse.notDuplicate();
+    }
+
+    private DocumentDuplicateInfo toDuplicateInfo(Document doc, DocumentVersion version) {
+        String title = null;
+        String categorySlug = null;
+        try {
+            title = metadataServiceClient.getDocumentTitle(doc.getId());
+            categorySlug = metadataServiceClient.getDocumentCategorySlug(doc.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get document metadata for {}: {}", doc.getId(), e.getMessage());
+        }
+        return new DocumentDuplicateInfo(
+                doc.getId(),
+                doc.getOriginalFilename(),
+                doc.getFileSizeBytes(),
+                doc.getCreatedAt(),
+                title,
+                categorySlug,
+                doc.getStatus() != null ? doc.getStatus().toString() : null,
+                version.getFileChecksum()
+        );
+    }
+
+    // ========== Sync Confirm Flow ==========
+
+    /**
+     * Synchronous confirm with ingestion polling.
+     * Saves metadata, triggers ingestion sync, polls for result.
+     * Returns ConfirmResultResponse with final status.
+     * Throws DuplicateDocumentException if duplicate detected during ingestion.
+     */
+    @Transactional
+    public ConfirmResultResponse confirmMetadataSync(UUID documentId, DocumentConfirmRequest request, UUID confirmedBy) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        if (document.getStatus() != ProcessingStatus.STAGING && document.getStatus() != ProcessingStatus.READY) {
+            throw new IllegalStateException("Document is not in staging or ready status: " + document.getStatus());
+        }
+
+        // 1. Resolve category slug → UUID
+        UUID categoryId = metadataServiceClient.resolveCategorySlug(request.categorySlug());
+        if (request.categorySlug() != null && !request.categorySlug().isBlank() && categoryId == null) {
+            log.warn("Category resolution failed for slug: {}", request.categorySlug());
+        }
+
+        // 2. Resolve tag names → UUIDs
+        List<UUID> tagIds = metadataServiceClient.resolveTagNames(request.tags());
+
+        // 3. Create document_metadata record
+        try {
+            metadataServiceClient.createDocumentMetadata(
+                    documentId,
+                    request.title(),
+                    request.description(),
+                    categoryId,
+                    tagIds,
+                    request.isPolicy()
+            );
+        } catch (RuntimeException e) {
+            log.error("Failed to persist metadata to metadata-service: {}", e.getMessage());
+            throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
+        }
+
+        // 4. Update document language, status, and save file checksum
+        if (request.language() != null) {
+            document.setLanguage(request.language());
+        }
+        if (request.fileChecksum() != null && !request.fileChecksum().isBlank()) {
+            saveFileChecksum(documentId, request.fileChecksum());
+        }
+        document.setStatus(ProcessingStatus.READY);
+        document.setExpiresAt(null);
+        document.setUpdatedAt(OffsetDateTime.now());
+        documentRepository.save(document);
+
+        log.info("Document metadata confirmed (sync): documentId={}, title='{}', categorySlug='{}'",
+                documentId, request.title(), request.categorySlug());
+
+        // 5. Trigger sync ingestion and poll for result
+        return triggerAndPollIngestion(documentId, confirmedBy);
+    }
+
+    private void saveFileChecksum(UUID documentId, String checksum) {
+        try {
+            List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+            if (!versions.isEmpty()) {
+                DocumentVersion latestVersion = versions.get(0);
+                latestVersion.setFileChecksum(checksum);
+                versionRepository.save(latestVersion);
+                log.info("Saved file checksum for document {} version {}: {}",
+                        documentId, latestVersion.getVersionNumber(), checksum);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to save file checksum for document {}: {}", documentId, e.getMessage());
+        }
+    }
+
+    private ConfirmResultResponse triggerAndPollIngestion(UUID documentId, UUID triggeredBy) {
+        Document document;
+        DocumentVersion latestVersion;
+        try {
+            document = documentRepository.findById(documentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+            List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+            if (versions.isEmpty()) {
+                throw new IllegalStateException("No versions found for document: " + documentId);
+            }
+            latestVersion = versions.get(0);
+        } catch (Exception e) {
+            log.warn("Could not get document for sync ingestion, returning READY: {}", e.getMessage());
+            return ConfirmResultResponse.ready(0);
+        }
+
+        // Build ingestion payload
+        Map<String, Object> payload = new HashMap<>();
+        UUID jobId = UUID.randomUUID();
+        payload.put("job_id", jobId.toString());
+        payload.put("document_id", documentId.toString());
+        payload.put("document_version_id", latestVersion.getId().toString());
+        payload.put("document_version", latestVersion.getVersionNumber());
+        payload.put("file_key", document.getFileKey());
+        payload.put("bucket_name", document.getBucketName());
+
+        Map<String, Object> metadata = new HashMap<>(metadataServiceClient.getIngestionAccessMetadata(documentId, triggeredBy));
+        metadata.put("language", document.getLanguage());
+        metadata.put("uploaded_by", triggeredBy.toString());
+        payload.put("metadata", metadata);
+
+        // Update document status to PARSING
+        document.setStatus(ProcessingStatus.PARSING);
+        document.setUpdatedAt(OffsetDateTime.now());
+        documentRepository.save(document);
+
+        // Publish to RabbitMQ for async processing
+        eventPublisher.publishIngestionRequested(payload);
+        log.info("Ingestion triggered for sync poll: documentId={}, jobId={}", documentId, jobId);
+
+        // Poll for result
+        return pollIngestionResult(jobId);
+    }
+
+    private ConfirmResultResponse pollIngestionResult(UUID jobId) {
+        int pollIntervalMs = 2000;
+        int maxWaitMs = 60000;
+        int waited = 0;
+
+        while (waited < maxWaitMs) {
+            try {
+                Thread.sleep(pollIntervalMs);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            waited += pollIntervalMs;
+
+            IngestionServiceClient.SyncJobStatus status = ingestionServiceClient.getJobStatus(jobId);
+            log.debug("Polling ingestion job {}: status={}, waited={}ms", jobId, status.status(), waited);
+
+            if (status.isCompleted()) {
+                if (status.isSkipped()) {
+                    // Duplicate detected during ingestion
+                    String method = status.getMethod();
+                    Double similarity = status.getSimilarity();
+
+                    // Try to get existing document info
+                    DocumentDuplicateInfo existingDoc = null;
+                    try {
+                        existingDoc = getDuplicateInfoFromJobMetrics(status);
+                    } catch (Exception e) {
+                        log.warn("Could not get existing doc info for duplicate: {}", e.getMessage());
+                    }
+
+                    if (similarity != null && similarity >= 0.85 && similarity < 0.98) {
+                        // Near-duplicate: suggest version
+                        log.info("Near-duplicate detected during ingestion: similarity={}", similarity);
+                        return ConfirmResultResponse.nearDuplicate(existingDoc, similarity);
+                    }
+
+                    // Exact duplicate: throw exception
+                    log.info("Exact duplicate detected during ingestion: method={}", method);
+                    throw new DuplicateDocumentException(
+                            "Document is a duplicate of an existing document (method: " + method + ")",
+                            existingDoc,
+                            method
+                    );
+                }
+
+                // Normal completion
+                Integer chunkCount = status.getChunkCount();
+                log.info("Ingestion completed: jobId={}, chunkCount={}", jobId, chunkCount);
+                return ConfirmResultResponse.ready(chunkCount != null ? chunkCount : 0);
+            }
+
+            if (status.isFailed()) {
+                String errorMsg = status.errorMessage() != null ? status.errorMessage() : "Unknown error";
+                log.error("Ingestion failed: jobId={}, error={}", jobId, errorMsg);
+                throw new RuntimeException("Ingestion pipeline failed: " + errorMsg);
+            }
+        }
+
+        log.warn("Ingestion polling timed out after {}ms: jobId={}", maxWaitMs, jobId);
+        throw new RuntimeException("Ingestion pipeline timed out after " + maxWaitMs + "ms");
+    }
+
+    @SuppressWarnings("unchecked")
+    private DocumentDuplicateInfo getDuplicateInfoFromJobMetrics(IngestionServiceClient.SyncJobStatus status) {
+        if (status.outputMetrics() == null) return null;
+
+        Map<String, Object> metrics = status.outputMetrics();
+
+        // Try to get near_duplicate info with existing version ID
+        Object nearDup = metrics.get("near_duplicate");
+        if (nearDup instanceof Map) {
+            Map<String, Object> nearDupMap = (Map<String, Object>) nearDup;
+            String existingVersionId = (String) nearDupMap.get("existing_version_id");
+            if (existingVersionId != null) {
+                try {
+                    UUID versionUuid = UUID.fromString(existingVersionId);
+                    Optional<DocumentVersion> version = versionRepository.findById(versionUuid);
+                    if (version.isPresent()) {
+                        Document doc = documentRepository.findById(version.get().getDocumentId()).orElse(null);
+                        if (doc != null) {
+                            return toDuplicateInfo(doc, version.get());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not resolve existing document from near_duplicate info: {}", e.getMessage());
+                }
+            }
+        }
+
+        return null;
     }
 }

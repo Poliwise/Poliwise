@@ -1116,3 +1116,47 @@ interface UnansweredQuestionEvent {
 - `contexts/architecture/system-overview.md` - System architecture
 - `contexts/service-boundaries/responsibilities.md` - Service ownership
 - `contexts/database/schema.md` - Database schema details
+
+|---
+
+## Related Documentation
+
+- contexts/AGENT.md - Consolidated agent knowledge base
+- contexts/frontend/architecture.md - Frontend architecture
+- contexts/architecture/system-overview.md - System architecture
+- contexts/service-boundaries/responsibilities.md - Service ownership
+- contexts/database/schema.md - Database schema details
+
+---
+
+## Async Ingestion with Sync Confirmation Polling
+
+When the frontend needs to confirm a document upload with real-time feedback, use this pattern:
+
+### Problem
+The ingestion pipeline runs asynchronously via RabbitMQ. The frontend needs to know:
+1. Is the document a duplicate? (HTTP 409)
+2. Is it a near-duplicate requiring user action? (HTTP 200 with NEAR_DUPLICATE status)
+3. Did ingestion succeed? (HTTP 200 with READY status)
+
+### Solution: 2-Phase Approach
+
+#### Phase 1: Pre-confirm duplicate check (optional)
+Frontend calls GET /check-duplicate after upload to show early warning.
+
+#### Phase 2: Sync confirm with polling
+Frontend calls POST /confirm which triggers async ingestion and polls for result.
+
+### Duplicate Decision Thresholds
+
+| Threshold | Action | HTTP Response |
+|-----------|--------|----------------|
+| similarity >= 0.98 | BLOCK (duplicate) | HTTP 409 or status=DUPLICATE |
+|  .85 <= similarity < 0.98 | SUGGEST_VERSION | status=NEAR_DUPLICATE |
+| similarity < 0.85 | INGEST | status=READY |
+
+### Error Handling
+
+- **Polling timeout (60s)**: Throw RuntimeException, frontend shows generic error
+- **Ingestion failure**: Throw RuntimeException, frontend shows error
+- **Service unavailable**: Fallback to local checks, log warnings

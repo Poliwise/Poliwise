@@ -34,4 +34,14 @@ public interface DocumentVersionRepository
                                                                       @Param("versionNumber") Integer versionNumber);
 
     long countByDocumentIdAndDeletedAtIsNull(UUID documentId);
+
+    @Query("""
+        SELECT v FROM DocumentVersion v
+        JOIN v.documentId d
+        WHERE v.fileChecksum = :checksum
+          AND v.deletedAt IS NULL
+        ORDER BY v.createdAt DESC
+        LIMIT 1
+        """)
+    Optional<DocumentVersion> findByFileChecksum(@Param("checksum") String fileChecksum);
 }

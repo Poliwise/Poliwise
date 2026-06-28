@@ -23,5 +23,7 @@ public record DocumentConfirmRequest(
 
         String language,
 
-        Boolean isPolicy
+        Boolean isPolicy,
+
+        String fileChecksum
 ) {}

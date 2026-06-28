@@ -85,9 +85,22 @@ class IngestionPipeline:
             await processing_job_service.update_progress(job_id, 60, "Layer 3: Checking semantic similarity")
             
             # Layer 3: Near-duplicate detection (Semantic Fingerprint)
-            dup_semantic = await deduplicator.check_semantic_duplicate(extracted.text, threshold=0.98)
+            dup_semantic = await deduplicator.check_semantic_duplicate(extracted.text)
             if dup_semantic.is_duplicate:
                 return await self._handle_duplicate(job_id, document_id, version_id, dup_semantic)
+            
+            # Track near-duplicate info for job metrics
+            near_duplicate_info = None
+            if dup_semantic.should_suggest_version and dup_semantic.existing_version_id:
+                near_duplicate_info = {
+                    "existing_version_id": str(dup_semantic.existing_version_id),
+                    "similarity": dup_semantic.similarity,
+                    "method": dup_semantic.method
+                }
+                logger.info("near_duplicate_detected",
+                    existing_version_id=str(dup_semantic.existing_version_id),
+                    similarity=dup_semantic.similarity
+                )
             
             # --- 4. STANDARDIZATION & CHUNKING ---
             await processing_job_service.update_progress(job_id, 70, "Standardizing text and chunking")
@@ -188,7 +201,9 @@ class IngestionPipeline:
                 "page_count": extracted.page_count,
                 "method": "extraction_success",
                 "semantic_similarity": dup_semantic.similarity if dup_semantic.is_duplicate else None,
-                "deduplication_passed": True
+                "deduplication_passed": True,
+                "near_duplicate": near_duplicate_info,
+                "chunk_count": len(chunks)
             })
 
             return {

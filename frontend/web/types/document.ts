@@ -1,5 +1,31 @@
 // Document Types - Full Document Management System
 
+export interface ExistingDocumentInfo {
+  documentId: string;
+  originalFilename: string;
+  fileSizeBytes: number;
+  createdAt: string;
+  title: string | null;
+  categorySlug: string | null;
+  status: string;
+  fileChecksum: string | null;
+}
+
+export interface DuplicateCheckResponse {
+  isDuplicate: boolean;
+  action: 'BLOCK' | 'SUGGEST_VERSION' | null;
+  existingDocument: ExistingDocumentInfo | null;
+  similarity: number | null;
+  detectionMethod: string | null;
+}
+
+export interface ConfirmResultResponse {
+  status: 'READY' | 'DUPLICATE' | 'NEAR_DUPLICATE';
+  chunkCount: number | null;
+  nearDuplicateOf: ExistingDocumentInfo | null;
+  similarity: number | null;
+}
+
 export interface Document {
   id: string;
   title?: string;

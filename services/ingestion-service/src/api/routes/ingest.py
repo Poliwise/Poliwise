@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.session import get_session
 from src.services.pipeline import pipeline
 from src.db.repositories.job_repo import JobRepository
+from src.db.repositories.version_repo import VersionRepository
 from src.api.dependencies import get_api_key
+from src.db.session import async_session
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -87,5 +89,94 @@ async def get_ingestion_status(
         job_id=job.id,
         status=job.status,
         progress_percent=job.progress_percent,
+        error_message=job.error_message
+    )
+
+
+# ===== Duplicate Check Endpoints =====
+
+class DuplicateCheckResponse(BaseModel):
+    """Response for duplicate check."""
+    is_duplicate: bool
+    action: Optional[str] = None  # "BLOCK" | "SUGGEST_VERSION" | null
+    existing_document: Optional[dict] = None
+    similarity: Optional[float] = None
+    detection_method: Optional[str] = None
+
+
+class JobStatusDetailResponse(BaseModel):
+    """Detailed response for job status query with output metrics."""
+    job_id: UUID
+    status: str
+    progress_percent: Optional[int] = None
+    output_metrics: Optional[dict] = None
+    error_message: Optional[str] = None
+
+
+@router.get("/check-duplicate", response_model=DuplicateCheckResponse)
+async def check_duplicate(
+    checksum: str,
+):
+    """
+    Check if a file with the given SHA-256 checksum is a duplicate.
+    This is the Layer 1 (file checksum) check endpoint.
+    """
+    async with async_session() as session:
+        repo = VersionRepository(session)
+        existing = await repo.find_by_file_checksum(checksum)
+        
+        if existing:
+            logger.info("duplicate_check_hit", method="file_checksum", version_id=str(existing.id))
+            return DuplicateCheckResponse(
+                is_duplicate=True,
+                action="BLOCK",
+                existing_document={
+                    "document_id": str(existing.document_id),
+                    "original_filename": existing.original_filename,
+                    "file_size_bytes": existing.file_size_bytes,
+                    "file_checksum": existing.file_checksum,
+                    "version_number": existing.version_number,
+                },
+                detection_method="file_checksum"
+            )
+    
+    return DuplicateCheckResponse(
+        is_duplicate=False,
+        action=None,
+        existing_document=None,
+        similarity=None,
+        detection_method=None
+    )
+
+
+@router.get("/jobs/{job_id}", response_model=JobStatusDetailResponse)
+async def get_job_status(
+    job_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get detailed status of a processing job including output metrics.
+    Used for polling during sync confirm flow.
+    """
+    repo = JobRepository(session)
+    job = await repo.get_by_id(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Parse output_metrics if it's a JSON string
+    output_metrics = None
+    if job.output_metrics:
+        import json
+        try:
+            output_metrics = json.loads(job.output_metrics)
+        except Exception:
+            output_metrics = {"raw": job.output_metrics}
+    
+    return JobStatusDetailResponse(
+        job_id=job.id,
+        status=job.status,
+        progress_percent=job.progress_percent,
+        output_metrics=output_metrics,
         error_message=job.error_message
     )
