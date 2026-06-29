@@ -61,18 +61,31 @@ export default function LoginPage() {
         response?: {
           data?: {
             success?: boolean;
-            error?: { code?: string; message?: string };
+            error?: string | { code?: string; message?: string };
+            message?: string;
           };
         };
         message?: string;
       };
-      const errorCode = axiosError.response?.data?.error?.code;
-      const errorMessage = axiosError.response?.data?.error?.message;
-      const fallbackMessage = axiosError.message || t('login.error.unknown');
+      const errorData = axiosError.response?.data?.error;
+      const errorMessage = axiosError.response?.data?.message;
+      let errorCode: string;
+      let message: string;
+
+      if (typeof errorData === 'string') {
+        errorCode = errorData;
+        message = errorMessage || ERROR_MESSAGES[errorCode] || axiosError.message || t('login.error.unknown');
+      } else if (typeof errorData === 'object' && errorData !== null) {
+        errorCode = (errorData as { code?: string }).code || 'UNKNOWN';
+        message = (errorData as { message?: string }).message || ERROR_MESSAGES[errorCode] || errorMessage || axiosError.message || t('login.error.unknown');
+      } else {
+        errorCode = 'UNKNOWN';
+        message = errorMessage || axiosError.message || t('login.error.unknown');
+      }
 
       setError({
-        code: errorCode || 'UNKNOWN',
-        message: errorMessage || ERROR_MESSAGES[errorCode || ''] || fallbackMessage,
+        code: errorCode,
+        message: message,
       });
     } finally {
       setIsLoading(false);

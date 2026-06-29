@@ -5,8 +5,8 @@ import com.poliwise.feedback.dto.response.ApiResponse;
 import com.poliwise.feedback.dto.response.AuditLogResponse;
 import com.poliwise.feedback.service.AuditLogService;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +24,12 @@ public class AuditController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<AuditLogResponse>>> search(
-            AuditLogSearchRequest request, @PageableDefault(size = 50) Pageable pageable) {
+            AuditLogSearchRequest request,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(required = false) Integer limit) {
+        int size = (limit != null && limit > 0) ? limit : 50;
+        int pageNum = page < 0 ? 0 : page;
+        Pageable pageable = PageRequest.of(pageNum, size);
         return ResponseEntity.ok(ApiResponse.success(auditLogService.searchLogs(request, pageable)));
     }
 

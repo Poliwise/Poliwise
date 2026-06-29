@@ -9,15 +9,17 @@ interface PreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   documentId: string;
+  version?: number;
   filename: string;
   fileType: string;
-  getPreviewUrl: (documentId: string) => Promise<string>;
+  getPreviewUrl: (documentId: string, version?: number) => Promise<string>;
 }
 
 export default function PreviewModal({
   isOpen,
   onClose,
   documentId,
+  version,
   filename,
   fileType,
   getPreviewUrl,
@@ -69,7 +71,7 @@ export default function PreviewModal({
       setErrorMsg('Hết thời gian tải (30s). Vui lòng thử lại.');
     }, 30_000);
 
-    getPreviewUrl(documentId)
+    getPreviewUrl(documentId, version)
       .then((url) => {
         clearTimeout(timeout);
         setPreviewUrl(url);
@@ -172,7 +174,7 @@ export default function PreviewModal({
                     setState('error');
                     setErrorMsg('Hết thời gian tải (30s). Vui lòng thử lại.');
                   }, 30_000);
-                  getPreviewUrl(documentId)
+                  getPreviewUrl(documentId, version)
                     .then((url) => {
                       clearTimeout(timeout);
                       setPreviewUrl(url);

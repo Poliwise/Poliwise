@@ -158,7 +158,8 @@ export const documentService = {
       });
 
       const token = localStorage.getItem('accessToken');
-      xhr.open('POST', `${KNOWLEDGE_SERVICE_URL}/api/v1/documents/${documentId}/versions`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      xhr.open('POST', `${apiUrl}/api/v1/documents/${documentId}/versions`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
     });
@@ -203,12 +204,13 @@ export const documentService = {
   },
 
   /**
-   * Download document as blob
+   * Download document as blob (latest version)
    */
-  async downloadDocument(documentId: string, filename: string): Promise<void> {
+  async downloadDocument(documentId: string, filename: string, version?: number): Promise<void> {
+    const ver = version || 1;
     const token = localStorage.getItem('accessToken');
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const res = await fetch(`${apiUrl}/api/v1/documents/${documentId}/download`, {
+    const res = await fetch(`${apiUrl}/api/v1/documents/${documentId}/versions/${ver}/download`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`Download failed: ${res.status}`);
@@ -216,7 +218,7 @@ export const documentService = {
     const url = window.URL.createObjectURL(new Blob([blob]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', filename);
+    link.setAttribute('download', `v${ver}-${filename}`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -237,16 +239,17 @@ export const documentService = {
   },
 
   /**
-   * Get preview URL for document
+   * Get preview URL for document (specific version)
    * Uses the /preview endpoint to return binary data as a blob URL for iframe embedding.
    * Works for all file types including DOCX (no need for Google Docs Viewer).
    */
-  async getPreviewUrl(documentId: string): Promise<string> {
+  async getPreviewUrl(documentId: string, version?: number): Promise<string> {
+    const ver = version || 1;
     const token = localStorage.getItem('accessToken');
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
     // Fetch as blob and create object URL
-    const res = await fetch(`${apiUrl}/api/v1/documents/${documentId}/preview`, {
+    const res = await fetch(`${apiUrl}/api/v1/documents/${documentId}/versions/${ver}/preview`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`Preview failed: ${res.status}`);
@@ -306,7 +309,7 @@ export const documentService = {
     } = {}
   ): Promise<AuditLogResponse> {
     const res = await api.audit.search({
-      page: params.page || 1,
+      page: params.page ?? 0,
       limit: params.limit || 20,
       resourceType: 'DOCUMENT',
       resourceId: documentId,

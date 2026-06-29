@@ -11,7 +11,16 @@ const iconMap: Record<ToastType, string> = {
 };
 
 export function ToastContainer() {
-  const { toasts, removeToast } = useToast();
+  const { toasts, removeToast, addToast } = useToast();
+
+  React.useEffect(() => {
+    const handleToast = (e: Event) => {
+      const custom = e as CustomEvent<{ message: string; type: ToastType }>;
+      addToast(custom.detail.message, custom.detail.type);
+    };
+    window.addEventListener('poliwise-toast', handleToast);
+    return () => window.removeEventListener('poliwise-toast', handleToast);
+  }, [addToast]);
 
   if (toasts.length === 0) return null;
 

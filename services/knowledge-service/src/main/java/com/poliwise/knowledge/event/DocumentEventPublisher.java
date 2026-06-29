@@ -3,6 +3,7 @@ package com.poliwise.knowledge.event;
 import com.poliwise.knowledge.config.RabbitMQConfig;
 import com.poliwise.knowledge.dto.event.DocumentDeletedEvent;
 import com.poliwise.knowledge.dto.event.DocumentUploadedEvent;
+import com.poliwise.knowledge.dto.event.DocumentVersionCreatedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -56,6 +57,27 @@ public class DocumentEventPublisher {
             log.info("Published DocumentDeletedEvent: documentId={}", event.documentId());
         } catch (Exception e) {
             log.error("Failed to publish DocumentDeletedEvent: {}", e.getMessage(), e);
+        }
+    }
+
+    public void publishDocumentVersionCreated(DocumentVersionCreatedEvent event) {
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.KNOWLEDGE_EXCHANGE,
+                    RabbitMQConfig.DOCUMENT_ROUTING_KEY_VERSION_CREATED,
+                    Map.of(
+                            "routingKey", RabbitMQConfig.DOCUMENT_ROUTING_KEY_VERSION_CREATED,
+                            "documentId", event.documentId(),
+                            "documentName", event.documentName(),
+                            "newVersionNumber", event.newVersionNumber(),
+                            "changelog", event.changelog(),
+                            "createdBy", event.createdBy()
+                    )
+            );
+            log.info("Published DocumentVersionCreatedEvent: documentId={}, version={}",
+                    event.documentId(), event.newVersionNumber());
+        } catch (Exception e) {
+            log.error("Failed to publish DocumentVersionCreatedEvent: {}", e.getMessage(), e);
         }
     }
 

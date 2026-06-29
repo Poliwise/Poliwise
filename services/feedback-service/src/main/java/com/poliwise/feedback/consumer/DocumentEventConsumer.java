@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.HashMap;
 
 @Component
 public class DocumentEventConsumer {
@@ -47,6 +48,8 @@ public class DocumentEventConsumer {
                 handleDocumentUploaded(documentId, documentName, uploadedBy, userRole, ipAddress);
             } else if (routingKey.contains("document.deleted") || routingKey.equals(RabbitMQConfig.ROUTING_DOCUMENT_DELETED)) {
                 handleDocumentDeleted(documentId, documentName, uploadedBy, userRole, ipAddress);
+            } else if (routingKey.contains("document.version.created") || routingKey.equals(RabbitMQConfig.ROUTING_DOCUMENT_VERSION_CREATED)) {
+                handleDocumentVersionCreated(message);
             }
         } catch (Exception e) {
             log.error("Failed to handle document event", e);
@@ -74,6 +77,28 @@ public class DocumentEventConsumer {
                 AuditAction.DOCUMENT_DELETE, ResourceType.DOCUMENT, documentId,
                 documentName, ipAddress, null, null, "feedback-service", null);
         log.info("Document deleted event processed: {}", documentId);
+    }
+
+    private void handleDocumentVersionCreated(Map<String, Object> message) {
+        UUID documentId = parseUUID(message.get("documentId"));
+        String documentName = (String) message.get("documentName");
+        Integer newVersionNumber = message.get("newVersionNumber") instanceof Integer
+                ? (Integer) message.get("newVersionNumber")
+                : Integer.parseInt(message.get("newVersionNumber").toString());
+        String changelog = (String) message.get("changelog");
+        UUID createdBy = parseUUID(message.get("createdBy"));
+        String userRole = (String) message.get("userRole");
+        String ipAddress = (String) message.get("ipAddress");
+
+        Map<String, Object> metadata = changelog != null
+                ? Map.of("changelog", changelog, "version", newVersionNumber)
+                : Map.of("version", newVersionNumber);
+
+        auditLogService.logAction(createdBy, null, userRole,
+                AuditAction.DOCUMENT_VERSION_CREATE, ResourceType.DOCUMENT, documentId,
+                documentName + " v" + newVersionNumber, ipAddress, null, null, "feedback-service",
+                metadata);
+        log.info("Document version created event processed: documentId={}, version={}", documentId, newVersionNumber);
     }
 
     private UUID parseUUID(Object value) {

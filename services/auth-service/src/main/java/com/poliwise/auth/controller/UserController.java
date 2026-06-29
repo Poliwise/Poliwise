@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,7 +21,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/users")
-@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
     private final UserManagementService userManagementService;
@@ -30,6 +30,7 @@ public class UserController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createUser(
             @Valid @RequestBody UserCreateRequest request,
             @AuthenticationPrincipal JwtAuthenticationToken authToken,
@@ -41,6 +42,7 @@ public class UserController {
     }
 
     @PostMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createBulkUsers(
             @Valid @RequestBody BulkUserCreateRequest request,
             @AuthenticationPrincipal JwtAuthenticationToken authToken
@@ -51,6 +53,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> searchUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String role,
@@ -81,6 +84,7 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.sub")
     public ResponseEntity<?> updateUser(
             @PathVariable UUID userId,
             @Valid @RequestBody UserUpdateRequest request,
@@ -92,24 +96,28 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deactivateUser(@PathVariable UUID userId) {
         userManagementService.deactivateUser(userId);
         return ResponseEntity.ok(MessageResponse.ok("User deactivated successfully"));
     }
 
     @PostMapping("/{userId}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> reactivateUser(@PathVariable UUID userId) {
         userManagementService.reactivateUser(userId);
         return ResponseEntity.ok(MessageResponse.ok("User reactivated successfully"));
     }
 
     @PostMapping("/{userId}/revoke")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> revokeUser(@PathVariable UUID userId) {
         userManagementService.revokeUser(userId);
         return ResponseEntity.ok(MessageResponse.ok("User revoked successfully"));
     }
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable UUID userId) {
         userManagementService.deleteUser(userId);
         return ResponseEntity.ok(MessageResponse.ok("User deleted successfully"));
@@ -121,14 +129,24 @@ public class UserController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int limit
     ) {
-        // Convert from 1-based (frontend) to 0-based (Spring Pageable)
+        JwtAuthenticationToken authToken = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        
+        // Check authorization: ADMIN or own user
+        boolean isAdmin = authToken.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwnHistory = authToken.getPayload().sub().equals(userId);
+        
+        if (!isAdmin && !isOwnHistory) {
+            throw new org.springframework.security.access.AccessDeniedException("Cannot view other user's login history");
+        }
+        
         int pageNumber = Math.max(0, page - 1);
         Pageable pageable = PageRequest.of(pageNumber, Math.min(limit, 100));
         Page<LoginHistoryInfo> history = userManagementService.getLoginHistory(userId, pageable);
         return ResponseEntity.ok(Map.of(
                 "data", history.getContent(),
                 "pagination", Map.of(
-                        "page", history.getNumber() + 1,  // Convert back to 1-based for frontend
+                        "page", history.getNumber() + 1,
                         "limit", history.getSize(),
                         "total", history.getTotalElements(),
                         "totalPages", history.getTotalPages()

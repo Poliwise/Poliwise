@@ -1,6 +1,7 @@
 package com.poliwise.knowledge.repository;
 
 import com.poliwise.knowledge.entity.Document;
+import com.poliwise.knowledge.enums.FileType;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -22,7 +23,15 @@ public class DocumentSpecifications {
     }
 
     public static Specification<Document> hasFileType(String fileType) {
-        return (root, query, cb) -> cb.equal(root.get("fileType"), fileType);
+        return (root, query, cb) -> {
+            if (fileType == null || fileType.isBlank()) return null;
+            try {
+                FileType enumValue = FileType.valueOf(fileType.toUpperCase());
+                return cb.equal(root.get("fileType"), enumValue);
+            } catch (IllegalArgumentException e) {
+                return cb.conjunction();
+            }
+        };
     }
 
     public static Specification<Document> hasUploadedBy(String uploadedBy) {
