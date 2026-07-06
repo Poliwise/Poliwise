@@ -28,10 +28,13 @@ class Settings(BaseSettings):
     embedding_url: str = "http://bge-m3-embedding:80"
     reranker_url: Optional[str] = "http://reranker:8002"
 
-    # Layer 1 & 2 - Groq
+    # Layer 1 - Groq
     groq_api_key: str = Field(..., description="Groq API Key for pipeline layers")
     layer1_model: str = "meta-llama/llama-prompt-guard-2-86m"
     layer1_fail_open: bool = True
+    # Layer 1 - Toxic/Abusive Detection
+    toxic_model: str = "llama-3.1-8b-instant"
+    toxic_threshold: float = 0.5
     layer2_model: str = "llama-3.1-8b-instant"
     layer2_max_tokens_classify: int = 10
     layer2_max_tokens_respond: int = 256
@@ -57,15 +60,17 @@ class Settings(BaseSettings):
     context_layer3_only: bool = True
     max_layer3_context_pairs: int = 5
 
-    retrieval_limit: int = 10
-    rerank_limit: int = 5
-    similarity_threshold: float = 0.3
-    use_reranker: bool = False
+    retrieval_limit: int = 25
+    rerank_limit: int = 10
+    similarity_threshold: float = 0.15
+    use_reranker: bool = True
+    layer2_fallback_intent: str = "COMPLEX"
 
     rate_limit_requests: int = 30
     rate_limit_window_seconds: int = 60
 
     max_history_messages: int = 20
+    query_refiner_history_limit: int = 10
     conversation_title_max_length: int = 255
 
 

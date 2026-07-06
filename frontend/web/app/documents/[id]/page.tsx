@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -17,9 +17,8 @@ import {
   AlertCircle,
   Edit,
   Upload,
-  ChevronRight,
-  ExternalLink,
   FileText,
+  FolderOpen,
 } from 'lucide-react';
 import {
   documentService,
@@ -49,6 +48,8 @@ import {
 import { useAuthStore, useIsAdmin, useIsManager } from '@/store/auth-store';
 import PreviewModal from '@/components/documents/PreviewModal';
 import { UploadModal } from '@/components/documents/UploadModal';
+import { UploadNewVersionModal } from '@/components/documents/UploadNewVersionModal';
+import styles from './document-detail.module.css';
 
 type Tab = 'detail' | 'content' | 'versions' | 'access' | 'simulation' | 'audit';
 
@@ -57,15 +58,14 @@ export default function DocumentDetailPage() {
   const params = useParams();
   const { user: authUser } = useAuthStore();
   const isAdmin = useIsAdmin();
+  const isManager = useIsManager();
   const documentId = params.id as string;
 
-  // State
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [metadata, setMetadata] = useState<DocumentMetadata | null>(null);
   const [metadataMissing, setMetadataMissing] = useState(false);
   const [accessRules, setAccessRules] = useState<AccessRule[]>([]);
 
-  // Simulation state
   const [simulationData, setSimulationData] = useState<{
     documentId: string;
     metadataId: string;
@@ -107,9 +107,9 @@ export default function DocumentDetailPage() {
   const [auditTotalPages, setAuditTotalPages] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [uploadVersionOpen, setUploadVersionOpen] = useState(false);
 
   const [mounted, setMounted] = useState(false);
-  // OnlyOffice editor state — client-only to prevent SSR hydration mismatch
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorTargetVersion, setEditorTargetVersion] = useState<number | undefined>(undefined);
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -125,18 +125,52 @@ export default function DocumentDetailPage() {
     currentVersion: number;
   } | null>(null);
 
-  // Ref to access the editor's imperative API (downloadCurrentFile)
   const editorRef = useRef<OnlyOfficeEditorHandle>(null);
-
-  // Holds the user's current editor content when a conflict is detected,
-  // so ConflictResolver can offer "Lấy bản hiện tại" and re-edit with it.
   const [currentFileAtConflict, setCurrentFileAtConflict] = useState<File | null>(null);
-
-  // Passed to OnlyOfficeEditor when re-opening after conflict
   const [editorCurrentFile, setEditorCurrentFile] = useState<File | null>(null);
   const [editorLatestVersionPreview, setEditorLatestVersionPreview] = useState<{ versionNumber: number } | null>(null);
 
-  // Ensure client-only components never SSR — prevents React #418 hydration mismatch
+  // Derived values - must be defined before early returns to follow Rules of Hooks
+  const fileConfig = document ? getFileTypeConfig(document.fileType as unknown as string) : null;
+  const statusConfig = document ? getStatusConfig(document.status) : null;
+  const isOwner = document && authUser ? document.uploadedBy === authUser.id : false;
+  const categoryName = metadata?.category && categories.length > 0
+    ? categories.find(c => c.id === (metadata as any).category?.id)?.name
+    : null;
+
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { id: 'detail', label: 'Chi tiết', icon: Eye },
+      { id: 'content', label: 'Nội dung', icon: FileText },
+      { id: 'versions', label: 'Phiên bản', icon: History },
+    ];
+
+    // Admin sees all tabs
+    if (isAdmin) {
+      return [
+        ...baseTabs,
+        { id: 'access', label: 'Phân quyền', icon: Shield },
+        { id: 'simulation', label: 'Mô phỏng', icon: Shield },
+        { id: 'audit', label: 'Nhật ký', icon: Clock },
+      ];
+    }
+
+    // Manager sees simulation and audit
+    if (isManager) {
+      return [
+        ...baseTabs,
+        { id: 'simulation', label: 'Mô phỏng', icon: Shield },
+        { id: 'audit', label: 'Nhật ký', icon: Clock },
+      ];
+    }
+
+    // Regular user sees only basic tabs + audit
+    return [
+      ...baseTabs,
+      { id: 'audit', label: 'Nhật ký', icon: Clock },
+    ];
+  }, [isAdmin, isManager]);
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -158,8 +192,6 @@ export default function DocumentDetailPage() {
     setError(null);
     try {
       const doc = await documentService.getDocumentById(documentId);
-
-      // Normalize document to ensure required fields exist (defensive coding)
       const normalizedDoc: DocumentDetail = {
         ...doc,
         versions: 'versions' in doc && Array.isArray((doc as any).versions)
@@ -169,7 +201,6 @@ export default function DocumentDetailPage() {
       };
       setDocument(normalizedDoc);
 
-      // Load metadata (gracefully handle 404 if metadata not created yet)
       try {
         const meta = await documentMetadataService.getMetadataByDocumentId(documentId);
         setMetadata(meta);
@@ -177,14 +208,13 @@ export default function DocumentDetailPage() {
       } catch (err: any) {
         const errStatus = err?.status || err?.statusCode || (err?.response?.status);
         if (errStatus === 404) {
-          console.log('No metadata found for document (upload not confirmed yet)');
+          console.log('No metadata found for document');
           setMetadataMissing(true);
         } else {
           console.error('Failed to load metadata:', err);
         }
       }
 
-      // Load access rules by document ID
       try {
         const rules = await accessRuleService.getRulesByDocumentId(documentId);
         setAccessRules(rules);
@@ -192,6 +222,15 @@ export default function DocumentDetailPage() {
         console.error('Failed to load access rules:', err);
       }
     } catch (err: any) {
+      // Check for access denied error
+      const errStatus = err?.status || err?.statusCode || (err?.response?.status);
+      if (errStatus === 403) {
+        const errMsg = err?.message || err?.response?.data?.message || '';
+        if (errMsg.toLowerCase().includes('access') || errMsg.toLowerCase().includes('denied') || errMsg.toLowerCase().includes('quyền')) {
+          setError('Bạn không có quyền truy cập tài liệu này');
+          return;
+        }
+      }
       setError(err.message || 'Failed to load document');
     } finally {
       setLoading(false);
@@ -284,13 +323,8 @@ export default function DocumentDetailPage() {
     currentVersion: number;
     currentFile: File | null;
   }) => {
-    // currentFile: user's editor content (captured before editor was destroyed).
-    // ConflictResolver shows "mine" preview from this file and can upload it.
     setCurrentFileAtConflict(data.currentFile);
-    // Keep a copy so we can re-open the editor with the same in-progress file.
     setEditorCurrentFile(data.currentFile);
-    // Always show preview of the latest version (if known) when re-editing.
-    // If backend status fetch failed (0), fall back to the current document version.
     const latest = data.currentVersion && data.currentVersion > 0 ? data.currentVersion : (document?.currentVersion || 1);
     setEditorLatestVersionPreview({ versionNumber: latest });
     setConflictData({ lock: data.lock, currentVersion: latest });
@@ -300,28 +334,29 @@ export default function DocumentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      <div className={styles.loadingState}>
+        <Loader2 className={`${styles.spinner} w-10 h-10`} />
+        <p>Đang tải thông tin tài liệu...</p>
       </div>
     );
   }
 
   if (error || !document) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-background p-8">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => router.back()}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="flex items-center text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Quay lại
           </button>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Lỗi</h3>
-              <p className="mt-1 text-sm text-red-600">{error || 'Không tìm thấy tài liệu'}</p>
+          <div className={styles.errorState}>
+            <AlertCircle className="w-5 h-5 text-danger" />
+            <div>
+              <h3 className="text-sm font-medium text-danger">Lỗi</h3>
+              <p className="mt-1 text-sm text-danger">{error || 'Không tìm thấy tài liệu'}</p>
             </div>
           </div>
         </div>
@@ -329,110 +364,92 @@ export default function DocumentDetailPage() {
     );
   }
 
-  const fileConfig = getFileTypeConfig(document.fileType as unknown as string);
-  const statusConfig = getStatusConfig(document.status);
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <button
-                onClick={() => router.back()}
-                className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <span className="text-3xl mr-3">{fileConfig.icon}</span>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  {document.title || document.originalFilename}
-                </h1>
-                <p className="text-sm text-gray-500">{document.originalFilename}</p>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <div className={styles.headerTop}>
+            <button
+              onClick={() => router.back()}
+              className={styles.backButton}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <div className={styles.docInfo}>
+              <div className={styles.docIcon}>{fileConfig?.icon}</div>
+              <div className={styles.docTitle}>
+                <h1>{document.title || document.originalFilename}</h1>
+                <p className={styles.docFilename}>{document.originalFilename}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            <div className={styles.headerActions}>
               {isEditableFileType((document.fileType as unknown as string) || '') && (
                 <button
                   onClick={() => openEditor()}
-                  className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-lg text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50"
+                  className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
                 >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Chỉnh sửa với OnlyOffice
+                  <Edit className="w-4 h-4" />
+                  <span>Chỉnh sửa</span>
                 </button>
               )}
-              {(() => {
-                const ft = (document.fileType as unknown as string) || '';
-                return ['PDF', 'DOCX', 'DOC'].includes(ft.toUpperCase());
-              })() && (
+              {(['PDF', 'DOCX', 'DOC'].includes((document.fileType as unknown as string) || ''.toUpperCase())) && (
                 <button
                   onClick={handlePreview}
-                  className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-lg text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50"
+                  className={styles.actionBtn}
                 >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Xem trước
+                  <Eye className="w-4 h-4" />
+                  <span>Xem</span>
                 </button>
               )}
               <button
                 onClick={handleDownload}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className={styles.actionBtn}
               >
-                <Download className="w-4 h-4 mr-2" />
-                Tải xuống
+                <Download className="w-4 h-4" />
+                <span>Tải xuống</span>
               </button>
               {isAdmin && (
                 <button
                   onClick={handleDelete}
-                  className="inline-flex items-center px-4 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+                  className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Xóa
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="mt-4 flex space-x-8 border-b border-gray-200">
-            {[
-              { id: 'detail', label: 'Chi tiết', icon: Eye },
-              { id: 'content', label: 'Nội dung', icon: FileText },
-              { id: 'versions', label: 'Phiên bản', icon: History },
-              { id: 'access', label: 'Phân quyền', icon: Shield },
-              { id: 'simulation', label: 'Mô phỏng', icon: Shield },
-              { id: 'audit', label: 'Nhật ký', icon: Clock },
-            ].map((tab) => (
+          <div className={styles.tabs}>
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as Tab)}
-                className={`flex items-center pb-3 px-1 border-b-2 text-sm font-medium ${
-                  activeTab === tab.id
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
               >
-                <tab.icon className="w-4 h-4 mr-2" />
+                <tab.icon className="w-4 h-4" />
                 {tab.label}
               </button>
             ))}
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Main Content */}
+      <main className={styles.main}>
         {/* Status Banners */}
         {document.status === 'STAGING' && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between">
-            <div className="flex items-center text-amber-800">
-              <AlertCircle className="w-5 h-5 mr-3" />
-              <span>Tài liệu này đang chờ xác nhận thông tin. Vui lòng hoàn tất để bắt đầu xử lý.</span>
+          <div className={`${styles.statusBanner} ${styles.statusBannerWarning}`}>
+            <div className={styles.statusBannerContent}>
+              <AlertCircle className="w-5 h-5" style={{ color: '#f59e0b' }} />
+              <span>Tài liệu đang chờ xác nhận. Vui lòng hoàn tất thông tin.</span>
             </div>
-            <button 
+            <button
               onClick={() => setIsConfirming(true)}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium transition-colors"
+              className={`${styles.statusBannerBtn} ${styles.actionBtnPrimary}`}
             >
               Tiếp tục xác nhận
             </button>
@@ -440,187 +457,236 @@ export default function DocumentDetailPage() {
         )}
 
         {document.status === 'DUPLICATE' && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-            <span className="text-red-800">Cảnh báo: Tài liệu này được xác định là trùng lặp với một tài liệu đã có trong hệ thống.</span>
+          <div className={`${styles.statusBanner} ${styles.statusBannerError}`}>
+            <div className={styles.statusBannerContent}>
+              <AlertCircle className="w-5 h-5 text-danger" />
+              <span>Cảnh báo: Tài liệu này được xác định là trùng lặp.</span>
+            </div>
           </div>
         )}
 
         {/* Detail Tab */}
         {activeTab === 'detail' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={styles.detailGrid}>
             {/* Main Info */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Thông tin tài liệu</h2>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Loại file</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{fileConfig.label}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Kích thước</dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      {formatFileSize(document.fileSizeBytes || document.fileSize || 0)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Phiên bản hiện tại</dt>
-                    <dd className="mt-1 text-sm text-gray-900">v{document.currentVersion}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Trạng thái</dt>
-                    <dd className="mt-1">
-                      <span
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                        style={{ backgroundColor: `${statusConfig.color}20`, color: statusConfig.color }}
-                      >
-                        {statusConfig.label}
+            <div>
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.cardTitle}>
+                    <File className="w-4 h-4" />
+                    Thông tin tài liệu
+                  </h2>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.infoGrid}>
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Loại file</span>
+                      <span className={styles.infoValue}>{fileConfig?.label}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Kích thước</span>
+                      <span className={styles.infoValue}>
+                        {formatFileSize(document.fileSizeBytes || document.fileSize || 0)}
                       </span>
-                    </dd>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Phiên bản</span>
+                      <span className={styles.infoValue}>v{document.currentVersion}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Trạng thái</span>
+                      <span
+                        className={styles.statusBadge}
+                        style={{ backgroundColor: `${statusConfig?.color}15`, color: statusConfig?.color }}
+                      >
+                        {statusConfig?.label}
+                      </span>
+                    </div>
+                    {document.pageCount && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Số trang</span>
+                        <span className={styles.infoValue}>{document.pageCount}</span>
+                      </div>
+                    )}
+                    {document.wordCount && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Số từ</span>
+                        <span className={styles.infoValue}>
+                          {document.wordCount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Ngôn ngữ</span>
+                      <span className={styles.infoValue}>
+                        {document.language === 'vi' ? 'Tiếng Việt' : document.language}
+                      </span>
+                    </div>
+                    {document.ocrRequired && (
+                      <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>OCR</span>
+                        <span className={styles.infoValue}>
+                          Cần xử lý
+                          {document.ocrConfidence && (
+                            <span className="ml-2 opacity-60">
+                              ({(document.ocrConfidence * 100).toFixed(0)}%)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  {document.pageCount && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Số trang</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{document.pageCount}</dd>
-                    </div>
-                  )}
-                  {document.wordCount && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Số từ</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        {document.wordCount.toLocaleString()}
-                      </dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Ngôn ngữ</dt>
-                    <dd className="mt-1 text-sm text-gray-900">
-                      {document.language === 'vi' ? 'Tiếng Việt' : document.language}
-                    </dd>
-                  </div>
-                  {document.ocrRequired && (
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">OCR</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        Cần xử lý OCR
-                        {document.ocrConfidence && (
-                          <span className="ml-2 text-gray-500">
-                            (Độ tin cậy: {(document.ocrConfidence * 100).toFixed(0)}%)
-                          </span>
-                        )}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
+                </div>
               </div>
 
-              {metadata && (
-                <div className="bg-white shadow rounded-lg p-6">
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">Metadata</h2>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Mô tả</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        {(metadata as any).description || 'Không có'}
-                      </dd>
+              {/* Tags & Categories */}
+              {(document.tags?.length || categoryName) && (
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.cardTitle}>
+                      <Tag className="w-4 h-4" />
+                      Phân loại
+                    </h2>
+                  </div>
+                  <div className={styles.cardBody}>
+                    <div className={styles.metaTags}>
+                      {categoryName && (
+                        <span className={`${styles.tag} ${styles.categoryTag}`}>
+                          <FolderOpen className="w-3 h-3" />
+                          {categoryName}
+                        </span>
+                      )}
+                      {document.tags?.map((tag, index) => (
+                        <span key={index} className={styles.tag}>
+                          <Tag className="w-3 h-3" />
+                          {tag}
+                        </span>
+                      ))}
                     </div>
-                  </dl>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata Description */}
+              {metadata?.description && (
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.cardTitle}>
+                      <FileText className="w-4 h-4" />
+                      Mô tả
+                    </h2>
+                  </div>
+                  <div className={styles.cardBody}>
+                    <p style={{ color: 'var(--foreground)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>
+                      {metadata.description}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Thông tin hệ thống</h2>
-                <dl className="space-y-3">
-                  <div className="flex items-start">
-                    <User className="w-4 h-4 text-gray-400 mt-0.5 mr-2" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Người tải lên</dt>
-                      <dd className="mt-0.5 text-sm text-gray-900">
-                        {document.uploadedByName || document.uploadedBy || 'Không xác định'}
-                      </dd>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <Clock className="w-4 h-4 text-gray-400 mt-0.5 mr-2" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Ngày tạo</dt>
-                      <dd className="mt-0.5 text-sm text-gray-900" suppressHydrationWarning>
-                        {formatDate(document.createdAt)}
-                      </dd>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <Clock className="w-4 h-4 text-gray-400 mt-0.5 mr-2" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Cập nhật lần cuối</dt>
-                      <dd className="mt-0.5 text-sm text-gray-900" suppressHydrationWarning>
-                        {formatDate(document.updatedAt)}
-                      </dd>
-                    </div>
-                  </div>
-                </dl>
-              </div>
-
-              {document.tags && document.tags.length > 0 && (
-                <div className="bg-white shadow rounded-lg p-6">
-                  <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <Tag className="w-4 h-4 mr-2" />
-                    Tags
+            <div>
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.cardTitle}>
+                    <Clock className="w-4 h-4" />
+                    Thông tin hệ thống
                   </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {document.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.systemItem}>
+                    <div className={styles.systemIcon}>
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div className={styles.systemContent}>
+                      <p className={styles.systemLabel}>Người tải lên</p>
+                      <p className={styles.systemValue}>
+                        {document.uploadedByName || document.uploadedBy || 'Không xác định'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.systemItem}>
+                    <div className={styles.systemIcon}>
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div className={styles.systemContent}>
+                      <p className={styles.systemLabel}>Ngày tạo</p>
+                      <p className={styles.systemValue} suppressHydrationWarning>
+                        {formatDate(document.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.systemItem}>
+                    <div className={styles.systemIcon}>
+                      <History className="w-4 h-4" />
+                    </div>
+                    <div className={styles.systemContent}>
+                      <p className={styles.systemLabel}>Cập nhật lần cuối</p>
+                      <p className={styles.systemValue} suppressHydrationWarning>
+                        {formatDate(document.updatedAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats */}
+                  <div className={styles.quickStats}>
+                    <div className={styles.statItem}>
+                      <p className={styles.statValue}>{document.currentVersion}</p>
+                      <p className={styles.statLabel}>Phiên bản</p>
+                    </div>
+                    <div className={styles.statItem}>
+                      <p className={styles.statValue}>{document.versions?.length || 0}</p>
+                      <p className={styles.statLabel}>Lịch sử</p>
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
 
         {/* Content Tab */}
         {activeTab === 'content' && (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900">Nội dung đã trích xuất</h2>
-              <button 
+          <div className={styles.contentWrapper}>
+            <div className={styles.contentHeader}>
+              <h2 className={styles.cardTitle}>
+                <FileText className="w-4 h-4" />
+                Nội dung đã trích xuất
+              </h2>
+              <button
                 onClick={loadExtractedContent}
                 disabled={contentLoading}
-                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center"
+                className={styles.actionBtn}
               >
-                {contentLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <History className="w-4 h-4 mr-1" />}
+                {contentLoading ? (
+                  <Loader2 className={`${styles.spinner} w-4 h-4`} />
+                ) : (
+                  <History className="w-4 h-4" />
+                )}
                 Làm mới
               </button>
             </div>
-            <div className="p-6">
+            <div className={styles.contentBody}>
               {contentLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                  <Loader2 className="w-10 h-10 animate-spin mb-4" />
-                  <p>Đang tải nội dung tài liệu...</p>
+                <div className={styles.loadingState}>
+                  <Loader2 className={`${styles.spinner} w-8 h-8`} />
+                  <p>Đang tải nội dung...</p>
                 </div>
               ) : extractedContent ? (
-                <div className="prose prose-indigo max-w-none">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-800 bg-gray-50 p-6 rounded-lg border border-gray-200 font-sans leading-relaxed">
-                    {extractedContent}
-                  </pre>
-                </div>
+                <pre className={styles.contentCode}>{extractedContent}</pre>
               ) : (
-                <div className="text-center py-20 text-gray-500">
-                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                  <p>Tài liệu chưa được trích xuất nội dung hoặc đang trong quá trình xử lý.</p>
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>
+                    <FileText className="w-8 h-8" />
+                  </div>
+                  <p className={styles.emptyTitle}>Chưa có nội dung</p>
+                  <p className={styles.emptyText}>Tài liệu chưa được trích xuất hoặc đang xử lý.</p>
                   {document.status === 'READY' && (
-                    <button 
+                    <button
                       onClick={() => documentService.triggerProcess(documentId)}
-                      className="mt-4 text-indigo-600 hover:underline"
+                      className={styles.actionBtn}
+                      style={{ marginTop: '1rem' }}
                     >
                       Kích hoạt xử lý lại
                     </button>
@@ -633,41 +699,45 @@ export default function DocumentDetailPage() {
 
         {/* Versions Tab */}
         {activeTab === 'versions' && (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900">Lịch sử phiên bản</h2>
-                {isAdmin && (
-                  <button className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    <Upload className="w-4 h-4 mr-1.5" />
-                    Tải lên phiên bản mới
-                  </button>
-                )}
-              </div>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>
+                <History className="w-4 h-4" />
+                Lịch sử phiên bản
+              </h2>
+              {isAdmin && (
+                <button
+                  className={styles.actionBtn}
+                  onClick={() => setUploadVersionOpen(true)}
+                >
+                  <Upload className="w-4 h-4" />
+                  Tải lên mới
+                </button>
+              )}
             </div>
-            <div className="divide-y divide-gray-200">
-              {(document.versions || []).map((version, index) => (
-                <div key={version.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+            {(document.versions || []).length > 0 ? (
+              document.versions.map((version) => (
+                <div key={version.id} className={styles.versionItem}>
+                  <div className={styles.versionInfo}>
+                    <div className={styles.versionNumber}>
                       v{version.versionNumber || version.version}
                     </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-900">
+                    <div className={styles.versionDetails}>
+                      <h4>
                         {version.changelog || version.changesDescription || `Phiên bản ${version.versionNumber || version.version}`}
-                      </p>
-                      <p className="text-xs text-gray-500" suppressHydrationWarning>
-                        {formatDate((version.createdAt || version.uploadedAt || ''))} •
+                      </h4>
+                      <p className={styles.versionMeta} suppressHydrationWarning>
+                        {formatDate((version.createdAt || version.uploadedAt || ''))}
                         {formatFileSize(version.fileSizeBytes || version.fileSize || 0)}
-                        {version.uploadedByName || version.createdBy ? ` • ${version.uploadedByName || version.createdBy}` : ''}
+                        {(version.uploadedByName || version.createdBy) && (
+                          <> • {version.uploadedByName || version.createdBy}</>
+                        )}
                       </p>
                     </div>
                   </div>
-                    <div className="flex items-center gap-2">
+                  <div className={styles.versionActions}>
                     {version.versionNumber === document.currentVersion && (
-                      <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
-                        Hiện tại
-                      </span>
+                      <span className={styles.currentBadge}>Hiện tại</span>
                     )}
                     {isEditableFileType((document.fileType as unknown as string) || '') && (
                       <button
@@ -679,15 +749,15 @@ export default function DocumentDetailPage() {
                             setEditOldVersionOpen(true);
                           }
                         }}
-                        className="p-2 text-gray-400 hover:text-indigo-600"
-                        title={version.versionNumber === document.currentVersion ? 'Chỉnh sửa với OnlyOffice' : 'Chỉnh sửa phiên bản này'}
+                        className={styles.iconBtn}
+                        title="Chỉnh sửa"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                     )}
                     <button
                       onClick={() => documentService.downloadVersion(documentId, version.versionNumber || version.version!, document.originalFilename)}
-                      className="p-2 text-gray-400 hover:text-gray-600"
+                      className={styles.iconBtn}
                       title="Tải xuống"
                     >
                       <Download className="w-4 h-4" />
@@ -695,7 +765,7 @@ export default function DocumentDetailPage() {
                     {isAdmin && version.versionNumber !== document.currentVersion && (
                       <button
                         onClick={async () => {
-                          if (!confirm(`Xóa phiên bản v${version.versionNumber}? Hành động này có thể khôi phục được.`)) return;
+                          if (!confirm(`Xóa phiên bản v${version.versionNumber}?`)) return;
                           try {
                             await onlyOfficeService.deleteVersion(documentId, version.versionNumber || version.version!);
                             loadDocument();
@@ -703,110 +773,121 @@ export default function DocumentDetailPage() {
                             alert(err.message || 'Xóa thất bại');
                           }
                         }}
-                        className="p-2 text-gray-400 hover:text-red-600"
-                        title="Xóa phiên bản (ADMIN)"
+                        className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                        title="Xóa"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                 </div>
-              ))}
-              {(document.versions || []).length === 0 && (
-                <div className="p-8 text-center text-gray-500">Chưa có phiên bản nào</div>
-              )}
-            </div>
+              ))
+            ) : (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>
+                  <History className="w-8 h-8" />
+                </div>
+                <p className={styles.emptyTitle}>Chưa có phiên bản</p>
+                <p className={styles.emptyText}>Tài liệu chưa có lịch sử phiên bản.</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Access Tab */}
-        {activeTab === 'access' && (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900">Quy tắc truy cập</h2>
+        {/* Access Tab - Admin Only */}
+        {activeTab === 'access' && isAdmin && (
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>
+                <Shield className="w-4 h-4" />
+                Quy tắc truy cập
+              </h2>
               {metadataMissing && (
-                <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                <span className={styles.statusBadge} style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
                   Metadata chưa tồn tại
                 </span>
               )}
             </div>
-            <div className="p-6">
+            <div className={styles.cardBody}>
               {metadataMissing ? (
-                <div className="text-center text-gray-500 py-8">
-                  <Shield className="w-12 h-12 text-yellow-300 mx-auto mb-3" />
-                  <p className="font-medium text-yellow-700">Tài liệu chưa có metadata</p>
-                  <p className="text-sm mt-1">Metadata của tài liệu chưa được tạo. Vui lòng xác nhận metadata trước khi thiết lập quyền truy cập.</p>
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>
+                    <Shield className="w-8 h-8" />
+                  </div>
+                  <p className={styles.emptyTitle}>Tài liệu chưa có metadata</p>
+                  <p className={styles.emptyText}>Vui lòng xác nhận metadata trước khi thiết lập quyền.</p>
                 </div>
               ) : accessRules.length > 0 ? (
-                <div className="space-y-3">
-                  {accessRules.map((rule) => (
-                    <div key={rule.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center">
-                        <Shield className="w-5 h-5 text-gray-400 mr-3" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {rule.targetType === 'ROLE' && `Vai trò: ${rule.targetRole}`}
-                            {rule.targetType === 'DEPARTMENT' && `Phòng ban: ${rule.targetDepartmentName || rule.targetDepartmentId}`}
-                            {rule.targetType === 'USER' && `Người dùng: ${rule.targetUserName || rule.targetUserId}`}
-                          </p>
-                          <p className="text-xs text-gray-500">{rule.targetType}</p>
-                        </div>
+                accessRules.map((rule) => (
+                  <div key={rule.id} className={styles.accessRule}>
+                    <div className={styles.accessRuleInfo}>
+                      <div className={styles.accessRuleIcon}>
+                        <Shield className="w-4 h-4" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            rule.permission === 'VIEW'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {rule.permission === 'VIEW' ? 'Cho phép' : 'Từ chối'}
-                        </span>
-                        {isAdmin && (
-                          <>
-                            <AccessRuleModal
-                              documentId={documentId}
-                              editingRule={rule}
-                              onSuccess={async () => {
-                                const rules = await accessRuleService.getRulesByDocumentId(documentId);
-                                setAccessRules(rules);
-                              }}
-                            />
-                            <button
-                              onClick={async () => {
-                                if (!confirm('Xóa quy tắc này?')) return;
-                                try {
-                                  await accessRuleService.deleteRule(rule.id);
-                                  const rules = await accessRuleService.getRulesByDocumentId(documentId);
-                                  setAccessRules(rules);
-                                } catch {
-                                  alert('Xóa thất bại');
-                                }
-                              }}
-                              className="p-1 text-gray-400 hover:text-red-600"
-                              title="Xóa quy tắc"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
+                      <div>
+                        <p className={styles.accessRuleTitle}>
+                          {rule.targetType === 'ROLE' && `Vai trò: ${rule.targetRole}`}
+                          {rule.targetType === 'DEPARTMENT' && `Phòng ban: ${rule.targetDepartmentName || rule.targetDepartmentId}`}
+                          {rule.targetType === 'USER' && `Người dùng: ${rule.targetUserName || rule.targetUserId}`}
+                        </p>
+                        <p className={styles.accessRuleType}>{rule.targetType}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className={styles.accessRuleActions}>
+                      <span
+                        className={styles.permBadge}
+                        style={{
+                          backgroundColor: rule.permission === 'VIEW' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(220, 38, 38, 0.1)',
+                          color: rule.permission === 'VIEW' ? '#059669' : '#dc2626'
+                        }}
+                      >
+                        {rule.permission === 'VIEW' ? 'Cho phép' : 'Từ chối'}
+                      </span>
+                      {isAdmin && (
+                        <>
+                          <AccessRuleModal
+                            documentId={documentId}
+                            editingRule={rule}
+                            onSuccess={async () => {
+                              const rules = await accessRuleService.getRulesByDocumentId(documentId);
+                              setAccessRules(rules);
+                            }}
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Xóa quy tắc này?')) return;
+                              try {
+                                await accessRuleService.deleteRule(rule.id);
+                                const rules = await accessRuleService.getRulesByDocumentId(documentId);
+                                setAccessRules(rules);
+                              } catch {
+                                alert('Xóa thất bại');
+                              }
+                            }}
+                            className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                            title="Xóa quy tắc"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <Shield className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p>Chưa có quy tắc truy cập nào</p>
-                  <p className="text-sm">Tài liệu này có thể được truy cập công khai</p>
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>
+                    <Shield className="w-8 h-8" />
+                  </div>
+                  <p className={styles.emptyTitle}>Chưa có quy tắc</p>
+                  <p className={styles.emptyText}>Tài liệu có thể được truy cập công khai.</p>
                 </div>
               )}
               {isAdmin && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                   <AccessRuleModal
                     documentId={documentId}
                     onSuccess={async () => {
-                      // Reload both metadata (in case it was auto-created) and access rules
                       try {
                         const meta = await documentMetadataService.getMetadataByDocumentId(documentId);
                         setMetadata(meta);
@@ -827,84 +908,97 @@ export default function DocumentDetailPage() {
           </div>
         )}
 
-        {/* Simulation Tab */}
-        {activeTab === 'simulation' && (
-          <div className="space-y-6">
-            {/* Summary Cards */}
+        {/* Simulation Tab - Admin & Manager Only */}
+        {activeTab === 'simulation' && (isAdmin || isManager) && (
+          <div>
             {simulationData && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                  <p className="text-sm text-gray-500">Tổng nhân viên</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{simulationData.totalCompanyUsers}</p>
+              <div className={styles.simStats}>
+                <div className={styles.simStatCard}>
+                  <p className={styles.simStatValue} style={{ color: 'var(--foreground)' }}>
+                    {simulationData.totalCompanyUsers}
+                  </p>
+                  <p className={styles.simStatLabel}>Tổng nhân viên</p>
                 </div>
-                <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                  <p className="text-sm text-gray-500">Được phép truy cập</p>
-                  <p className="text-3xl font-bold text-green-600 mt-1">{simulationData.usersWithAccess}</p>
+                <div className={styles.simStatCard}>
+                  <p className={styles.simStatValue} style={{ color: '#059669' }}>
+                    {simulationData.usersWithAccess}
+                  </p>
+                  <p className={styles.simStatLabel}>Được phép truy cập</p>
                 </div>
-                <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                  <p className="text-sm text-gray-500">Không được phép</p>
-                  <p className="text-3xl font-bold text-red-500 mt-1">{simulationData.usersWithoutAccess}</p>
+                <div className={styles.simStatCard}>
+                  <p className={styles.simStatValue} style={{ color: '#dc2626' }}>
+                    {simulationData.usersWithoutAccess}
+                  </p>
+                  <p className={styles.simStatLabel}>Không được phép</p>
                 </div>
               </div>
             )}
 
             {simulationLoading ? (
-              <div className="bg-white rounded-lg shadow p-12 flex flex-col items-center">
-                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
-                <p className="text-gray-500">Đang mô phỏng quyền truy cập...</p>
+              <div className={styles.card}>
+                <div className={styles.loadingState}>
+                  <Loader2 className={`${styles.spinner} w-8 h-8`} />
+                  <p>Đang mô phỏng quyền truy cập...</p>
+                </div>
               </div>
             ) : simulationError ? (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-start p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-red-800">Lỗi mô phỏng</p>
-                    <p className="text-sm text-red-600 mt-1">{simulationError}</p>
-                  </div>
+              <div className={styles.errorState}>
+                <AlertCircle className="w-5 h-5 text-danger" />
+                <div>
+                  <p className="text-sm font-medium text-danger">Lỗi mô phỏng</p>
+                  <p className="text-sm text-danger mt-1">{simulationError}</p>
                 </div>
               </div>
             ) : simulationData ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Granted Users */}
-                <div className="bg-white rounded-lg shadow">
-                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                      <span className="w-3 h-3 rounded-full bg-green-500 mr-2" />
-                      Được phép truy cập ({simulationData.grantedUsers.length})
-                    </h3>
+              <div className={styles.userListGrid}>
+                {/* Granted */}
+                <div className={styles.userListCard}>
+                  <div className={styles.userListHeader}>
+                    <span className={styles.userListTitle}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#059669' }} />
+                      Được phép truy cập
+                    </span>
+                    <span className={styles.userListCount} style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#059669' }}>
+                      {simulationData.grantedUsers.length}
+                    </span>
                   </div>
-                  <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                  <div className={styles.userListBody}>
                     {simulationData.grantedUsers.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500 text-sm">
-                        Không có ai được phép truy cập
+                      <div className={styles.emptyState} style={{ padding: '2rem' }}>
+                        <p className={styles.emptyText}>Không có ai được phép</p>
                       </div>
                     ) : (
                       simulationData.grantedUsers.map((user) => (
-                        <div key={user.userId} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 text-sm font-medium mr-3">
+                        <div key={user.userId} className={styles.userItem}>
+                          <div className={styles.userItemInfo}>
+                            <div className={styles.userAvatar} style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#059669' }}>
                               {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {user.fullName || user.username}
-                              </p>
-                              <p className="text-xs text-gray-500">
+                              <p className={styles.userName}>{user.fullName || user.username}</p>
+                              <div className={styles.userRole}>
                                 {user.role && (
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-2 ${
-                                    user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                                    user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>
+                                  <span
+                                    className={styles.roleBadge}
+                                    style={{
+                                      backgroundColor: user.role === 'ADMIN' ? 'rgba(139, 92, 246, 0.1)' :
+                                        user.role === 'MANAGER' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                                      color: user.role === 'ADMIN' ? '#8b5cf6' :
+                                        user.role === 'MANAGER' ? '#3b82f6' : '#6b7280'
+                                    }}
+                                  >
                                     {user.role}
                                   </span>
                                 )}
-                                <span className="text-gray-400">•</span>
-                                <span className="ml-2">{user.departmentName}</span>
-                              </p>
+                                <span style={{ opacity: 0.5 }}>•</span>
+                                <span>{user.departmentName}</span>
+                              </div>
                             </div>
                           </div>
-                          <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                          <span
+                            className={styles.userReason}
+                            style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', color: '#059669' }}
+                          >
                             {user.reason}
                           </span>
                         </div>
@@ -913,46 +1007,54 @@ export default function DocumentDetailPage() {
                   </div>
                 </div>
 
-                {/* Denied Users */}
-                <div className="bg-white rounded-lg shadow">
-                  <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                      <span className="w-3 h-3 rounded-full bg-red-500 mr-2" />
-                      Không được phép ({simulationData.deniedUsers.length})
-                    </h3>
+                {/* Denied */}
+                <div className={styles.userListCard}>
+                  <div className={styles.userListHeader}>
+                    <span className={styles.userListTitle}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#dc2626' }} />
+                      Không được phép
+                    </span>
+                    <span className={styles.userListCount} style={{ backgroundColor: 'rgba(220, 38, 38, 0.1)', color: '#dc2626' }}>
+                      {simulationData.deniedUsers.length}
+                    </span>
                   </div>
-                  <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                  <div className={styles.userListBody}>
                     {simulationData.deniedUsers.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500 text-sm">
-                        Tất cả đều được phép truy cập
+                      <div className={styles.emptyState} style={{ padding: '2rem' }}>
+                        <p className={styles.emptyText}>Tất cả đều được phép</p>
                       </div>
                     ) : (
                       simulationData.deniedUsers.map((user) => (
-                        <div key={user.userId} className="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-700 text-sm font-medium mr-3">
+                        <div key={user.userId} className={styles.userItem}>
+                          <div className={styles.userItemInfo}>
+                            <div className={styles.userAvatar} style={{ backgroundColor: 'rgba(220, 38, 38, 0.1)', color: '#dc2626' }}>
                               {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {user.fullName || user.username}
-                              </p>
-                              <p className="text-xs text-gray-500">
+                              <p className={styles.userName}>{user.fullName || user.username}</p>
+                              <div className={styles.userRole}>
                                 {user.role && (
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-2 ${
-                                    user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                                    user.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>
+                                  <span
+                                    className={styles.roleBadge}
+                                    style={{
+                                      backgroundColor: user.role === 'ADMIN' ? 'rgba(139, 92, 246, 0.1)' :
+                                        user.role === 'MANAGER' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                                      color: user.role === 'ADMIN' ? '#8b5cf6' :
+                                        user.role === 'MANAGER' ? '#3b82f6' : '#6b7280'
+                                    }}
+                                  >
                                     {user.role}
                                   </span>
                                 )}
-                                <span className="text-gray-400">•</span>
-                                <span className="ml-2">{user.departmentName}</span>
-                              </p>
+                                <span style={{ opacity: 0.5 }}>•</span>
+                                <span>{user.departmentName}</span>
+                              </div>
                             </div>
                           </div>
-                          <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                          <span
+                            className={styles.userReason}
+                            style={{ backgroundColor: 'rgba(220, 38, 38, 0.08)', color: '#dc2626' }}
+                          >
                             {user.reason}
                           </span>
                         </div>
@@ -962,16 +1064,22 @@ export default function DocumentDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-12 flex flex-col items-center">
-                <Shield className="w-12 h-12 text-gray-300 mb-3" />
-                <p className="text-gray-500 mb-4">Nhấn nút bên dưới để xem ai có quyền truy cập tài liệu này</p>
-                <button
-                  onClick={loadSimulation}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <Shield className="w-4 h-4 mr-2" />
-                  Mô phỏng quyền truy cập
-                </button>
+              <div className={styles.card}>
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>
+                    <Shield className="w-8 h-8" />
+                  </div>
+                  <p className={styles.emptyTitle}>Mô phỏng quyền truy cập</p>
+                  <p className={styles.emptyText}>Nhấn nút bên dưới để xem ai có quyền truy cập</p>
+                  <button
+                    onClick={loadSimulation}
+                    className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                    style={{ marginTop: '1rem' }}
+                  >
+                    <Shield className="w-4 h-4" />
+                    Bắt đầu mô phỏng
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -979,55 +1087,65 @@ export default function DocumentDetailPage() {
 
         {/* Audit Tab */}
         {activeTab === 'audit' && (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Nhật ký hoạt động</h2>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>
+                <Clock className="w-4 h-4" />
+                Nhật ký hoạt động
+              </h2>
             </div>
-            <div className="divide-y divide-gray-200">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="p-4 flex items-start">
-                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 text-sm">
-                    {log.action.charAt(0)}
+            {auditLogs.length > 0 ? (
+              <>
+                {auditLogs.map((log) => (
+                  <div key={log.id} className={styles.auditItem}>
+                    <div className={styles.auditIcon}>
+                      {log.action.charAt(0)}
+                    </div>
+                    <div className={styles.auditContent}>
+                      <p className={styles.auditAction}>{log.action}</p>
+                      <p className={styles.auditMeta} suppressHydrationWarning>
+                        {log.actorUsername || log.actorId} • {formatDate(log.createdAt)}
+                      </p>
+                      {log.ipAddress && (
+                        <p className={styles.auditIp}>IP: {log.ipAddress}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="ml-4 flex-1">
-                    <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                    <p className="text-xs text-gray-500" suppressHydrationWarning>
-                      {log.actorUsername || log.actorId} • {formatDate(log.createdAt)}
-                    </p>
-                    {log.ipAddress && (
-                      <p className="text-xs text-gray-400">IP: {log.ipAddress}</p>
-                    )}
+                ))}
+                {auditTotalPages > 1 && (
+                  <div className={styles.pagination}>
+                    <span className={styles.paginationInfo}>Trang {auditPage} / {auditTotalPages}</span>
+                    <div className={styles.paginationBtns}>
+                      <button
+                        onClick={() => loadAuditLogs(auditPage - 1)}
+                        disabled={auditPage === 1}
+                        className={styles.pageBtn}
+                      >
+                        Trước
+                      </button>
+                      <button
+                        onClick={() => loadAuditLogs(auditPage + 1)}
+                        disabled={auditPage === auditTotalPages}
+                        className={styles.pageBtn}
+                      >
+                        Sau
+                      </button>
+                    </div>
                   </div>
+                )}
+              </>
+            ) : (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>
+                  <Clock className="w-8 h-8" />
                 </div>
-              ))}
-              {auditLogs.length === 0 && (
-                <div className="p-8 text-center text-gray-500">Chưa có nhật ký nào</div>
-              )}
-            </div>
-            {auditTotalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
-                <span className="text-sm text-gray-500">Trang {auditPage} / {auditTotalPages}</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => loadAuditLogs(auditPage - 1)}
-                    disabled={auditPage === 1}
-                    className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-                  >
-                    Trước
-                  </button>
-                  <button
-                    onClick={() => loadAuditLogs(auditPage + 1)}
-                    disabled={auditPage === auditTotalPages}
-                    className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-                  >
-                    Sau
-                  </button>
-                </div>
+                <p className={styles.emptyTitle}>Chưa có nhật ký</p>
+                <p className={styles.emptyText}>Không có hoạt động nào được ghi nhận.</p>
               </div>
             )}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Preview Modal */}
       {document && (
@@ -1053,7 +1171,21 @@ export default function DocumentDetailPage() {
         />
       )}
 
-      {/* OnlyOffice Editor — client-only, never SSR, to prevent hydration mismatch */}
+      {uploadVersionOpen && document && (
+        <UploadNewVersionModal
+          open={uploadVersionOpen}
+          documentId={documentId}
+          documentTitle={document.originalFilename || document.fileName || 'document'}
+          currentVersion={document.currentVersion || 1}
+          onClose={() => setUploadVersionOpen(false)}
+          onSuccess={() => {
+            setUploadVersionOpen(false);
+            loadDocument();
+          }}
+        />
+      )}
+
+      {/* OnlyOffice Editor */}
       {mounted && document && (
         <OnlyOfficeEditor
           ref={editorRef}
@@ -1074,7 +1206,7 @@ export default function DocumentDetailPage() {
           mergeDiffData={mergeDiffData ?? undefined}
           currentFile={editorCurrentFile}
           latestVersionPreview={editorLatestVersionPreview}
-          onSaveSuccess={(newVersion: number) => {
+          onSaveSuccess={() => {
             setEditorOpen(false);
             setEditorTargetVersion(undefined);
             setMergeDiffData(null);
@@ -1087,7 +1219,7 @@ export default function DocumentDetailPage() {
         />
       )}
 
-      {/* Conflict Resolver — client-only, never SSR */}
+      {/* Conflict Resolver */}
       {mounted && document && conflictData && (
         <ConflictResolver
           open={conflictOpen}
@@ -1098,8 +1230,6 @@ export default function DocumentDetailPage() {
             setEditorOpen(false);
             setEditorTargetVersion(undefined);
             setMergeDiffData(null);
-            // Release the lock since user chose not to resolve the conflict.
-            // The lock was preserved during the conflict resolution session.
             if (conflictData) {
               onlyOfficeService.releaseLock(documentId, conflictData.lock.lockToken).catch(() => {});
             }
@@ -1108,15 +1238,13 @@ export default function DocumentDetailPage() {
           documentTitle={document.title || document.originalFilename || 'Tài liệu'}
           conflictData={conflictData!}
           currentFile={currentFileAtConflict}
-          onResolved={(strategy, newVersion) => {
+          onResolved={() => {
             setConflictOpen(false);
             setConflictData(null);
             setCurrentFileAtConflict(null);
             setEditorOpen(false);
             setEditorTargetVersion(undefined);
             setMergeDiffData(null);
-            // Release the lock after conflict resolution.
-            // After merge_as_new, backend extends the lock, so we must release it here.
             if (conflictData) {
               onlyOfficeService.releaseLock(documentId, conflictData.lock.lockToken).catch(() => {});
             }
@@ -1125,12 +1253,8 @@ export default function DocumentDetailPage() {
           onReEdit={() => {
             setConflictOpen(false);
             setConflictData(null);
-            // Pass current file blob + latest version preview to the editor
             setEditorCurrentFile(currentFileAtConflict);
-            // Keep the latest preview already computed on conflict detection.
-            // (ConflictResolver may not have the latest version number if status call failed.)
             setEditorLatestVersionPreview((prev) => prev || { versionNumber: document.currentVersion || 1 });
-            // Upgrade the lock to the latest version so it doesn't trigger another conflict on save
             setEditorTargetVersion(conflictData.currentVersion);
             setMergeDiffData(null);
             setEditorOpen(true);

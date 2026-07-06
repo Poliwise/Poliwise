@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Activity, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
+import { Card } from '@/components/ui';
 import type { ApiMetricsResponse } from '@/types';
 import styles from './api-health-card.module.css';
 
@@ -29,7 +29,7 @@ export function ApiHealthCard({
     return (
       <Card padding="md" className={styles.card}>
         <div className={styles.inner}>
-          <div className={styles.iconWrap} style={{ background: 'rgba(107, 114, 128, 0.1)', color: 'var(--muted-foreground)' }}>
+          <div className={`${styles.iconWrap} ${styles.neutral}`}>
             <Activity size={22} />
           </div>
           <div className={styles.content}>
@@ -43,9 +43,9 @@ export function ApiHealthCard({
 
   if (!metrics) {
     return (
-      <Card padding="md" className={styles.card} onClick={onClick} style={{ cursor: 'pointer' }}>
+      <Card padding="md" className={styles.card} onClick={onClick}>
         <div className={styles.inner}>
-          <div className={styles.iconWrap} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+          <div className={`${styles.iconWrap} ${styles.danger}`}>
             <AlertCircle size={22} />
           </div>
           <div className={styles.content}>
@@ -63,9 +63,9 @@ export function ApiHealthCard({
   const failedEndpoints = endpoints.filter((e) => e.failure > 0).length;
 
   const getHealthStatus = () => {
-    if (successRate >= 99) return { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)', icon: <CheckCircle size={22} /> };
-    if (successRate >= 95) return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: <AlertCircle size={22} /> };
-    return { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', icon: <XCircle size={22} /> };
+    if (successRate >= 99) return { className: styles.success, icon: <CheckCircle size={22} /> };
+    if (successRate >= 95) return { className: styles.warning, icon: <AlertCircle size={22} /> };
+    return { className: styles.danger, icon: <XCircle size={22} /> };
   };
 
   const status = getHealthStatus();
@@ -75,16 +75,15 @@ export function ApiHealthCard({
       padding="md"
       className={styles.card}
       onClick={onClick}
-      style={{ cursor: 'pointer' }}
     >
       <div className={styles.inner}>
-        <div className={styles.iconWrap} style={{ background: status.bg, color: status.color }}>
+        <div className={`${styles.iconWrap} ${status.className}`}>
           {status.icon}
         </div>
         <div className={styles.content}>
           <span className={styles.label}>{label}</span>
           <div className={styles.row}>
-            <span className={styles.mainValue} style={{ color: status.color }}>
+            <span className={`${styles.mainValue} ${status.className}`}>
               {successRate}%
             </span>
             <span className={styles.separator}>/</span>

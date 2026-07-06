@@ -9,7 +9,7 @@
  * - All responses follow ApiResponse<T> wrapper format.
  */
 
-import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import axios, { type AxiosInstance, type AxiosError } from "axios";
 import type {
   // Shared types
   ApiResponse,
@@ -43,15 +43,15 @@ import type {
   CreateDepartmentRequest,
   UpdateDepartmentRequest,
   AssignUserDepartmentRequest,
-} from '@/types';
-import type { DocumentVersion } from '@/types/document';
-import type { AccessRule, CreateAccessRuleRequest } from '@/types/document';
+} from "@/types";
+import type { DocumentVersion } from "@/types/document";
+import type { AccessRule, CreateAccessRuleRequest } from "@/types/document";
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // ============================================================================
 // Response coercers — handle both wrapped { success: true, data: {...} and raw responses
@@ -62,7 +62,7 @@ type RawTokenBody = {
   refreshToken: string;
   expiresIn?: number;
   expiresInSeconds?: number;
-  user?: LoginResponse['user'];
+  user?: LoginResponse["user"];
 };
 
 /**
@@ -71,9 +71,9 @@ type RawTokenBody = {
  * is constructed correctly with the "Bearer " prefix added later.
  */
 function normalizeToken(token: string): string {
-  if (typeof token !== 'string') return token;
+  if (typeof token !== "string") return token;
   const trimmed = token.trim();
-  if (trimmed.toLowerCase().startsWith('bearer ')) {
+  if (trimmed.toLowerCase().startsWith("bearer ")) {
     return trimmed.substring(7).trim();
   }
   return trimmed;
@@ -81,62 +81,81 @@ function normalizeToken(token: string): string {
 
 function coerceLoginResponse(body: unknown): LoginResponse {
   const root = body as Record<string, unknown> | null;
-  if (!root || typeof root !== 'object') throw new Error('Phản hồi đăng nhập không hợp lệ');
+  if (!root || typeof root !== "object")
+    throw new Error("Phản hồi đăng nhập không hợp lệ");
 
-  const data = 'data' in root && root.data && typeof root.data === 'object'
-    ? root.data as RawTokenBody
-    : root as RawTokenBody;
+  const data =
+    "data" in root && root.data && typeof root.data === "object"
+      ? (root.data as RawTokenBody)
+      : (root as RawTokenBody);
 
-  const expiresIn = typeof data.expiresIn === 'number'
-    ? data.expiresIn
-    : typeof data.expiresInSeconds === 'number'
-      ? data.expiresInSeconds
-      : 0;
+  const expiresIn =
+    typeof data.expiresIn === "number"
+      ? data.expiresIn
+      : typeof data.expiresInSeconds === "number"
+        ? data.expiresInSeconds
+        : 0;
 
   if (!data.accessToken || !data.refreshToken || !data.user) {
-    throw new Error('Phản hồi đăng nhập không hợp lệ');
+    throw new Error("Phản hồi đăng nhập không hợp lệ");
   }
 
   return {
     accessToken: normalizeToken(data.accessToken),
     refreshToken: normalizeToken(data.refreshToken),
     expiresIn,
-    user: data.user
+    user: data.user,
   };
 }
 
 function coerceRefreshResponse(body: unknown): RefreshTokenResponse {
   const root = body as Record<string, unknown> | null;
-  if (!root || typeof root !== 'object') throw new Error('Phản hồi làm mới token không hợp lệ');
+  if (!root || typeof root !== "object")
+    throw new Error("Phản hồi làm mới token không hợp lệ");
 
-  const data = 'data' in root && root.data && typeof root.data === 'object'
-    ? root.data as RawTokenBody
-    : root as RawTokenBody;
+  const data =
+    "data" in root && root.data && typeof root.data === "object"
+      ? (root.data as RawTokenBody)
+      : (root as RawTokenBody);
 
-  const expiresIn = typeof data.expiresIn === 'number'
-    ? data.expiresIn
-    : typeof data.expiresInSeconds === 'number'
-      ? data.expiresInSeconds
-      : 0;
+  const expiresIn =
+    typeof data.expiresIn === "number"
+      ? data.expiresIn
+      : typeof data.expiresInSeconds === "number"
+        ? data.expiresInSeconds
+        : 0;
 
-  if (!data.accessToken || !data.refreshToken) throw new Error('Phản hồi làm mới token không hợp lệ');
+  if (!data.accessToken || !data.refreshToken)
+    throw new Error("Phản hồi làm mới token không hợp lệ");
 
   return {
     accessToken: normalizeToken(data.accessToken),
     refreshToken: normalizeToken(data.refreshToken),
-    expiresIn
+    expiresIn,
   };
 }
 
 function coercePaginated<T>(
   response: unknown,
-  dataKey: keyof Record<string, unknown>
-): { data: T[]; pagination: { page: number; limit: number; total: number; totalPages: number } } {
+  dataKey: keyof Record<string, unknown>,
+): {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+} {
   const root = response as Record<string, unknown> | null;
-  if (!root) return { data: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } };
+  if (!root)
+    return {
+      data: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
 
   // Handle Spring/PageResponse format at root: { content, totalElements, totalPages, size, number }
-  if ('content' in root && Array.isArray(root.content)) {
+  if ("content" in root && Array.isArray(root.content)) {
     const page = (root.number as number) ?? (root.page as number) ?? 0;
     const size = (root.size as number) ?? (root.limit as number) ?? 20;
     const totalElements = (root.totalElements as number) ?? 0;
@@ -153,10 +172,18 @@ function coercePaginated<T>(
   }
 
   // Handle wrapped ApiResponse format: { success, data: { content, totalElements, totalPages, size, ... }, ... }
-  const wrappedData = (dataKey in root ? root[dataKey] : root) as Record<string, unknown> | undefined;
-  if (wrappedData && 'content' in wrappedData && Array.isArray(wrappedData.content)) {
-    const page = (wrappedData.number as number) ?? (wrappedData.page as number) ?? 0;
-    const size = (wrappedData.size as number) ?? (wrappedData.limit as number) ?? 20;
+  const wrappedData = (dataKey in root ? root[dataKey] : root) as
+    | Record<string, unknown>
+    | undefined;
+  if (
+    wrappedData &&
+    "content" in wrappedData &&
+    Array.isArray(wrappedData.content)
+  ) {
+    const page =
+      (wrappedData.number as number) ?? (wrappedData.page as number) ?? 0;
+    const size =
+      (wrappedData.size as number) ?? (wrappedData.limit as number) ?? 20;
     const totalElements = (wrappedData.totalElements as number) ?? 0;
     const totalPages = (wrappedData.totalPages as number) ?? 1;
     return {
@@ -171,13 +198,13 @@ function coercePaginated<T>(
   }
 
   // Handle wrapped ApiResponse with { success, data: [...], pagination: {...} }
-  const dataArr = wrappedData as T[] | undefined;
+  let dataArr = wrappedData as T[] | undefined;
   let pagination = (root.pagination || root.Pagination) as
     | { page: number; limit: number; total: number; totalPages: number }
     | undefined;
-    
+
   // Handle format where pagination fields are flat at root: { data: [...], page: 1, limit: 20, total: 5, totalPages: 1 }
-  if (!pagination && root && 'page' in root && 'total' in root) {
+  if (!pagination && root && "page" in root && "total" in root) {
     pagination = {
       page: (root.page as number) ?? 1,
       limit: (root.limit as number) ?? 20,
@@ -186,27 +213,39 @@ function coercePaginated<T>(
     };
   }
 
+  // CRITICAL: Ensure dataArr is always an array, never a Page object
+  // If wrappedData is a Page-like object with 'content', extract it
+  if (dataArr && typeof dataArr === 'object' && !Array.isArray(dataArr) && 'content' in dataArr) {
+    dataArr = (dataArr as Record<string, unknown>).content as T[];
+  }
+  // If dataArr is still not an array (e.g., a Page object without 'content'), default to empty array
+  if (!Array.isArray(dataArr)) {
+    dataArr = [];
+  }
+
   return {
-    data: Array.isArray(dataArr) ? dataArr : [],
+    data: dataArr,
     pagination: pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
   };
 }
 
 function coerceSingleObject<T>(
   response: unknown,
-  dataKey: keyof Record<string, unknown>
+  dataKey: keyof Record<string, unknown>,
 ): T | null {
   const root = response as Record<string, unknown> | null;
   if (!root) return null;
 
   // Already a plain object (no wrapping)
-  if (!('success' in root) && !('data' in root) && !('content' in root)) {
+  if (!("success" in root) && !("data" in root) && !("content" in root)) {
     return root as unknown as T;
   }
 
   // ApiResponse wrapper: { success, data: {...} }
-  const wrapped = (dataKey in root ? root[dataKey] : root) as Record<string, unknown> | undefined;
-  if (wrapped && typeof wrapped === 'object' && !Array.isArray(wrapped)) {
+  const wrapped = (dataKey in root ? root[dataKey] : root) as
+    | Record<string, unknown>
+    | undefined;
+  if (wrapped && typeof wrapped === "object" && !Array.isArray(wrapped)) {
     return wrapped as unknown as T;
   }
 
@@ -222,30 +261,51 @@ function mapBackendSourceToFrontend(s: any): SourceDocument {
 
   // Map chunks array (new schema) or synthesise a single chunk from the old flat excerpt
   const rawChunks: any[] = s.chunks ?? [];
-  const chunks = rawChunks.length > 0
-    ? rawChunks.map((c: any) => ({
-      chunkId: c.chunk_id ?? c.chunkId ?? c.id ?? '',
-      sectionTitle: c.section_title ?? c.sectionTitle ?? undefined,
-      excerpt: c.excerpt ?? '',
-      fullContent: c.full_content ?? c.fullContent ?? c.content ?? c.excerpt ?? '',
-      similarityScore: c.similarity_score ?? c.similarityScore ?? 0,
-      startCharIndex: c.start_char_index ?? c.startCharIndex ?? undefined,
-      endCharIndex: c.end_char_index ?? c.endCharIndex ?? undefined,
-    }))
-    : s.excerpt
-      ? [{
-        chunkId: s.chunk_id ?? s.chunkId ?? '',
-        sectionTitle: undefined,
-        excerpt: s.excerpt,
-        fullContent: s.full_content ?? s.fullContent ?? s.content ?? s.excerpt ?? '',
-        similarityScore: s.relevance_score ?? s.relevanceScore ?? s.similarity_score ?? s.similarity ?? 0,
-      }]
-      : [];
+  const chunks =
+    rawChunks.length > 0
+      ? rawChunks.map((c: any) => ({
+          chunkId: c.chunk_id ?? c.chunkId ?? c.id ?? "",
+          sectionTitle: c.section_title ?? c.sectionTitle ?? undefined,
+          excerpt: c.excerpt ?? "",
+          fullContent:
+            c.full_content ?? c.fullContent ?? c.content ?? c.excerpt ?? "",
+          similarityScore: c.similarity_score ?? c.similarityScore ?? 0,
+          startCharIndex: c.start_char_index ?? c.startCharIndex ?? undefined,
+          endCharIndex: c.end_char_index ?? c.endCharIndex ?? undefined,
+        }))
+      : s.excerpt
+        ? [
+            {
+              chunkId: s.chunk_id ?? s.chunkId ?? "",
+              sectionTitle: undefined,
+              excerpt: s.excerpt,
+              fullContent:
+                s.full_content ?? s.fullContent ?? s.content ?? s.excerpt ?? "",
+              similarityScore:
+                s.relevance_score ??
+                s.relevanceScore ??
+                s.similarity_score ??
+                s.similarity ??
+                0,
+            },
+          ]
+        : [];
 
   return {
-    documentId: s.document_id ?? s.documentId ?? s.id ?? '',
-    documentName: s.document_name ?? s.documentName ?? s.document_title ?? s.documentTitle ?? s.title ?? '',
-    relevanceScore: s.relevance_score ?? s.relevanceScore ?? s.similarity_score ?? s.similarity ?? 0,
+    documentId: s.document_id ?? s.documentId ?? s.id ?? "",
+    documentName:
+      s.document_name ??
+      s.documentName ??
+      s.document_title ??
+      s.documentTitle ??
+      s.title ??
+      "",
+    relevanceScore:
+      s.relevance_score ??
+      s.relevanceScore ??
+      s.similarity_score ??
+      s.similarity ??
+      0,
     chunks,
   };
 }
@@ -257,7 +317,9 @@ function mapBackendMessageToFrontend(m: any): Message {
     conversationId: m.conversation_id ?? m.conversationId,
     role: m.role,
     content: m.content,
-    sources: Array.isArray(m.sources) ? m.sources.map(mapBackendSourceToFrontend) : undefined,
+    sources: Array.isArray(m.sources)
+      ? m.sources.map(mapBackendSourceToFrontend)
+      : undefined,
     modelUsed: m.model_used ?? m.modelUsed ?? undefined,
     modelRequested: m.metadata?.model_requested ?? undefined,
     tokensPrompt: m.tokens_prompt ?? m.tokensPrompt ?? undefined,
@@ -268,6 +330,8 @@ function mapBackendMessageToFrontend(m: any): Message {
     hasSources: m.has_sources ?? m.hasSources ?? false,
     isStreaming: m.is_streaming ?? m.isStreaming ?? false,
     streamingCompleted: m.streaming_completed ?? m.streamingCompleted ?? true,
+    isToxic: m.is_toxic ?? m.isToxic ?? false,
+    isLayer2Response: m.is_layer2_response ?? m.isLayer2Response ?? false,
     createdAt: m.created_at ?? m.createdAt,
   };
 }
@@ -284,8 +348,47 @@ class ApiClient {
   private directClient = axios.create({
     baseURL: API_BASE_URL,
     timeout: 10000,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
+
+  // Map backend error codes → user-friendly Vietnamese messages
+  private getErrorMessage(error: AxiosError): string {
+    const data = error.response?.data as Record<string, unknown> | null;
+    const code = (data?.error as Record<string, unknown>)?.code as string | undefined;
+    const backendError = data?.error as Record<string, unknown> | null;
+    const backendMsg: string | undefined =
+      typeof data?.message === 'string'
+        ? data.message
+        : typeof backendError?.message === 'string'
+          ? (backendError.message as string)
+          : undefined;
+
+    if (backendMsg) return backendMsg;
+    if (code) return code;
+
+    switch (error.response?.status) {
+      case 400: return 'Yêu cầu không hợp lệ.';
+      case 401: return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+      case 403: return 'Bạn không có quyền thực hiện thao tác này.';
+      case 404: return 'Không tìm thấy tài nguyên yêu cầu.';
+      case 409: return 'Tài nguyên đã tồn tại hoặc xung đột.';
+      case 422: return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+      case 429: return 'Bạn đã thao tác quá nhanh. Vui lòng chờ một lát.';
+      case 500: return 'Lỗi máy chủ. Vui lòng thử lại sau.';
+      case 502: return 'Dịch vụ tạm thời không khả dụng.';
+      case 503: return 'Hệ thống đang bảo trì. Vui lòng thử lại sau.';
+      default: return error.message || `Lỗi không xác định (${error.response?.status ?? 'network'}).`;
+    }
+  }
+
+  private async showToast(message: string, type: 'error' | 'success' = 'error') {
+    if (typeof window === 'undefined') return;
+    try {
+      const { useToast } = await import('@/components/ui/toast/ToastContext');
+      const toast = useToast();
+      toast.addToast(message, type);
+    } catch { /* toast context not mounted */ }
+  }
 
   // Semaphore to prevent concurrent refresh attempts (stops refresh loops)
   private isRefreshing = false;
@@ -304,7 +407,7 @@ class ApiClient {
     this.client = axios.create({
       baseURL: API_BASE_URL,
       timeout: 30000,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
     });
     this.setupInterceptors();
   }
@@ -314,10 +417,14 @@ class ApiClient {
     this.client.interceptors.request.use((config) => {
       // Use lowercase 'authorization' because Express normalizes all header keys to lowercase.
       // This ensures the header name is consistent when forwarded to downstream services.
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      if (token) config.headers['authorization'] = `Bearer ${token}`;
-      const traceId = typeof window !== 'undefined' ? localStorage.getItem('traceId') : null;
-      if (traceId) config.headers['x-trace-id'] = traceId;
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
+      if (token) config.headers["authorization"] = `Bearer ${token}`;
+      const traceId =
+        typeof window !== "undefined" ? localStorage.getItem("traceId") : null;
+      if (traceId) config.headers["x-trace-id"] = traceId;
       return config;
     });
 
@@ -326,7 +433,10 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError<ApiError>) => {
         const original = error.config;
-        if (!original) return Promise.reject(error);
+        if (!original) {
+          try { await this.showToast('Không thể kết nối máy chủ. Vui lòng kiểm tra mạng.'); } catch { /* toast not mounted */ }
+          return Promise.reject(error);
+        }
 
         // 429 — don't retry, just reject
         if (error.response?.status === 429) {
@@ -334,21 +444,34 @@ class ApiClient {
         }
 
         if (error.response?.status === 401) {
-          const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+          // Skip auth-refresh logic for login/register/refresh endpoints.
+          // These legitimately return 401 for bad credentials and must NOT
+          // trigger a redirect (which would erase the error before it's shown).
+          const path = error.config?.url ?? "";
+          if (path.includes("/auth/login") || path.includes("/auth/refresh")) {
+            return Promise.reject(error);
+          }
+
+          const refreshToken =
+            typeof window !== "undefined"
+              ? localStorage.getItem("refreshToken")
+              : null;
           if (refreshToken) {
             if (this.isRefreshing) {
               // Another request is already refreshing — queue this one
               return new Promise((resolve, reject) => {
                 this.subscribeTokenRefresh((newToken: string) => {
-                  original.headers['authorization'] = `Bearer ${newToken}`;
+                  original.headers["authorization"] = `Bearer ${newToken}`;
                   // Use directClient to avoid reading stale token from localStorage
-                  resolve(this.directClient({
-                    ...original,
-                    headers: {
-                      ...(original.headers as Record<string, string>),
-                      'authorization': `Bearer ${newToken}`,
-                    },
-                  }));
+                  resolve(
+                    this.directClient({
+                      ...original,
+                      headers: {
+                        ...(original.headers as Record<string, string>),
+                        authorization: `Bearer ${newToken}`,
+                      },
+                    }),
+                  );
                 });
                 // Timeout: if refresh never resolves, reject
                 setTimeout(() => reject(error), 10000);
@@ -358,20 +481,24 @@ class ApiClient {
             this.isRefreshing = true;
             try {
               // Use directClient to avoid interceptor recursion
-              const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
+              const userId =
+                typeof window !== "undefined"
+                  ? localStorage.getItem("userId")
+                  : null;
               const refreshHeaders: Record<string, string> = {};
-              if (userId) refreshHeaders['x-user-id'] = userId;
+              if (userId) refreshHeaders["x-user-id"] = userId;
               const refreshRes = await this.directClient.post<unknown>(
-                '/api/v1/auth/refresh',
+                "/api/v1/auth/refresh",
                 { refreshToken },
-                { headers: refreshHeaders }
+                { headers: refreshHeaders },
               );
               const tokens = coerceRefreshResponse(refreshRes.data);
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('accessToken', tokens.accessToken);
-                localStorage.setItem('refreshToken', tokens.refreshToken);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("accessToken", tokens.accessToken);
+                localStorage.setItem("refreshToken", tokens.refreshToken);
               }
-              original.headers['authorization'] = `Bearer ${tokens.accessToken}`;
+              original.headers["authorization"] =
+                `Bearer ${tokens.accessToken}`;
 
               // Notify all queued requests of the new token
               this.onTokenRefreshed(tokens.accessToken);
@@ -382,38 +509,40 @@ class ApiClient {
                 ...original,
                 headers: {
                   ...(original.headers as Record<string, string>),
-                  'authorization': `Bearer ${tokens.accessToken}`,
+                  authorization: `Bearer ${tokens.accessToken}`,
                 },
               });
-            } catch {
+            } catch (_refreshError) {
               this.isRefreshing = false;
               this.refreshSubscribers = [];
-              // Refresh failed — clear all tokens FIRST, then redirect
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('userId');
-                localStorage.removeItem('userRole');
-                localStorage.removeItem('auth-storage');
+              try { await this.showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'); } catch { /* toast not mounted */ }
+              if (typeof window !== "undefined") {
+                localStorage.removeItem("accessToken");
+                localStorage.removeItem("refreshToken");
+                localStorage.removeItem("userId");
+                localStorage.removeItem("userRole");
+                localStorage.removeItem("auth-storage");
+                window.location.href = "/login";
               }
-              if (typeof window !== 'undefined') window.location.href = '/login';
-              return Promise.reject(error);
+              return Promise.reject(_refreshError as Error);
             }
           } else {
             // No refresh token
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
-              localStorage.removeItem('userId');
-              localStorage.removeItem('userRole');
-              localStorage.removeItem('auth-storage');
+            try { await this.showToast('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.'); } catch { /* toast not mounted */ }
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("accessToken");
+              localStorage.removeItem("refreshToken");
+              localStorage.removeItem("userId");
+              localStorage.removeItem("userRole");
+              localStorage.removeItem("auth-storage");
+              window.location.href = "/login";
             }
-            if (typeof window !== 'undefined') window.location.href = '/login';
             return Promise.reject(error);
           }
         }
+        try { await this.showToast(this.getErrorMessage(error as AxiosError)); } catch { /* toast not mounted */ }
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -422,7 +551,7 @@ class ApiClient {
   // ==========================================================================
   auth = {
     login: async (data: LoginRequest): Promise<LoginResponse> => {
-      const res = await this.client.post<unknown>('/api/v1/auth/login', data);
+      const res = await this.client.post<unknown>("/api/v1/auth/login", data);
       return coerceLoginResponse(res.data);
     },
 
@@ -433,44 +562,54 @@ class ApiClient {
       role?: string;
       departmentId?: string;
     }): Promise<void> => {
-      await this.client.post('/api/v1/auth/register', data);
+      await this.client.post("/api/v1/auth/register", data);
     },
 
     refresh: async (refreshToken: string): Promise<RefreshTokenResponse> => {
       const res = await this.client.post<unknown>(
-        '/api/v1/auth/refresh',
+        "/api/v1/auth/refresh",
         { refreshToken },
-        { headers: { 'X-User-Id': localStorage.getItem('userId') || '' } }
+        { headers: { "X-User-Id": localStorage.getItem("userId") || "" } },
       );
       return coerceRefreshResponse(res.data);
     },
 
     logout: async (refreshToken?: string): Promise<void> => {
-      const token = refreshToken || (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null);
+      const token =
+        refreshToken ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("refreshToken")
+          : null);
       if (token) {
         try {
           // Use directClient so this call does NOT re-trigger the 401 refresh chain
-          await this.directClient.post('/api/v1/auth/logout', { refreshToken: token });
-        } catch { /* ignore */ }
+          await this.directClient.post("/api/v1/auth/logout", {
+            refreshToken: token,
+          });
+        } catch {
+          /* ignore */
+        }
       }
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userRole');
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userRole");
       }
     },
 
     logoutAll: async (): Promise<void> => {
-      await this.client.post('/api/v1/auth/logout-all');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userRole');
+      await this.client.post("/api/v1/auth/logout-all");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("userRole");
     },
 
     getSessions: async (): Promise<Session[]> => {
-      const res = await this.client.get<{ sessions: Session[] }>('/api/v1/auth/sessions');
+      const res = await this.client.get<{ sessions: Session[] }>(
+        "/api/v1/auth/sessions",
+      );
       const root = res.data as Record<string, unknown>;
       const sessions = root.sessions;
       if (Array.isArray(sessions)) {
@@ -479,17 +618,22 @@ class ApiClient {
       return [];
     },
 
-    getLoginStats: async (days = 30): Promise<{
+    getLoginStats: async (
+      days = 30,
+    ): Promise<{
       loginSuccessCount: number;
       loginFailedCount: number;
     }> => {
       const res = await this.client.get<{
-        loginSuccessCount?: number; loginFailedCount?: number;
-      }>('/api/v1/auth/login-stats', { params: { days } });
+        loginSuccessCount?: number;
+        loginFailedCount?: number;
+      }>("/api/v1/auth/login-stats", { params: { days } });
       const raw = res.data as Record<string, unknown>;
       return {
-        loginSuccessCount: typeof raw.loginSuccessCount === 'number' ? raw.loginSuccessCount : 0,
-        loginFailedCount: typeof raw.loginFailedCount === 'number' ? raw.loginFailedCount : 0,
+        loginSuccessCount:
+          typeof raw.loginSuccessCount === "number" ? raw.loginSuccessCount : 0,
+        loginFailedCount:
+          typeof raw.loginFailedCount === "number" ? raw.loginFailedCount : 0,
       };
     },
 
@@ -497,11 +641,29 @@ class ApiClient {
       await this.client.delete(`/api/v1/auth/sessions/${sessionId}`);
     },
 
-    forgotPassword: async (email: string): Promise<{ message: string; emailSent: boolean }> => {
-      const res = await this.client.post<{ message: string; emailSent: boolean }>(
-        '/api/v1/auth/forgot-password',
-        { email }
-      );
+    forgotPassword: async (
+      email: string,
+    ): Promise<{ message: string; emailSent: boolean }> => {
+      const res = await this.client.post<{
+        message: string;
+        emailSent: boolean;
+      }>("/api/v1/auth/forgot-password", { email });
+      return res.data;
+    },
+
+    sendOtp: async (email: string): Promise<{ message: string; expiresIn: number }> => {
+      const res = await this.client.post<{
+        message: string;
+        expiresIn: number;
+      }>("/api/v1/auth/send-otp", { email });
+      return res.data;
+    },
+
+    verifyOtp: async (email: string, otp: string): Promise<{ valid: boolean; resetToken?: string }> => {
+      const res = await this.client.post<{
+        valid: boolean;
+        resetToken?: string;
+      }>("/api/v1/auth/verify-otp", { email, otp });
       return res.data;
     },
 
@@ -510,8 +672,22 @@ class ApiClient {
       newPassword: string;
     }): Promise<{ success: boolean; message: string }> => {
       const res = await this.client.post<{ success: boolean; message: string }>(
-        '/api/v1/auth/reset-password',
-        data
+        "/api/v1/auth/reset-password/confirm",
+        data,
+      );
+      return res.data;
+    },
+
+    resetPasswordWithOtp: async (data: {
+      email: string;
+      otp: string;
+      resetToken?: string;
+      newPassword: string;
+      confirmPassword: string;
+    }): Promise<{ success: boolean; message: string }> => {
+      const res = await this.client.post<{ success: boolean; message: string }>(
+        "/api/v1/auth/reset-password",
+        data,
       );
       return res.data;
     },
@@ -522,8 +698,8 @@ class ApiClient {
       confirmPassword: string;
     }): Promise<{ success: boolean; message: string }> => {
       const res = await this.client.post<{ success: boolean; message: string }>(
-        '/api/v1/auth/change-password',
-        data
+        "/api/v1/auth/change-password",
+        data,
       );
       return res.data;
     },
@@ -551,7 +727,7 @@ class ApiClient {
         createdAt: string;
         passwordChangedAt: string | null;
         mustChangePassword: boolean;
-      }>('/api/v1/auth/me');
+      }>("/api/v1/auth/me");
       return res.data;
     },
   };
@@ -601,14 +777,14 @@ class ApiClient {
         } | null;
         createdAt: string;
         updatedAt: string;
-      }>('/api/v1/users/me');
+      }>("/api/v1/users/me");
 
       // auth-service: auth metadata (passwordChangedAt, mustChangePassword)
       const authRes = await this.client.get<{
         id: string;
         passwordChangedAt: string | null;
         mustChangePassword: boolean;
-      }>('/api/v1/auth/me');
+      }>("/api/v1/auth/me");
 
       const p = profileRes.data;
       const a = authRes.data;
@@ -642,7 +818,7 @@ class ApiClient {
       bio?: string;
       dateOfBirth?: string;
     }): Promise<unknown> => {
-      const res = await this.client.put<unknown>('/api/v1/users/me', data);
+      const res = await this.client.put<unknown>("/api/v1/users/me", data);
       return res.data;
     },
   };
@@ -652,50 +828,86 @@ class ApiClient {
   // ==========================================================================
   users = {
     getMe: async (): Promise<User> => {
-      const res = await this.client.get<ApiResponse<User>>('/api/v1/users/me');
-      const raw = coercePaginated<User>(res.data, 'data').data[0] ?? (res.data as unknown as User);
+      const res = await this.client.get<ApiResponse<User>>("/api/v1/users/me");
+      const raw =
+        coercePaginated<User>(res.data, "data").data[0] ??
+        (res.data as unknown as User);
       return {
         ...raw,
-        departmentId: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as any).id
-          : (raw.departmentId || null),
+        departmentId:
+          typeof raw.department === "object" && raw.department !== null
+            ? (raw.department as any).id
+            : raw.departmentId || null,
       };
     },
 
     getById: async (userId: string): Promise<User> => {
-      const res = await this.client.get<ApiResponse<User>>(`/api/v1/users/${userId}`);
-      const raw = coercePaginated<User>(res.data, 'data').data[0] ?? (res.data as unknown as User);
+      const res = await this.client.get<ApiResponse<User>>(
+        `/api/v1/users/${userId}`,
+      );
+      const raw =
+        coercePaginated<User>(res.data, "data").data[0] ??
+        (res.data as unknown as User);
       return {
         ...raw,
-        departmentId: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as any).id
-          : (raw.departmentId || null),
+        departmentId:
+          typeof raw.department === "object" && raw.department !== null
+            ? (raw.department as any).id
+            : raw.departmentId || null,
       };
     },
 
     updateMe: async (data: Partial<User>): Promise<User> => {
-      const res = await this.client.put<ApiResponse<User>>('/api/v1/users/me', data);
-      return coercePaginated<User>(res.data, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.put<ApiResponse<User>>(
+        "/api/v1/users/me",
+        data,
+      );
+      return coercePaginated<User>(res.data, "data").data[0] ?? res.data.data!;
+    },
+
+    updateDepartment: async (departmentId: string): Promise<void> => {
+      await this.client.patch("/api/v1/users/me/department", { departmentId });
     },
 
     search: async (params?: {
       page?: number;
       limit?: number;
-      search?: string;
+      keyword?: string;
       role?: string;
       status?: string;
       departmentId?: string;
-    }): Promise<{ data: User[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+    }): Promise<{
+      data: User[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
       const res = await this.client.get<
-        ApiResponse<User[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/users', { params });
-      const coerced = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data');
-      const rawUsers: User[] = coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [];
+        ApiResponse<User[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      >("/api/v1/users", { params });
+      const coerced = coercePaginated<User>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+      const rawUsers: User[] = coerced.data.length
+        ? coerced.data
+        : (res.data as unknown as { data?: User[] })?.data || [];
       const users: User[] = rawUsers.map((u) => ({
         ...u,
-        departmentId: typeof u.department === 'object' && u.department !== null
-          ? (u.department as any).id
-          : (u.departmentId || null),
+        departmentId:
+          typeof u.department === "object" && u.department !== null
+            ? (u.department as any).id
+            : u.departmentId || null,
       }));
       return {
         data: users,
@@ -709,24 +921,40 @@ class ApiClient {
       fullName: string;
       role: string;
       departmentId?: string;
-    }): Promise<{ userId: string; username: string; email: string; role: string; status: string }> => {
-      const res = await this.client.post<ApiResponse<{
+    }): Promise<{
+      userId: string;
+      username: string;
+      email: string;
+      role: string;
+      status: string;
+    }> => {
+      const res = await this.client.post<
+        ApiResponse<{
+          userId: string;
+          username: string;
+          email: string;
+          role: string;
+          status: string;
+        }>
+      >("/api/v1/users", data);
+      return res.data as unknown as {
         userId: string;
         username: string;
         email: string;
         role: string;
         status: string;
-      }>>('/api/v1/users', data);
-      return res.data as unknown as { userId: string; username: string; email: string; role: string; status: string };
+      };
     },
 
-    bulkCreate: async (users: Array<{
-      username: string;
-      email: string;
-      fullName: string;
-      role: string;
-      departmentId?: string;
-    }>): Promise<{
+    bulkCreate: async (
+      users: Array<{
+        username: string;
+        email: string;
+        fullName: string;
+        role: string;
+        departmentId?: string;
+      }>,
+    ): Promise<{
       totalRequested: number;
       successCount: number;
       failureCount: number;
@@ -759,42 +987,50 @@ class ApiClient {
           email: string;
           error: string;
         }>;
-      }>('/api/v1/users/bulk', { users });
+      }>("/api/v1/users/bulk", { users });
       return res.data;
     },
 
-    update: async (userId: string, data: {
-      fullName?: string;
-      role?: string;
-      status?: string;
-      departmentId?: string;
-    }): Promise<{
+    update: async (
+      userId: string,
+      data: {
+        fullName?: string;
+        role?: string;
+        status?: string;
+        departmentId?: string;
+      },
+    ): Promise<{
       id: string;
       username: string;
       email: string;
       role: string;
       status: string;
     }> => {
-      const res = await this.client.put<ApiResponse<{
-        id: string;
-        username: string;
-        email: string;
-        role: string;
-        status: string;
-      }>>(`/api/v1/users/${userId}`, data);
-      return coercePaginated<{
-        id: string;
-        username: string;
-        email: string;
-        role: string;
-        status: string;
-      }>(res.data, 'data').data[0] ?? (res.data as unknown as {
-        id: string;
-        username: string;
-        email: string;
-        role: string;
-        status: string;
-      });
+      const res = await this.client.put<
+        ApiResponse<{
+          id: string;
+          username: string;
+          email: string;
+          role: string;
+          status: string;
+        }>
+      >(`/api/v1/users/${userId}`, data);
+      return (
+        coercePaginated<{
+          id: string;
+          username: string;
+          email: string;
+          role: string;
+          status: string;
+        }>(res.data, "data").data[0] ??
+        (res.data as unknown as {
+          id: string;
+          username: string;
+          email: string;
+          role: string;
+          status: string;
+        })
+      );
     },
 
     deactivate: async (userId: string): Promise<void> => {
@@ -813,10 +1049,13 @@ class ApiClient {
       await this.client.delete(`/api/v1/users/${userId}`);
     },
 
-    getLoginHistory: async (userId: string, params?: {
-      page?: number;
-      limit?: number;
-    }): Promise<{
+    getLoginHistory: async (
+      userId: string,
+      params?: {
+        page?: number;
+        limit?: number;
+      },
+    ): Promise<{
       data: Array<{
         id: string;
         username: string;
@@ -827,18 +1066,27 @@ class ApiClient {
         failureReason: string | null;
         createdAt: string;
       }>;
-      pagination: { page: number; limit: number; total: number; totalPages: number };
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
     }> => {
-      const res = await this.client.get<ApiResponse<Array<{
-        id: string;
-        username: string;
-        ipAddress: string;
-        deviceType: string;
-        location: string;
-        status: string;
-        failureReason: string | null;
-        createdAt: string;
-      }>>>(`/api/v1/users/${userId}/login-history`, { params });
+      const res = await this.client.get<
+        ApiResponse<
+          Array<{
+            id: string;
+            username: string;
+            ipAddress: string;
+            deviceType: string;
+            location: string;
+            status: string;
+            failureReason: string | null;
+            createdAt: string;
+          }>
+        >
+      >(`/api/v1/users/${userId}/login-history`, { params });
       const coerced = coercePaginated<{
         id: string;
         username: string;
@@ -848,7 +1096,7 @@ class ApiClient {
         status: string;
         failureReason: string | null;
         createdAt: string;
-      }>(res.data as unknown as Record<string, unknown>, 'data');
+      }>(res.data as unknown as Record<string, unknown>, "data");
       return {
         data: coerced.data,
         pagination: coerced.pagination,
@@ -860,53 +1108,86 @@ class ApiClient {
   // Documents
   // ==========================================================================
   documents = {
-    getAll: async (params?: DocumentSearchParams): Promise<{
+    getAll: async (
+      params?: DocumentSearchParams,
+    ): Promise<{
       data: Document[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
     }> => {
       const res = await this.client.get<
-        ApiResponse<Document[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/documents', { params });
-      const coerced = coercePaginated<Document>(res.data as unknown as Record<string, unknown>, 'data');
+        ApiResponse<Document[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      >("/api/v1/documents", { params });
+      const coerced = coercePaginated<Document>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: Document[] })?.data || [],
+        data: coerced.data.length
+          ? coerced.data
+          : (res.data as unknown as { data?: Document[] })?.data || [],
         pagination: coerced.pagination,
       };
     },
 
-    getById: async (id: string): Promise<Document & { versions?: DocumentVersion[] }> => {
-      const res = await this.client.get<ApiResponse<Document & { versions?: DocumentVersion[] }>>(
-        `/api/v1/documents/${id}`
-      );
+    getById: async (
+      id: string,
+    ): Promise<Document & { versions?: DocumentVersion[] }> => {
+      const res = await this.client.get<
+        ApiResponse<Document & { versions?: DocumentVersion[] }>
+      >(`/api/v1/documents/${id}`);
       // Handle wrapped { success: true, data: {...} } format
       const root = res.data as unknown as Record<string, unknown> | null;
-      if (root && 'data' in root && root.data && typeof root.data === 'object') {
+      if (
+        root &&
+        "data" in root &&
+        root.data &&
+        typeof root.data === "object"
+      ) {
         return root.data as Document & { versions?: DocumentVersion[] };
       }
       // Handle raw DocumentDetailResponse with versions array
-      if (root && 'versions' in root) {
+      if (root && "versions" in root) {
         return root as unknown as Document & { versions?: DocumentVersion[] };
       }
       // Fallback: coercePaginated for single-object responses
-      const coerced = coercePaginated<Document & { versions?: DocumentVersion[] }>(
-        res.data as unknown as Record<string, unknown>, 'data'
+      const coerced = coercePaginated<
+        Document & { versions?: DocumentVersion[] }
+      >(res.data as unknown as Record<string, unknown>, "data");
+      return (
+        coerced.data[0] ??
+        (
+          res.data as unknown as {
+            data?: Document & { versions?: DocumentVersion[] };
+          }
+        )?.data
       );
-      return coerced.data[0] ?? (res.data as unknown as { data?: Document & { versions?: DocumentVersion[] } })?.data;
     },
 
     upload: async (
       file: File,
       changelog?: string,
-      language?: string
+      language?: string,
     ): Promise<DocumentUploadResponse> => {
       const formData = new FormData();
-      formData.append('file', file);
-      if (changelog) formData.append('changelog', changelog);
-      if (language) formData.append('language', language);
+      formData.append("file", file);
+      if (changelog) formData.append("changelog", changelog);
+      if (language) formData.append("language", language);
       const res = await this.client.post<unknown>(
         `/api/v1/documents/upload`,
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        { headers: { "Content-Type": "multipart/form-data" } },
       );
       return res.data as DocumentUploadResponse;
     },
@@ -917,10 +1198,14 @@ class ApiClient {
 
     download: async (id: string): Promise<Blob> => {
       // Use fetch directly with correct API Gateway URL (not axios client which defaults to frontend port 3000)
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      const apiUrl = API_BASE_URL.replace(':3000', ':3001') || 'http://localhost:3001';
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
+      const apiUrl =
+        API_BASE_URL.replace(":3000", ":3001") || "http://localhost:3001";
       const res = await fetch(`${apiUrl}/api/v1/documents/${id}/download`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' },
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
       });
       if (!res.ok) throw new Error(`Download failed: ${res.status}`);
       return res.blob();
@@ -935,11 +1220,11 @@ class ApiClient {
         tags: string[];
         language: string;
         isPolicy: boolean;
-      }
+      },
     ): Promise<DocumentUploadResponse> => {
       const res = await this.client.post<unknown>(
         `/api/v1/documents/${documentId}/confirm`,
-        data
+        data,
       );
       return res.data as DocumentUploadResponse;
     },
@@ -950,9 +1235,12 @@ class ApiClient {
 
     getVersions: async (documentId: string): Promise<DocumentVersion[]> => {
       const res = await this.client.get<ApiResponse<DocumentVersion[]>>(
-        `/api/v1/documents/${documentId}/versions`
+        `/api/v1/documents/${documentId}/versions`,
       );
-      const coerced = coercePaginated<DocumentVersion>(res.data as unknown as Record<string, unknown>, 'data');
+      const coerced = coercePaginated<DocumentVersion>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
       return coerced.data;
     },
 
@@ -960,9 +1248,10 @@ class ApiClient {
       await this.client.post(`/api/v1/documents/${documentId}/process`);
     },
 
-
-
-    comparePolicies: async (doc1Id: string, doc2Id: string): Promise<{
+    comparePolicies: async (
+      doc1Id: string,
+      doc2Id: string,
+    ): Promise<{
       document1Id: string;
       document2Id: string;
       document1Title: string;
@@ -972,7 +1261,7 @@ class ApiClient {
       modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
       totalChanges: number;
     }> => {
-      const res = await this.client.post<{
+      const res = await this.client.get<{
         data?: {
           document1Id: string;
           document2Id: string;
@@ -983,18 +1272,31 @@ class ApiClient {
           modifiedSections: { sectionTitle: string; oldContent: string | null; newContent: string | null; changeType: string }[];
           totalChanges: number;
         };
-      }>('/api/v1/documents/compare', null, {
-        params: { document1Id: doc1Id, document2Id: doc2Id },
-      });
-      return (res.data as any).data || res.data;
+      }>(`/api/v1/documents/compare?doc1=${doc1Id}&doc2=${doc2Id}`);
+      const payload = (res.data as any).data ?? res.data;
+      return {
+        document1Id: payload.document1Id,
+        document2Id: payload.document2Id,
+        document1Title: payload.document1Title,
+        document2Title: payload.document2Title,
+        addedSections: payload.addedSections ?? [],
+        removedSections: payload.removedSections ?? [],
+        modifiedSections: payload.modifiedSections ?? [],
+        totalChanges: payload.totalChanges ?? 0,
+      };
     },
 
-    getContent: async (documentId: string, version?: number): Promise<string> => {
+    getContent: async (
+      documentId: string,
+      version?: number,
+    ): Promise<string> => {
       const res = await this.client.get<any>(
         `/api/v1/documents/${documentId}/content`,
-        { params: { version } }
+        { params: { version } },
       );
-      return typeof res.data === 'string' ? res.data : res.data?.content ?? '';
+      return typeof res.data === "string"
+        ? res.data
+        : (res.data?.content ?? "");
     },
   };
 
@@ -1003,82 +1305,127 @@ class ApiClient {
   // ==========================================================================
   ai = {
     ask: async (data: QuestionRequest): Promise<QuestionResponse> => {
-      const res = await this.client.post<ApiResponse<QuestionResponse>>('/api/v1/ai/chat', { message: data.question, conversationId: data.conversationId });
-      return coercePaginated<QuestionResponse>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.post<ApiResponse<QuestionResponse>>(
+        "/api/v1/ai/chat",
+        { message: data.question, conversationId: data.conversationId },
+      );
+      return (
+        coercePaginated<QuestionResponse>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
     chat: async (data: ChatRequest): Promise<ChatResponse> => {
-      const res = await this.client.post<ApiResponse<ChatResponse>>('/api/v1/ai/chat', data);
-      return coercePaginated<ChatResponse>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.post<ApiResponse<ChatResponse>>(
+        "/api/v1/ai/chat",
+        data,
+      );
+      return (
+        coercePaginated<ChatResponse>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
-    askStream: (data: QuestionRequest, signal?: AbortSignal): ReadableStream<StreamEvent> => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    askStream: (
+      data: QuestionRequest,
+      signal?: AbortSignal,
+    ): ReadableStream<StreamEvent> => {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
 
       const stream = new ReadableStream<StreamEvent>({
         async start(controller) {
           try {
-            const streamUrl = API_BASE_URL.startsWith('http')
+            const streamUrl = API_BASE_URL.startsWith("http")
               ? `${API_BASE_URL}/api/v1/ai/chat/stream`
-              : '/api/v1/ai/chat/stream';
+              : "/api/v1/ai/chat/stream";
 
             const response = await fetch(streamUrl, {
-              method: 'POST',
+              method: "POST",
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '',
+                "Content-Type": "application/json",
+                Authorization: token ? `Bearer ${token}` : "",
               },
-              body: JSON.stringify({ ...data, modelId: data.modelId || 'default' }),
+              body: JSON.stringify({
+                ...data,
+                modelId: data.modelId || "default",
+              }),
               signal,
             });
 
             if (!response.body) {
-              controller.enqueue({ type: 'error', error: 'No response body' });
+              controller.enqueue({ type: "error", error: "No response body" });
               controller.close();
               return;
             }
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let buffer = '';
+            let buffer = "";
 
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
 
               buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() ?? '';
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
 
               for (const line of lines) {
-                if (line.startsWith('data: ')) {
+                if (line.startsWith("data: ")) {
                   const data = line.slice(6).trim();
-                  if (data === '[DONE]') {
-                    controller.enqueue({ type: 'done' });
+                  if (data === "[DONE]") {
+                    controller.enqueue({ type: "done" });
                   } else {
                     try {
                       const parsed = JSON.parse(data);
                       if (parsed.conversationId) {
-                        controller.enqueue({ type: 'conversationId', conversationId: parsed.conversationId });
+                        controller.enqueue({
+                          type: "conversationId",
+                          conversationId: parsed.conversationId,
+                        });
                       } else if (parsed.sources) {
                         const mappedSources = Array.isArray(parsed.sources)
                           ? parsed.sources.map(mapBackendSourceToFrontend)
                           : [];
-                        controller.enqueue({ type: 'sources', sources: mappedSources });
+                        controller.enqueue({
+                          type: "sources",
+                          sources: mappedSources,
+                        });
                       } else if (parsed.modelUsed !== undefined) {
-                        controller.enqueue({ type: 'modelUsed', modelUsed: parsed.modelUsed });
+                        controller.enqueue({
+                          type: "modelUsed",
+                          modelUsed: parsed.modelUsed,
+                        });
                       } else if (parsed.content !== undefined) {
-                        controller.enqueue({ type: 'content', content: parsed.content });
+                        controller.enqueue({
+                          type: "content",
+                          content: parsed.content,
+                        });
                       } else if (parsed.error) {
-                        controller.enqueue({ type: 'error', error: parsed.error });
+                        controller.enqueue({
+                          type: "error",
+                          error: parsed.error,
+                        });
                       }
-                    } catch { /* skip malformed */ }
+                    } catch {
+                      /* skip malformed */
+                    }
                   }
                 }
               }
             }
           } catch (err) {
-            controller.enqueue({ type: 'error', error: err instanceof Error ? err.message : 'Stream failed' });
+            controller.enqueue({
+              type: "error",
+              error: err instanceof Error ? err.message : "Stream failed",
+            });
           } finally {
             controller.close();
           }
@@ -1088,13 +1435,18 @@ class ApiClient {
     },
 
     getModels: async (): Promise<ModelInfo[]> => {
-      const res = await this.client.get<unknown>('/api/v1/ai/models');
+      const res = await this.client.get<unknown>("/api/v1/ai/models");
       const root = res.data as Record<string, unknown> | null;
       let rawModels: any[] = [];
-      if (root && 'data' in root && typeof root.data === 'object' && root.data !== null) {
+      if (
+        root &&
+        "data" in root &&
+        typeof root.data === "object" &&
+        root.data !== null
+      ) {
         const data = root.data as { models?: any[] };
         rawModels = data.models ?? [];
-      } else if (root && 'models' in root && Array.isArray(root.models)) {
+      } else if (root && "models" in root && Array.isArray(root.models)) {
         rawModels = root.models;
       }
       return rawModels.map((m: any) => ({
@@ -1115,11 +1467,23 @@ class ApiClient {
       keyword?: string;
     }): Promise<ConversationHistory> => {
       const res = await this.client.get<
-        ApiResponse<Conversation[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/ai/conversations', { params });
-      const coerced = coercePaginated<Conversation>(res.data as unknown as Record<string, unknown>, 'data');
+        ApiResponse<Conversation[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      >("/api/v1/ai/conversations", { params });
+      const coerced = coercePaginated<Conversation>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
       return {
-        conversations: coerced.data.length ? coerced.data : (res.data as unknown as { data?: Conversation[] })?.data || [],
+        conversations: coerced.data.length
+          ? coerced.data
+          : (res.data as unknown as { data?: Conversation[] })?.data || [],
         pagination: coerced.pagination,
       };
     },
@@ -1129,24 +1493,47 @@ class ApiClient {
       size?: number;
       keyword?: string;
     }): Promise<ConversationListResponse> => {
-      const res = await this.client.get<ApiResponse<ConversationListResponse>>('/api/v1/ai/conversations', { params });
+      const res = await this.client.get<ApiResponse<ConversationListResponse>>(
+        "/api/v1/ai/conversations",
+        { params },
+      );
       const root = res.data as unknown as Record<string, unknown> | null;
-      if (root && 'data' in root && typeof root.data === 'object' && root.data !== null) {
+      if (
+        root &&
+        "data" in root &&
+        typeof root.data === "object" &&
+        root.data !== null
+      ) {
         return root.data as ConversationListResponse;
       }
-      return coercePaginated<ConversationListResponse>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data as unknown as ConversationListResponse;
+      return (
+        coercePaginated<ConversationListResponse>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? (res.data as unknown as ConversationListResponse)
+      );
     },
 
     getConversationById: async (id: string): Promise<Conversation> => {
-      const res = await this.client.get<ApiResponse<Conversation>>(`/api/v1/ai/conversations/${id}`);
-      return coercePaginated<Conversation>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.get<ApiResponse<Conversation>>(
+        `/api/v1/ai/conversations/${id}`,
+      );
+      return (
+        coercePaginated<Conversation>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
     getMessages: async (conversationId: string): Promise<Message[]> => {
       const res = await this.client.get<ApiResponse<Message[]>>(
-        `/api/v1/ai/conversations/${conversationId}/messages`
+        `/api/v1/ai/conversations/${conversationId}/messages`,
       );
-      const coerced = coercePaginated<any>(res.data as unknown as Record<string, unknown>, 'data');
+      const coerced = coercePaginated<any>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
       return coerced.data.map(mapBackendMessageToFrontend);
     },
 
@@ -1158,11 +1545,19 @@ class ApiClient {
       await this.client.delete(`/api/v1/ai/conversations/${id}/messages`);
     },
 
-    markAsUnanswered: async (conversationId: string, messageId: string): Promise<UnansweredQuestion> => {
+    markAsUnanswered: async (
+      conversationId: string,
+      messageId: string,
+    ): Promise<UnansweredQuestion> => {
       const res = await this.client.post<ApiResponse<UnansweredQuestion>>(
-        `/api/v1/ai/conversations/${conversationId}/messages/${messageId}/unanswered`
+        `/api/v1/ai/conversations/${conversationId}/messages/${messageId}/unanswered`,
       );
-      return coercePaginated<UnansweredQuestion>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      return (
+        coercePaginated<UnansweredQuestion>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
   };
 
@@ -1173,10 +1568,10 @@ class ApiClient {
     submit: async (
       conversationId: string,
       messageId: string,
-      type: 'LIKE' | 'DISLIKE',
-      comment?: string
+      type: "LIKE" | "DISLIKE",
+      comment?: string,
     ): Promise<void> => {
-      await this.client.post('/api/v1/feedback', {
+      await this.client.post("/api/v1/feedback", {
         conversationId,
         messageId,
         type,
@@ -1186,21 +1581,44 @@ class ApiClient {
 
     getByConversation: async (conversationId: string): Promise<unknown[]> => {
       const res = await this.client.get<ApiResponse<unknown[]>>(
-        `/api/v1/feedback?conversationId=${conversationId}`
+        `/api/v1/feedback?conversationId=${conversationId}`,
       );
-      return coercePaginated<unknown>(res.data as unknown as Record<string, unknown>, 'data').data;
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      ).data;
     },
 
     getMyFeedbacks: async (params?: {
       page?: number;
       limit?: number;
-    }): Promise<{ data: unknown[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
       const res = await this.client.get<
-        ApiResponse<unknown[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/feedback', { params });
-      const coerced = coercePaginated<unknown>(res.data as unknown as Record<string, unknown>, 'data');
+        ApiResponse<unknown[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      >("/api/v1/feedback", { params });
+      const coerced = coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: unknown[] })?.data || [],
+        data: coerced.data.length
+          ? coerced.data
+          : (res.data as unknown as { data?: unknown[] })?.data || [],
         pagination: coerced.pagination,
       };
     },
@@ -1215,8 +1633,14 @@ class ApiClient {
   // ==========================================================================
   analytics = {
     getDashboard: async (): Promise<DashboardStats> => {
-      const res = await this.client.get<ApiResponse<Record<string, unknown>>>('/api/v1/analytics/dashboard');
-      const raw = coerceSingleObject<Record<string, unknown>>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data as Record<string, unknown>;
+      const res = await this.client.get<ApiResponse<Record<string, unknown>>>(
+        "/api/v1/analytics/dashboard",
+      );
+      const raw =
+        coerceSingleObject<Record<string, unknown>>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ) ?? (res.data.data as Record<string, unknown>);
       return {
         totalQuestions: Number(raw.totalQuestions ?? raw.weekQuestions ?? 0),
         questionsToday: Number(raw.todayQuestions ?? 0),
@@ -1230,28 +1654,42 @@ class ApiClient {
     },
 
     getOverview: async (): Promise<AnalyticsOverview> => {
-      const res = await this.client.get<ApiResponse<Record<string, unknown>>>('/api/v1/analytics/overview');
-      const raw = coerceSingleObject<Record<string, unknown>>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data as Record<string, unknown>;
+      const res = await this.client.get<ApiResponse<Record<string, unknown>>>(
+        "/api/v1/analytics/overview",
+      );
+      const raw =
+        coerceSingleObject<Record<string, unknown>>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ) ?? (res.data.data as Record<string, unknown>);
       const rawStats = (raw.stats ?? raw) as Record<string, unknown>;
 
-      const mapTopQuestions = (items: unknown[]): AnalyticsOverview['topQuestions'] =>
+      const mapTopQuestions = (
+        items: unknown[],
+      ): AnalyticsOverview["topQuestions"] =>
         (items as Record<string, unknown>[]).map((item) => ({
-          question: String(item.questionSample ?? item.question ?? ''),
+          question: String(item.questionSample ?? item.question ?? ""),
           askCount: Number(item.askCount ?? 0),
-          lastAskedAt: String(item.lastAskedAt ?? ''),
+          lastAskedAt: String(item.lastAskedAt ?? ""),
         }));
 
-      const mapTopDocuments = (items: unknown[]): AnalyticsOverview['topDocuments'] =>
+      const mapTopDocuments = (
+        items: unknown[],
+      ): AnalyticsOverview["topDocuments"] =>
         (items as Record<string, unknown>[]).map((item) => ({
-          documentId: String(item.documentId ?? item.id ?? ''),
-          documentTitle: String(item.originalFilename ?? item.documentTitle ?? ''),
+          documentId: String(item.documentId ?? item.id ?? ""),
+          documentTitle: String(
+            item.originalFilename ?? item.documentTitle ?? "",
+          ),
           viewCount: Number(item.totalCitations ?? item.viewCount ?? 0),
-          lastViewedAt: String(item.lastCitedAt ?? item.lastViewedAt ?? ''),
+          lastViewedAt: String(item.lastCitedAt ?? item.lastViewedAt ?? ""),
         }));
 
       return {
         stats: {
-          totalQuestions: Number(rawStats.totalQuestions ?? rawStats.weekQuestions ?? 0),
+          totalQuestions: Number(
+            rawStats.totalQuestions ?? rawStats.weekQuestions ?? 0,
+          ),
           questionsToday: Number(rawStats.todayQuestions ?? 0),
           questionsThisWeek: Number(rawStats.weekQuestions ?? 0),
           questionsThisMonth: Number(rawStats.monthQuestions ?? 0),
@@ -1260,66 +1698,142 @@ class ApiClient {
           totalUsers: Number(rawStats.totalUsers ?? 0),
           activeUsers: Number(rawStats.activeUsers ?? 0),
         },
-        questionTrend: Array.isArray(raw.questionTrend) ? raw.questionTrend as AnalyticsOverview['questionTrend'] : [],
-        questionsByDepartment: Array.isArray(raw.questionsByDepartment) ? raw.questionsByDepartment as AnalyticsOverview['questionsByDepartment'] : [],
-        topQuestions: Array.isArray(raw.topQuestions) ? mapTopQuestions(raw.topQuestions) : [],
-        topDocuments: Array.isArray(raw.topDocuments) ? mapTopDocuments(raw.topDocuments) : [],
-        satisfaction: (raw.satisfaction ?? { likes: 0, dislikes: 0, rate: 0 }) as AnalyticsOverview['satisfaction'],
+        questionTrend: Array.isArray(raw.questionTrend)
+          ? (raw.questionTrend as AnalyticsOverview["questionTrend"])
+          : [],
+        questionsByDepartment: Array.isArray(raw.questionsByDepartment)
+          ? (raw.questionsByDepartment as AnalyticsOverview["questionsByDepartment"])
+          : [],
+        topQuestions: Array.isArray(raw.topQuestions)
+          ? mapTopQuestions(raw.topQuestions)
+          : [],
+        topDocuments: Array.isArray(raw.topDocuments)
+          ? mapTopDocuments(raw.topDocuments)
+          : [],
+        satisfaction: (raw.satisfaction ?? {
+          likes: 0,
+          dislikes: 0,
+          rate: 0,
+        }) as AnalyticsOverview["satisfaction"],
       };
     },
 
-    getTrends: async (days = 30): Promise<{
-      date: string;
-      questions: number;
-      likes: number;
-      dislikes: number;
-      avgResponseTime: number;
-      uniqueUsers: number;
-    }[]> => {
-      const res = await this.client.get<ApiResponse<{
-        data?: { date: string; questions: number; likes: number; dislikes: number; avgResponseTime: number; uniqueUsers: number }[];
-      }>>('/api/v1/analytics/trends', { params: { days } });
+    getTrends: async (
+      days = 30,
+    ): Promise<
+      {
+        date: string;
+        questions: number;
+        likes: number;
+        dislikes: number;
+        avgResponseTime: number;
+        uniqueUsers: number;
+      }[]
+    > => {
+      const res = await this.client.get<
+        ApiResponse<{
+          data?: {
+            date: string;
+            questions: number;
+            likes: number;
+            dislikes: number;
+            avgResponseTime: number;
+            uniqueUsers: number;
+          }[];
+        }>
+      >("/api/v1/analytics/trends", { params: { days } });
       const coerced = coercePaginated<{
-        date: string; questions: number; likes: number; dislikes: number; avgResponseTime: number; uniqueUsers: number;
-      }>(res.data as unknown as Record<string, unknown>, 'data');
-      return coerced.data.length ? coerced.data : (res.data as unknown as {
-        data?: {
-          date: string; questions: number; likes: number; dislikes: number; avgResponseTime: number; uniqueUsers: number;
-        }[]
-      })?.data || [];
+        date: string;
+        questions: number;
+        likes: number;
+        dislikes: number;
+        avgResponseTime: number;
+        uniqueUsers: number;
+      }>(res.data as unknown as Record<string, unknown>, "data");
+      return coerced.data.length
+        ? coerced.data
+        : (
+            res.data as unknown as {
+              data?: {
+                date: string;
+                questions: number;
+                likes: number;
+                dislikes: number;
+                avgResponseTime: number;
+                uniqueUsers: number;
+              }[];
+            }
+          )?.data || [];
     },
 
     getTopQuestions: async (
       limit = 10,
       from?: string,
-      to?: string
-    ): Promise<{ question: string; askCount: number; lastAskedAt: string }[]> => {
-      const res = await this.client.get<ApiResponse<{
-        data?: { question: string; askCount: number; lastAskedAt: string }[];
-      }>>('/api/v1/analytics/top-questions', { params: { limit, from, to } });
-      const coerced = coercePaginated<{ question: string; askCount: number; lastAskedAt: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
-      );
-      return coerced.data.length ? coerced.data : (res.data as unknown as { data?: { question: string; askCount: number; lastAskedAt: string }[] })?.data || [];
+      to?: string,
+    ): Promise<
+      { question: string; askCount: number; lastAskedAt: string }[]
+    > => {
+      const res = await this.client.get<
+        ApiResponse<{
+          data?: { question: string; askCount: number; lastAskedAt: string }[];
+        }>
+      >("/api/v1/analytics/top-questions", { params: { limit, from, to } });
+      const coerced = coercePaginated<{
+        question: string;
+        askCount: number;
+        lastAskedAt: string;
+      }>(res.data as unknown as Record<string, unknown>, "data");
+      return coerced.data.length
+        ? coerced.data
+        : (
+            res.data as unknown as {
+              data?: {
+                question: string;
+                askCount: number;
+                lastAskedAt: string;
+              }[];
+            }
+          )?.data || [];
     },
 
-    getTopDocuments: async (limit = 10): Promise<{
-      documentId: string;
-      title: string;
-      totalCitations: number;
-      citationsLast7Days: number;
-    }[]> => {
-      const res = await this.client.get<ApiResponse<{
-        data?: { documentId: string; title: string; totalCitations: number; citationsLast7Days: number }[];
-      }>>('/api/v1/analytics/top-documents', { params: { limit } });
+    getTopDocuments: async (
+      limit = 10,
+    ): Promise<
+      {
+        documentId: string;
+        title: string;
+        totalCitations: number;
+        citationsLast7Days: number;
+      }[]
+    > => {
+      const res = await this.client.get<
+        ApiResponse<{
+          data?: {
+            documentId: string;
+            title: string;
+            totalCitations: number;
+            citationsLast7Days: number;
+          }[];
+        }>
+      >("/api/v1/analytics/top-documents", { params: { limit } });
       const coerced = coercePaginated<{
-        documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
-      }>(res.data as unknown as Record<string, unknown>, 'data');
-      return coerced.data.length ? coerced.data : (res.data as unknown as {
-        data?: {
-          documentId: string; title: string; totalCitations: number; citationsLast7Days: number;
-        }[]
-      })?.data || [];
+        documentId: string;
+        title: string;
+        totalCitations: number;
+        citationsLast7Days: number;
+      }>(res.data as unknown as Record<string, unknown>, "data");
+      return coerced.data.length
+        ? coerced.data
+        : (
+            res.data as unknown as {
+              data?: {
+                documentId: string;
+                title: string;
+                totalCitations: number;
+                citationsLast7Days: number;
+              }[];
+            }
+          )?.data || [];
     },
 
     getUnansweredQuestions: async (params?: {
@@ -1328,27 +1842,59 @@ class ApiClient {
       status?: string;
     }): Promise<{
       data: UnansweredQuestion[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
     }> => {
       const res = await this.client.get<
-        ApiResponse<UnansweredQuestion[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/analytics/unanswered', { params });
-      const coerced = coercePaginated<UnansweredQuestion>(res.data as unknown as Record<string, unknown>, 'data');
-      const normalizedData = (coerced.data.length ? coerced.data : (res.data as unknown as { data?: UnansweredQuestion[] })?.data || [])
-        .map((item) => ({
-          ...item,
-          askCount: Number((item as unknown as Record<string, unknown>).askCount ?? 1),
-          firstAskedAt: String((item as unknown as Record<string, unknown>).firstAskedAt ?? new Date().toISOString()),
-          lastAskedAt: String((item as unknown as Record<string, unknown>).lastAskedAt ?? (item as unknown as Record<string, unknown>).firstAskedAt ?? new Date().toISOString()),
-          status: String((item as unknown as Record<string, unknown>).status ?? 'PENDING') as UnansweredQuestion['status'],
-        }));
+        ApiResponse<UnansweredQuestion[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      >("/api/v1/analytics/unanswered", { params });
+      const coerced = coercePaginated<UnansweredQuestion>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+      const rawData =
+        coerced.data.length > 0
+          ? coerced.data
+          : (res.data as unknown as { data?: UnansweredQuestion[] })?.data ?? [];
+      const normalizedData = (Array.isArray(rawData) ? rawData : []).map((item) => ({
+        ...item,
+        askCount: Number(
+          (item as unknown as Record<string, unknown>).askCount ?? 1,
+        ),
+        firstAskedAt: String(
+          (item as unknown as Record<string, unknown>).firstAskedAt ??
+            new Date().toISOString(),
+        ),
+        lastAskedAt: String(
+          (item as unknown as Record<string, unknown>).lastAskedAt ??
+            (item as unknown as Record<string, unknown>).firstAskedAt ??
+            new Date().toISOString(),
+        ),
+        status: String(
+          (item as unknown as Record<string, unknown>).status ?? "PENDING",
+        ) as UnansweredQuestion["status"],
+      }));
       return {
         data: normalizedData,
         pagination: coerced.pagination,
       };
     },
 
-    resolveUnanswered: async (id: string, data: { answer: string }): Promise<void> => {
+    resolveUnanswered: async (
+      id: string,
+      data: { answer: string },
+    ): Promise<void> => {
       await this.client.put(`/api/v1/analytics/unanswered/${id}/resolve`, data);
     },
 
@@ -1356,13 +1902,22 @@ class ApiClient {
       await this.client.put(`/api/v1/analytics/unanswered/${id}/reject`);
     },
 
-    getDocumentViews: async (days = 30): Promise<{
+    getDocumentViews: async (
+      days = 30,
+    ): Promise<{
       viewCount: number;
     }> => {
-      const res = await this.client.get<ApiResponse<Record<string, unknown>>>('/api/v1/analytics/document-views', { params: { days } });
-      const raw = coerceSingleObject<Record<string, unknown>>(res.data as unknown as Record<string, unknown>, 'data') ?? res.data.data as Record<string, unknown>;
+      const res = await this.client.get<ApiResponse<Record<string, unknown>>>(
+        "/api/v1/analytics/document-views",
+        { params: { days } },
+      );
+      const raw =
+        coerceSingleObject<Record<string, unknown>>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ) ?? (res.data.data as Record<string, unknown>);
       return {
-        viewCount: Number(raw?.viewCount ?? 0)
+        viewCount: Number(raw?.viewCount ?? 0),
       };
     },
   };
@@ -1379,9 +1934,13 @@ class ApiClient {
       dateTo?: string;
       departmentId?: string;
     }): Promise<{ id: string; status: string; title: string }> => {
-      const res = await this.client.post<ApiResponse<{
-        id: string; status: string; title: string;
-      }>>('/api/v1/reports/export', {
+      const res = await this.client.post<
+        ApiResponse<{
+          id: string;
+          status: string;
+          title: string;
+        }>
+      >("/api/v1/reports/export", {
         reportType: data.type,
         format: data.format,
         title: data.title,
@@ -1389,29 +1948,37 @@ class ApiClient {
       const wrapped = res.data as unknown as Record<string, unknown>;
       const inner = wrapped?.data as Record<string, unknown> | undefined;
       return {
-        id: String(inner?.id ?? ''),
-        status: String(inner?.status ?? ''),
-        title: String(inner?.title ?? ''),
+        id: String(inner?.id ?? ""),
+        status: String(inner?.status ?? ""),
+        title: String(inner?.title ?? ""),
       };
     },
 
-    getStatus: async (id: string): Promise<{
+    getStatus: async (
+      id: string,
+    ): Promise<{
       id: string;
       status: string;
       title: string;
       fileKey?: string;
       errorMessage?: string;
     }> => {
-      const res = await this.client.get<ApiResponse<{
-        id: string; status: string; title: string; fileKey?: string; errorMessage?: string;
-      }>>(`/api/v1/reports/${id}`);
+      const res = await this.client.get<
+        ApiResponse<{
+          id: string;
+          status: string;
+          title: string;
+          fileKey?: string;
+          errorMessage?: string;
+        }>
+      >(`/api/v1/reports/${id}`);
       const wrapped = res.data as unknown as Record<string, unknown>;
       const inner = wrapped?.data as Record<string, unknown> | undefined;
-      if (!inner) return { id: '', status: '', title: '' };
+      if (!inner) return { id: "", status: "", title: "" };
       return {
-        id: String(inner.id ?? ''),
-        status: String(inner.status ?? ''),
-        title: String(inner.title ?? ''),
+        id: String(inner.id ?? ""),
+        status: String(inner.status ?? ""),
+        title: String(inner.title ?? ""),
         fileKey: inner.fileKey as string | undefined,
         errorMessage: inner.errorMessage as string | undefined,
       };
@@ -1419,40 +1986,55 @@ class ApiClient {
 
     download: async (id: string): Promise<Blob> => {
       const res = await this.client.get(`/api/v1/reports/${id}/download`, {
-        responseType: 'blob',
+        responseType: "blob",
       });
       return res.data;
     },
 
-    list: async (params?: { page?: number; limit?: number }): Promise<{
-      data: { id: string; title: string; type: string; format: string; status: string; createdAt: string }[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
+    list: async (params?: {
+      page?: number;
+      limit?: number;
+    }): Promise<{
+      data: {
+        id: string;
+        title: string;
+        type: string;
+        format: string;
+        status: string;
+        createdAt: string;
+      }[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
     }> => {
       const res = await this.client.get<{
         success: boolean;
         data?: unknown;
-      }>('/api/v1/reports', { params });
+      }>("/api/v1/reports", { params });
       const wrapped = res.data as Record<string, unknown>;
       const pageData = (wrapped.data ?? wrapped) as Record<string, unknown>;
 
       // Spring Page format: { content: [], totalElements, totalPages, size, number }
-      const content = pageData.content as unknown[] ?? [];
+      const content = (pageData.content as unknown[]) ?? [];
       const data = content.map((item) => {
         const r = item as Record<string, unknown>;
         return {
-          id: String(r.id ?? ''),
-          title: String(r.title ?? ''),
-          type: String(r.reportType ?? r.type ?? ''),
-          format: String(r.format ?? ''),
-          status: String(r.status ?? ''),
-          createdAt: String(r.createdAt ?? ''),
+          id: String(r.id ?? ""),
+          title: String(r.title ?? ""),
+          type: String(r.reportType ?? r.type ?? ""),
+          format: String(r.format ?? ""),
+          status: String(r.status ?? ""),
+          createdAt: String(r.createdAt ?? ""),
         };
       });
 
-      const totalElements = pageData.totalElements as number ?? 0;
-      const totalPages = pageData.totalPages as number ?? 1;
-      const size = pageData.size as number ?? 20;
-      const number = pageData.number as number ?? 0;
+      const totalElements = (pageData.totalElements as number) ?? 0;
+      const totalPages = (pageData.totalPages as number) ?? 1;
+      const size = (pageData.size as number) ?? 20;
+      const number = (pageData.number as number) ?? 0;
 
       return {
         data,
@@ -1496,36 +2078,41 @@ class ApiClient {
         ipAddress?: string;
         createdAt: string;
       }[];
-      pagination: { page: number; limit: number; total: number; totalPages: number };
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
     }> => {
       const res = await this.client.get<{ success: boolean; data?: unknown }>(
-        '/api/v1/analytics/audit-logs',
+        "/api/v1/analytics/audit-logs",
         { params },
       );
       const wrapped = res.data as Record<string, unknown>;
       const pageData = (wrapped.data ?? wrapped) as Record<string, unknown>;
 
       // Spring Page format: { content: [], totalElements, totalPages, size, number }
-      const content = pageData.content as unknown[] ?? [];
+      const content = (pageData.content as unknown[]) ?? [];
       const data = content.map((item) => {
         const r = item as Record<string, unknown>;
         return {
-          id: String(r.id ?? ''),
-          userId: String(r.userId ?? ''),
-          username: String(r.username ?? ''),
-          action: String(r.action ?? ''),
-          resourceType: String(r.resourceType ?? ''),
+          id: String(r.id ?? ""),
+          userId: String(r.userId ?? ""),
+          username: String(r.username ?? ""),
+          action: String(r.action ?? ""),
+          resourceType: String(r.resourceType ?? ""),
           resourceId: r.resourceId ? String(r.resourceId) : undefined,
           resourceName: r.resourceName ? String(r.resourceName) : undefined,
           ipAddress: r.ipAddress ? String(r.ipAddress) : undefined,
-          createdAt: String(r.createdAt ?? ''),
+          createdAt: String(r.createdAt ?? ""),
         };
       });
 
-      const totalElements = pageData.totalElements as number ?? 0;
-      const totalPages = pageData.totalPages as number ?? 1;
-      const size = pageData.size as number ?? 50;
-      const number = pageData.number as number ?? 0;
+      const totalElements = (pageData.totalElements as number) ?? 0;
+      const totalPages = (pageData.totalPages as number) ?? 1;
+      const size = (pageData.size as number) ?? 50;
+      const number = (pageData.number as number) ?? 0;
 
       return {
         data,
@@ -1538,7 +2125,9 @@ class ApiClient {
       };
     },
 
-    getById: async (id: string): Promise<{
+    getById: async (
+      id: string,
+    ): Promise<{
       id: string;
       userId: string;
       username: string;
@@ -1553,20 +2142,41 @@ class ApiClient {
       newValue?: Record<string, unknown>;
       changedFields?: string[];
     }> => {
-      const res = await this.client.get<ApiResponse<{
-        id: string; userId: string; username: string; userRole?: string; action: string;
-        resourceType: string; resourceId?: string; resourceName?: string;
-        ipAddress?: string; createdAt: string;
-        oldValue?: Record<string, unknown>; newValue?: Record<string, unknown>;
-        changedFields?: string[];
-      }>>(`/api/v1/analytics/audit-logs/${id}`);
-      return coercePaginated<{
-        id: string; userId: string; username: string; userRole?: string; action: string;
-        resourceType: string; resourceId?: string; resourceName?: string;
-        ipAddress?: string; createdAt: string;
-        oldValue?: Record<string, unknown>; newValue?: Record<string, unknown>;
-        changedFields?: string[];
-      }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.get<
+        ApiResponse<{
+          id: string;
+          userId: string;
+          username: string;
+          userRole?: string;
+          action: string;
+          resourceType: string;
+          resourceId?: string;
+          resourceName?: string;
+          ipAddress?: string;
+          createdAt: string;
+          oldValue?: Record<string, unknown>;
+          newValue?: Record<string, unknown>;
+          changedFields?: string[];
+        }>
+      >(`/api/v1/analytics/audit-logs/${id}`);
+      return (
+        coercePaginated<{
+          id: string;
+          userId: string;
+          username: string;
+          userRole?: string;
+          action: string;
+          resourceType: string;
+          resourceId?: string;
+          resourceName?: string;
+          ipAddress?: string;
+          createdAt: string;
+          oldValue?: Record<string, unknown>;
+          newValue?: Record<string, unknown>;
+          changedFields?: string[];
+        }>(res.data as unknown as Record<string, unknown>, "data").data[0] ??
+        res.data.data!
+      );
     },
   };
 
@@ -1576,11 +2186,11 @@ class ApiClient {
   metrics = {
     getApiHealth: async (days = 7): Promise<ApiMetricsResponse> => {
       const res = await this.client.get<ApiResponse<ApiMetricsResponse>>(
-        '/health/api-metrics',
-        { params: { days } }
+        "/health/api-metrics",
+        { params: { days } },
       );
       const root = res.data as unknown as Record<string, unknown>;
-      if ('data' in root && root.data && typeof root.data === 'object') {
+      if ("data" in root && root.data && typeof root.data === "object") {
         return root.data as ApiMetricsResponse;
       }
       return root as unknown as ApiMetricsResponse;
@@ -1589,32 +2199,75 @@ class ApiClient {
 
   metadata = {
     // — Categories
-    getCategories: async (): Promise<{
-      id: string; name: string; slug: string;
-      description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-    }[]> => {
-      const res = await this.client.get<ApiResponse<{
-        id: string; name: string; slug: string;
-        description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-      }[]>>('/api/v1/categories/active');
+    getCategories: async (): Promise<
+      {
+        id: string;
+        name: string;
+        slug: string;
+        description?: string;
+        parentId?: string;
+        displayOrder?: number;
+        isActive?: boolean;
+      }[]
+    > => {
+      const res = await this.client.get<
+        ApiResponse<
+          {
+            id: string;
+            name: string;
+            slug: string;
+            description?: string;
+            parentId?: string;
+            displayOrder?: number;
+            isActive?: boolean;
+          }[]
+        >
+      >("/api/v1/categories/active");
       return coercePaginated<{
-        id: string; name: string; slug: string;
-        description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-      }>(res.data as unknown as Record<string, unknown>, 'data').data;
+        id: string;
+        name: string;
+        slug: string;
+        description?: string;
+        parentId?: string;
+        displayOrder?: number;
+        isActive?: boolean;
+      }>(res.data as unknown as Record<string, unknown>, "data").data;
     },
 
-    getCategoryById: async (id: string): Promise<{
-      id: string; name: string; slug: string;
-      description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
+    getCategoryById: async (
+      id: string,
+    ): Promise<{
+      id: string;
+      name: string;
+      slug: string;
+      description?: string;
+      parentId?: string;
+      displayOrder?: number;
+      isActive?: boolean;
     }> => {
-      const res = await this.client.get<ApiResponse<{
-        id: string; name: string; slug: string;
-        description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-      }>>(`/api/v1/metadata/categories/${id}`);
-      return coercePaginated<{
-        id: string; name: string; slug: string;
-        description?: string; parentId?: string; displayOrder?: number; isActive?: boolean;
-      }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.get<
+        ApiResponse<{
+          id: string;
+          name: string;
+          slug: string;
+          description?: string;
+          parentId?: string;
+          displayOrder?: number;
+          isActive?: boolean;
+        }>
+      >(`/api/v1/metadata/categories/${id}`);
+      return (
+        coercePaginated<{
+          id: string;
+          name: string;
+          slug: string;
+          description?: string;
+          parentId?: string;
+          displayOrder?: number;
+          isActive?: boolean;
+        }>(res.data as unknown as Record<string, unknown>, "data").data[0] ??
+        res.data.data!
+      );
     },
 
     createCategory: async (data: {
@@ -1624,26 +2277,35 @@ class ApiClient {
       parentId?: string;
       displayOrder?: number;
     }): Promise<{ id: string; name: string; slug: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
-        '/api/v1/metadata/categories', data
+      const res = await this.client.post<
+        ApiResponse<{ id: string; name: string; slug: string }>
+      >("/api/v1/metadata/categories", data);
+      return (
+        coercePaginated<{ id: string; name: string; slug: string }>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
       );
-      return coercePaginated<{ id: string; name: string; slug: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
     },
 
-    updateCategory: async (id: string, data: {
-      name?: string;
-      slug?: string;
-      description?: string;
-      displayOrder?: number;
-    }): Promise<{ id: string; name: string; slug: string }> => {
-      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
-        `/api/v1/metadata/categories/${id}`, data
+    updateCategory: async (
+      id: string,
+      data: {
+        name?: string;
+        slug?: string;
+        description?: string;
+        displayOrder?: number;
+      },
+    ): Promise<{ id: string; name: string; slug: string }> => {
+      const res = await this.client.put<
+        ApiResponse<{ id: string; name: string; slug: string }>
+      >(`/api/v1/metadata/categories/${id}`, data);
+      return (
+        coercePaginated<{ id: string; name: string; slug: string }>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
       );
-      return coercePaginated<{ id: string; name: string; slug: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? res.data.data!;
     },
 
     deleteCategory: async (id: string): Promise<void> => {
@@ -1651,96 +2313,168 @@ class ApiClient {
     },
 
     // — Tags
-    getTags: async (): Promise<{ id: string; name: string; slug: string; color?: string; usageCount?: number }[]> => {
-      const res = await this.client.get<ApiResponse<{
-        id: string; name: string; slug: string; color?: string; usageCount?: number;
-      }[]>>('/api/v1/metadata/tags');
+    getTags: async (): Promise<
+      {
+        id: string;
+        name: string;
+        slug: string;
+        color?: string;
+        usageCount?: number;
+      }[]
+    > => {
+      const res = await this.client.get<
+        ApiResponse<
+          {
+            id: string;
+            name: string;
+            slug: string;
+            color?: string;
+            usageCount?: number;
+          }[]
+        >
+      >("/api/v1/metadata/tags");
       return coercePaginated<{
-        id: string; name: string; slug: string; color?: string; usageCount?: number;
-      }>(res.data as unknown as Record<string, unknown>, 'data').data;
+        id: string;
+        name: string;
+        slug: string;
+        color?: string;
+        usageCount?: number;
+      }>(res.data as unknown as Record<string, unknown>, "data").data;
     },
 
-    createTag: async (data: { name: string; color?: string }): Promise<{ id: string; name: string; slug: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }>>(
-        '/api/v1/metadata/tags', data
+    createTag: async (data: {
+      name: string;
+      color?: string;
+    }): Promise<{ id: string; name: string; slug: string }> => {
+      const res = await this.client.post<
+        ApiResponse<{ id: string; name: string; slug: string }>
+      >("/api/v1/metadata/tags", data);
+      return (
+        coercePaginated<{ id: string; name: string; slug: string }>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? { id: "", name: "", slug: "" }
       );
-      return coercePaginated<{ id: string; name: string; slug: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? { id: '', name: '', slug: '' };
     },
 
-    updateTag: async (id: string, data: { name?: string; color?: string }): Promise<{
-      id: string; name: string; slug: string;
+    updateTag: async (
+      id: string,
+      data: { name?: string; color?: string },
+    ): Promise<{
+      id: string;
+      name: string;
+      slug: string;
     }> => {
-      const res = await this.client.put<ApiResponse<{ id: string; name: string; slug: string }>>(
-        `/api/v1/metadata/tags/${id}`, data
+      const res = await this.client.put<
+        ApiResponse<{ id: string; name: string; slug: string }>
+      >(`/api/v1/metadata/tags/${id}`, data);
+      return (
+        coercePaginated<{ id: string; name: string; slug: string }>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? { id: "", name: "", slug: "" }
       );
-      return coercePaginated<{ id: string; name: string; slug: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
-      ).data[0] ?? { id: '', name: '', slug: '' };
     },
 
     deleteTag: async (id: string): Promise<void> => {
       await this.client.delete(`/api/v1/metadata/tags/${id}`);
     },
 
-    resolveTags: async (tagNames: string[]): Promise<{ id: string; name: string; slug: string }[]> => {
-      const res = await this.client.post<ApiResponse<{ id: string; name: string; slug: string }[]>>(
-        '/api/v1/metadata/tags/resolve', { tagNames }
-      );
+    resolveTags: async (
+      tagNames: string[],
+    ): Promise<{ id: string; name: string; slug: string }[]> => {
+      const res = await this.client.post<
+        ApiResponse<{ id: string; name: string; slug: string }[]>
+      >("/api/v1/metadata/tags/resolve", { tagNames });
       return coercePaginated<{ id: string; name: string; slug: string }>(
-        res.data as unknown as Record<string, unknown>, 'data'
+        res.data as unknown as Record<string, unknown>,
+        "data",
       ).data;
     },
 
     // — Access Rules
     getAccessRules: async (metadataId: string): Promise<AccessRule[]> => {
-      const res = await this.client.get<ApiResponse<AccessRule[]>>('/api/v1/access-rules', { params: { metadataId } });
-      return coercePaginated<AccessRule>(res.data as unknown as Record<string, unknown>, 'data').data;
+      const res = await this.client.get<ApiResponse<AccessRule[]>>(
+        "/api/v1/access-rules",
+        { params: { metadataId } },
+      );
+      return coercePaginated<AccessRule>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      ).data;
     },
 
     getAllAccessRules: async (): Promise<AccessRule[]> => {
       const res = await this.client.get<{
         success: boolean;
         data?: AccessRule[];
-      }>('/api/v1/access-rules/all');
+      }>("/api/v1/access-rules/all");
       return res.data?.data ?? [];
     },
 
-    getAccessRulesByDocumentId: async (documentId: string): Promise<AccessRule[]> => {
-      const res = await this.client.get<AccessRule[] | {
-        success: boolean;
-        data?: AccessRule[];
-        _proxied?: boolean;
-      }>(`/api/v1/access-rules/by-document/${documentId}`);
+    getAccessRulesByDocumentId: async (
+      documentId: string,
+    ): Promise<AccessRule[]> => {
+      const res = await this.client.get<
+        | AccessRule[]
+        | {
+            success: boolean;
+            data?: AccessRule[];
+            _proxied?: boolean;
+          }
+      >(`/api/v1/access-rules/by-document/${documentId}`);
       // Backend may return raw array, wrapped {success, data}, or proxied {_proxied, data}
       const raw = res.data;
       if (Array.isArray(raw)) return raw;
-      if (raw && '_proxied' in raw) return (raw as { _proxied: boolean; data: AccessRule[] }).data ?? [];
+      if (raw && "_proxied" in raw)
+        return (raw as { _proxied: boolean; data: AccessRule[] }).data ?? [];
       return (raw as { success: boolean; data?: AccessRule[] })?.data ?? [];
     },
 
-    createAccessRule: async (data: CreateAccessRuleRequest): Promise<{ id: string }> => {
-      const res = await this.client.post<ApiResponse<{ id: string }>>('/api/v1/access-rules', data);
-      return coercePaginated<{ id: string }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    createAccessRule: async (
+      data: CreateAccessRuleRequest,
+    ): Promise<{ id: string }> => {
+      const res = await this.client.post<ApiResponse<{ id: string }>>(
+        "/api/v1/access-rules",
+        data,
+      );
+      return (
+        coercePaginated<{ id: string }>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
-    updateAccessRule: async (id: string, data: {
-      targetType: string;
-      permission: string;
-      targetRole?: string;
-      targetDepartmentId?: string;
-      targetUserId?: string;
-    }): Promise<{ id: string }> => {
-      const res = await this.client.put<ApiResponse<{ id: string }>>(`/api/v1/access-rules/${id}`, data);
-      return coercePaginated<{ id: string }>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    updateAccessRule: async (
+      id: string,
+      data: {
+        targetType: string;
+        permission: string;
+        targetRole?: string;
+        targetDepartmentId?: string;
+        targetUserId?: string;
+      },
+    ): Promise<{ id: string }> => {
+      const res = await this.client.put<ApiResponse<{ id: string }>>(
+        `/api/v1/access-rules/${id}`,
+        data,
+      );
+      return (
+        coercePaginated<{ id: string }>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
     deleteAccessRule: async (id: string): Promise<void> => {
       await this.client.delete(`/api/v1/metadata/access-rules/${id}`);
     },
 
-    simulateAccess: async (documentId: string): Promise<{
+    simulateAccess: async (
+      documentId: string,
+    ): Promise<{
       documentId: string;
       metadataId: string;
       totalCompanyUsers: number;
@@ -1802,7 +2536,9 @@ class ApiClient {
       }>(`/api/v1/access-rules/simulation/by-document/${documentId}`);
       // Backend may return raw object or proxied {_proxied, data} wrapper
       const raw = res.data;
-      if (raw && '_proxied' in raw) return (raw as unknown as { _proxied: boolean; data: unknown }).data as typeof res.data;
+      if (raw && "_proxied" in raw)
+        return (raw as unknown as { _proxied: boolean; data: unknown })
+          .data as typeof res.data;
       return res.data;
     },
   };
@@ -1816,60 +2552,140 @@ class ApiClient {
       limit?: number;
       sortBy?: string;
       sortDir?: string;
-    }): Promise<{ data: Department[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+    }): Promise<{
+      data: Department[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
       const res = await this.client.get<
-        ApiResponse<Department[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
-      >('/api/v1/departments', { params });
-      const coerced = coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data');
+        ApiResponse<Department[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      >("/api/v1/departments", { params });
+      const coerced = coercePaginated<Department>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
       return {
-        data: coerced.data.length ? coerced.data : (res.data as unknown as { data?: Department[] })?.data || [],
+        data: coerced.data.length
+          ? coerced.data
+          : (res.data as unknown as { data?: Department[] })?.data || [],
         pagination: coerced.pagination,
       };
     },
 
     getById: async (id: string): Promise<Department> => {
-      const res = await this.client.get<ApiResponse<Department>>(`/api/v1/departments/${id}`);
-      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.get<ApiResponse<Department>>(
+        `/api/v1/departments/${id}`,
+      );
+      return (
+        coercePaginated<Department>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
     getActive: async (): Promise<Department[]> => {
-      const res = await this.client.get<ApiResponse<Department[]>>('/api/v1/departments/active');
-      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data;
+      const res = await this.client.get<ApiResponse<Department[]>>(
+        "/api/v1/departments/active",
+      );
+      return coercePaginated<Department>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      ).data;
     },
 
     getTree: async (): Promise<DepartmentTreeNode[]> => {
-      const res = await this.client.get<ApiResponse<DepartmentTreeNode[]>>('/api/v1/departments/tree');
-      return coercePaginated<DepartmentTreeNode>(res.data as unknown as Record<string, unknown>, 'data').data;
+      const res = await this.client.get<ApiResponse<DepartmentTreeNode[]>>(
+        "/api/v1/departments/tree",
+      );
+      return coercePaginated<DepartmentTreeNode>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      ).data;
     },
 
     create: async (data: CreateDepartmentRequest): Promise<Department> => {
-      const res = await this.client.post<ApiResponse<Department>>('/api/v1/departments', data);
-      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+      const res = await this.client.post<ApiResponse<Department>>(
+        "/api/v1/departments",
+        data,
+      );
+      return (
+        coercePaginated<Department>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
-    update: async (id: string, data: UpdateDepartmentRequest): Promise<Department> => {
-      const res = await this.client.put<ApiResponse<Department>>(`/api/v1/departments/${id}`, data);
-      return coercePaginated<Department>(res.data as unknown as Record<string, unknown>, 'data').data[0] ?? res.data.data!;
+    update: async (
+      id: string,
+      data: UpdateDepartmentRequest,
+    ): Promise<Department> => {
+      const res = await this.client.put<ApiResponse<Department>>(
+        `/api/v1/departments/${id}`,
+        data,
+      );
+      return (
+        coercePaginated<Department>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? res.data.data!
+      );
     },
 
     delete: async (id: string): Promise<void> => {
       await this.client.delete(`/api/v1/departments/${id}`);
     },
 
-    getUsers: async (departmentId: string, params?: {
-      page?: number;
-      limit?: number;
-    }): Promise<{ data: User[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+    getUsers: async (
+      departmentId: string,
+      params?: {
+        page?: number;
+        limit?: number;
+      },
+    ): Promise<{
+      data: User[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
       const res = await this.client.get<
-        ApiResponse<User[]> & { pagination?: { page: number; limit: number; total: number; totalPages: number } }
+        ApiResponse<User[]> & {
+          pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
       >(`/api/v1/departments/${departmentId}/users`, { params });
-      const coerced = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data');
-      const rawUsers: User[] = coerced.data.length ? coerced.data : (res.data as unknown as { data?: User[] })?.data || [];
+      const coerced = coercePaginated<User>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+      const rawUsers: User[] = coerced.data.length
+        ? coerced.data
+        : (res.data as unknown as { data?: User[] })?.data || [];
       const users: User[] = rawUsers.map((u) => ({
         ...u,
-        departmentId: typeof u.department === 'object' && u.department !== null
-          ? (u.department as any).id
-          : (u.departmentId || null),
+        departmentId:
+          typeof u.department === "object" && u.department !== null
+            ? (u.department as any).id
+            : u.departmentId || null,
       }));
       return {
         data: users,
@@ -1878,15 +2694,215 @@ class ApiClient {
     },
 
     assignUser: async (data: AssignUserDepartmentRequest): Promise<User> => {
-      const res = await this.client.post<ApiResponse<User>>('/api/v1/departments/assign-user', data);
-      const raw = coercePaginated<User>(res.data as unknown as Record<string, unknown>, 'data').data[0]
-        ?? (res.data as unknown as User);
+      const res = await this.client.post<ApiResponse<User>>(
+        "/api/v1/departments/assign-user",
+        data,
+      );
+      const raw =
+        coercePaginated<User>(
+          res.data as unknown as Record<string, unknown>,
+          "data",
+        ).data[0] ?? (res.data as unknown as User);
       return {
         ...raw,
-        departmentId: typeof raw.department === 'object' && raw.department !== null
-          ? (raw.department as any).id
-          : (raw.departmentId || null),
+        departmentId:
+          typeof raw.department === "object" && raw.department !== null
+            ? (raw.department as any).id
+            : raw.departmentId || null,
       };
+    },
+  };
+
+  // ==========================================================================
+  // Violations
+  // ==========================================================================
+  violations = {
+    // User endpoints
+    getMyViolations: async (params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.status !== undefined) mappedParams.status = params.status;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/me",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    getMyWarnings: async (params?: {
+      page?: number;
+      limit?: number;
+      read?: boolean;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.read !== undefined) mappedParams.read = params.read;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/me/warnings",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    submitAppeal: async (violationId: string, appealText: string): Promise<void> => {
+      await this.client.post(`/api/v1/violations/${violationId}/appeal`, {
+        appealText,
+      });
+    },
+
+    acknowledgeWarning: async (warningId: string): Promise<void> => {
+      await this.client.post(`/api/v1/violations/warnings/${warningId}/acknowledge`);
+    },
+
+    // Admin endpoints
+    getQueue: async (params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      severity?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.status !== undefined) mappedParams.status = params.status;
+        if (params.severity !== undefined) mappedParams.severity = params.severity;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/queue",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    getUserViolations: async (
+      userId: string,
+      params?: {
+        page?: number;
+        limit?: number;
+      },
+    ): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        `/api/v1/violations/users/${userId}`,
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    reviewViolation: async (
+      violationId: string,
+      action: string,
+    ): Promise<void> => {
+      await this.client.post(`/api/v1/violations/${violationId}/review`, {
+        action,
+      });
+    },
+
+    getActionedViolations: async (params?: {
+      page?: number;
+      limit?: number;
+      action?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.action !== undefined) mappedParams.action = params.action;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/actioned",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    resetStrikes: async (userId: string): Promise<void> => {
+      await this.client.post(`/api/v1/violations/users/${userId}/reset-strikes`);
+    },
+
+    getStats: async (): Promise<{
+      pendingViolations: number;
+      totalViolations?: number;
+      pendingAppeals?: number;
+      totalWarnings?: number;
+    }> => {
+      const res = await this.client.get<{
+        pendingViolations: number;
+        totalViolations?: number;
+        pendingAppeals?: number;
+        totalWarnings?: number;
+      }>("/api/v1/violations/stats");
+      return res.data;
     },
   };
 }

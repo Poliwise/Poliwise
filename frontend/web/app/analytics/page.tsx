@@ -9,9 +9,7 @@ import {
   Users,
   Download,
   TrendingUp,
-  AlertTriangle,
   LogIn,
-  Eye,
 } from 'lucide-react';
 import {
   LineChart,
@@ -46,7 +44,21 @@ import styles from './analytics.module.css';
 
 type Period = 'today' | 'week' | 'month';
 
-const PIE_COLORS = ['#4f46e5', '#22c55e', '#f59e0b', '#ef4444'];
+const PIE_COLORS = ['var(--primary)', 'var(--success)', 'var(--warning)', 'var(--danger)'];
+
+const DEFAULT_STATS: DashboardStats = {
+  totalQuestions: 0, questionsToday: 0, questionsThisWeek: 0, questionsThisMonth: 0,
+  activeDocuments: 0, totalDocuments: 0, activeUsers: 0, totalUsers: 0,
+};
+
+const DEFAULT_OVERVIEW: AnalyticsOverview = {
+  stats: DEFAULT_STATS,
+  questionTrend: [],
+  questionsByDepartment: [],
+  topQuestions: [],
+  topDocuments: [],
+  satisfaction: { likes: 0, dislikes: 0, rate: 0 },
+};
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -77,22 +89,6 @@ export default function AnalyticsPage() {
   const [loginStats, setLoginStats] = useState<{
     loginsThisMonth: number; failedLoginsThisMonth: number;
   } | null>(null);
-  const [docViewStats, setDocViewStats] = useState<{
-    viewsThisMonth: number;
-  } | null>(null);
-
-  const defaultStats: DashboardStats = {
-    totalQuestions: 0, questionsToday: 0, questionsThisWeek: 0, questionsThisMonth: 0,
-    activeDocuments: 0, totalDocuments: 0, activeUsers: 0, totalUsers: 0,
-  };
-  const defaultOverview: AnalyticsOverview = {
-    stats: defaultStats,
-    questionTrend: [],
-    questionsByDepartment: [],
-    topQuestions: [],
-    topDocuments: [],
-    satisfaction: { likes: 0, dislikes: 0, rate: 0 },
-  };
 
   const loadData = useCallback(async (currentPeriod: Period) => {
     if (!initialLoadDone) setLoading(true);
@@ -139,7 +135,7 @@ export default function AnalyticsPage() {
     const realTotalUsers = totalUsersData.status === 'fulfilled' ? totalUsersData.value?.pagination?.total ?? 0 : 0;
     const realActiveUsers = activeUsersData.status === 'fulfilled' ? activeUsersData.value?.pagination?.total ?? 0 : 0;
 
-    const baseStats = resolvedStats ?? defaultStats;
+    const baseStats = resolvedStats ?? DEFAULT_STATS;
     setStats({
       ...baseStats,
       totalDocuments: realTotalDocs || baseStats.totalDocuments,
@@ -148,7 +144,7 @@ export default function AnalyticsPage() {
       activeUsers: realActiveUsers || baseStats.activeUsers,
     });
     
-    setOverview(resolvedOverview ?? defaultOverview);
+    setOverview(resolvedOverview ?? DEFAULT_OVERVIEW);
     setTrends(Array.isArray(resolvedTrends) ? resolvedTrends : []);
     setTopQuestions(Array.isArray(resolvedQuestions) ? resolvedQuestions : []);
     setTopDocuments(Array.isArray(resolvedDocs) ? resolvedDocs.slice(0, 5) : []);
@@ -157,10 +153,6 @@ export default function AnalyticsPage() {
       failedLoginsThisMonth: resolvedLogin.loginFailedCount,
     } : null);
     
-    // Use document citations as a proxy for document views since UsageStats are not recording generic views
-    const totalCitations = Array.isArray(resolvedDocs) ? resolvedDocs.reduce((sum, doc) => sum + (doc.totalCitations || 0), 0) : 0;
-    setDocViewStats({ viewsThisMonth: totalCitations });
-
     const allFailed = !resolvedStats && !resolvedOverview && !resolvedTrends?.length && !resolvedQuestions?.length && !resolvedDocs?.length;
     if (allFailed) {
       setError(t('analytics.loadError'));
@@ -296,7 +288,7 @@ export default function AnalyticsPage() {
         <div className={styles.statsGrid}>
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' }}>
+              <div className={`${styles.statIconWrap} ${styles.statIconPrimary}`}>
                 <MessageSquare size={22} />
               </div>
               <div className={styles.statContent}>
@@ -304,7 +296,7 @@ export default function AnalyticsPage() {
                 <div className={styles.statValueRow}>
                   <span className={styles.statValue}>{getStatValue('questionsToday').toLocaleString()}</span>
                   {questionsChange !== 0 && (
-                    <span className={styles.changeBadge} style={{ color: questionsChange > 0 ? '#22c55e' : '#ef4444' }}>
+                    <span className={`${styles.changeBadge} ${questionsChange > 0 ? styles.changePositive : styles.changeNegative}`}>
                       {questionsChange > 0 ? '+' : ''}{questionsChange}%
                     </span>
                   )}
@@ -320,7 +312,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
+              <div className={`${styles.statIconWrap} ${styles.statIconSuccess}`}>
                 <ThumbsUp size={22} />
               </div>
               <div className={styles.statContent}>
@@ -335,7 +327,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+              <div className={`${styles.statIconWrap} ${styles.statIconInfo}`}>
                 <FileText size={22} />
               </div>
               <div className={styles.statContent}>
@@ -348,7 +340,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+              <div className={`${styles.statIconWrap} ${styles.statIconWarning}`}>
                 <Users size={22} />
               </div>
               <div className={styles.statContent}>
@@ -372,7 +364,7 @@ export default function AnalyticsPage() {
 
           <Card padding="md">
             <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              <div className={`${styles.statIconWrap} ${styles.statIconSuccess}`}>
                 <LogIn size={22} />
               </div>
               <div className={styles.statContent}>
@@ -382,18 +374,6 @@ export default function AnalyticsPage() {
             </div>
           </Card>
 
-          <Card padding="md">
-            <div className={styles.statCardInner}>
-              <div className={styles.statIconWrap} style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
-                <Eye size={22} />
-              </div>
-              <div className={styles.statContent}>
-                <span className={styles.statLabel}>{t('analytics.stat.docViews')}</span>
-                <span className={styles.statValue}>{(docViewStats?.viewsThisMonth ?? 0).toLocaleString()}</span>
-                <span className={styles.statMeta}>{t('analytics.stat.docViewsPeriod')}</span>
-              </div>
-            </div>
-          </Card>
         </div>
 
         {/* Charts Row */}
@@ -426,9 +406,9 @@ export default function AnalyticsPage() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
-                    <Line type="monotone" dataKey="questions" stroke="#4f46e5" strokeWidth={2} name={t('analytics.chart.question')} dot={false} />
-                    <Line type="monotone" dataKey="likes" stroke="#22c55e" strokeWidth={2} name={t('analytics.chart.useful')} dot={false} />
-                    <Line type="monotone" dataKey="dislikes" stroke="#ef4444" strokeWidth={2} name={t('analytics.chart.notUseful')} dot={false} />
+                    <Line type="monotone" dataKey="questions" stroke="var(--primary)" strokeWidth={2} name={t('analytics.chart.question')} dot={false} />
+                    <Line type="monotone" dataKey="likes" stroke="var(--success)" strokeWidth={2} name={t('analytics.chart.useful')} dot={false} />
+                    <Line type="monotone" dataKey="dislikes" stroke="var(--danger)" strokeWidth={2} name={t('analytics.chart.notUseful')} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -479,7 +459,7 @@ export default function AnalyticsPage() {
                         borderRadius: 'var(--radius)',
                         fontSize: '0.8125rem',
                       }}
-                      formatter={(value: any) => [`${value} responses`, '']}
+                      formatter={(value) => [`${value} responses`, '']}
                     />
                     <Legend wrapperStyle={{ fontSize: '0.8125rem' }} />
                   </PieChart>
@@ -523,15 +503,15 @@ export default function AnalyticsPage() {
                       borderRadius: 'var(--radius)',
                       fontSize: '0.8125rem',
                     }}
-                    formatter={(value: any) => [`${value} errors`, 'Errors']}
+                    formatter={(value) => [`${value} errors`, 'Errors']}
                   />
                   <Line
                     type="monotone"
                     dataKey="errors"
-                    stroke="#ef4444"
+                    stroke="var(--danger)"
                     strokeWidth={2}
                     name="Errors"
-                    dot={{ fill: '#ef4444', r: 3 }}
+                    dot={{ fill: 'var(--danger)', r: 3 }}
                   />
                 </LineChart>
               </ResponsiveContainer>

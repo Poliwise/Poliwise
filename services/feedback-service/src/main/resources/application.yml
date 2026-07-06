@@ -9,6 +9,20 @@ poliwise:
     usage-stats-retention-days: 7
     hourly-aggregate-retention-days: 30
 
+violation:
+  strike:
+    warn-threshold: 3
+    deactivate-threshold: 5
+    revoke-threshold: 10
+  logging:
+    store-evidence: true
+  escalation:
+    auto-warn: true
+    auto-deactivate: true
+    auto-revoke: true
+  warning:
+    expiry-days: 30
+
 server:
   port: 8085
 

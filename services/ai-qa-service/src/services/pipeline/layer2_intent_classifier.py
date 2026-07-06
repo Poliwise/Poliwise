@@ -66,10 +66,12 @@ class IntentResult(BaseModel):
     latency_ms: int = 0
 
 class IntentClassifierService:
-    def __init__(self, groq_api_key: str, model: str = "llama-3.1-8b-instant", max_tokens: int = 10):
+    def __init__(self, groq_api_key: str, model: str = "llama-3.1-8b-instant", max_tokens: int = 10,
+                 fallback_intent: str = "COMPLEX"):
         self.client = AsyncGroq(api_key=groq_api_key)
         self.model = model
         self.max_tokens = max_tokens
+        self.fallback_intent = fallback_intent
 
     def _format_history(self, recent_history: list[str] | None) -> str:
         if not recent_history:
@@ -112,5 +114,5 @@ class IntentClassifierService:
             return IntentResult(intent=intent, raw_label=label_text, latency_ms=latency_ms)
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
-            logger.error(f"Layer 2 intent classifier failed: {e}. Defaulting to COMPLEX (fail-safe to avoid missing policy questions).")
-            return IntentResult(intent="COMPLEX", raw_label="ERROR_FAILSAFE", latency_ms=latency_ms)
+            logger.error(f"Layer 2 intent classifier failed: {e}. Defaulting to {self.fallback_intent} (fail-safe).")
+            return IntentResult(intent=self.fallback_intent, raw_label="ERROR_FAILSAFE", latency_ms=latency_ms)

@@ -30,14 +30,16 @@ from ...config.settings import settings
 
 toxic_filter = ToxicFilterService(
     groq_api_key=settings.groq_api_key,
-    model=settings.layer1_model,
+    jailbreak_model=settings.layer1_model,
+    toxic_model=settings.toxic_model,
     fail_open=settings.layer1_fail_open
 )
 
 intent_classifier = IntentClassifierService(
     groq_api_key=settings.groq_api_key,
     model=settings.layer2_model,
-    max_tokens=settings.layer2_max_tokens_classify
+    max_tokens=settings.layer2_max_tokens_classify,
+    fallback_intent=settings.layer2_fallback_intent
 )
 
 layer2_responder = Layer2Responder(
@@ -150,7 +152,7 @@ async def build_sources(chunks: List[RetrievalChunk]) -> List[SourceDocument]:
     for chunk in chunks[:10]:
         doc_id = chunk.document_id
         doc_name = chunk.document_name or "Unknown"
-        excerpt = chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content
+        excerpt = chunk.content[:800] + "..." if len(chunk.content) > 800 else chunk.content
 
         chunk_ref = ChunkRef(
             chunk_id=chunk.id,
@@ -237,6 +239,10 @@ async def chat(request: ChatRequest, user: UserContext = Depends(get_user_contex
     result = await orchestrator.process(request, user)
 
     if result.status == "BLOCKED":
+        # Mark the last USER message as toxic
+        await message_repository.mark_last_user_message_toxic(
+            request.conversation_id, user.user_id
+        )
         assistant_msg = await conversation_service.add_message(
             request.conversation_id,
             role="ASSISTANT",

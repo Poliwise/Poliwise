@@ -247,3 +247,153 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_enforce_single_current_version
     BEFORE INSERT OR UPDATE ON knowledge.document_versions
     FOR EACH ROW EXECUTE FUNCTION knowledge.enforce_single_current_version();
+
+-- ============================================================
+-- FUNCTION: Normalize unanswered question
+-- ============================================================
+CREATE OR REPLACE FUNCTION conversation.normalize_unanswered_question()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.question_normalized := lower(trim(
+        regexp_replace(
+            regexp_replace(NEW.question, '[^a-zA-Z0-9àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ\s]', ' ', 'g'),
+            '\s+', ' ', 'g'
+        )
+    ));
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_normalize_unanswered_question
+    BEFORE INSERT OR UPDATE OF question ON conversation.unanswered_questions
+    FOR EACH ROW
+    EXECUTE FUNCTION conversation.normalize_unanswered_question();
+
+-- ============================================================
+-- FUNCTION: Update tag usage on document soft delete
+-- ============================================================
+CREATE OR REPLACE FUNCTION metadata.update_tag_usage_on_soft_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL THEN
+        -- Document was soft-deleted, decrement tag usage counts
+        UPDATE metadata.tags
+        SET usage_count = usage_count - 1
+        WHERE id IN (
+            SELECT tag_id FROM metadata.document_tags WHERE document_id = OLD.id
+        );
+    ELSIF OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL THEN
+        -- Document was restored, increment tag usage counts
+        UPDATE metadata.tags
+        SET usage_count = usage_count + 1
+        WHERE id IN (
+            SELECT tag_id FROM metadata.document_tags WHERE document_id = OLD.id
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_tag_usage_on_soft_delete
+    AFTER UPDATE OF deleted_at ON metadata.document_metadata
+    FOR EACH ROW
+    EXECUTE FUNCTION metadata.update_tag_usage_on_soft_delete();
+
+-- ============================================================
+-- MIGRATED FROM 002_fk_constraints_and_improvements.sql
+-- ============================================================
+
+-- ============================================================
+-- FK: H4 - conversation.conversations.user_id
+-- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_conversations_user_id'
+    ) THEN
+        ALTER TABLE conversation.conversations
+            ADD CONSTRAINT fk_conversations_user_id
+            FOREIGN KEY (user_id) REFERENCES core.users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- ============================================================
+-- FK: H5 - metadata.document_metadata.document_id
+-- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_document_metadata_document_id'
+    ) THEN
+        ALTER TABLE metadata.document_metadata
+            ADD CONSTRAINT fk_document_metadata_document_id
+            FOREIGN KEY (document_id) REFERENCES knowledge.documents(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- ============================================================
+-- FK: H6 - analytics.feedbacks constraints
+-- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_feedbacks_message_id'
+    ) THEN
+        ALTER TABLE analytics.feedbacks
+            ADD CONSTRAINT fk_feedbacks_message_id
+            FOREIGN KEY (message_id) REFERENCES conversation.messages(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_feedbacks_conversation_id'
+    ) THEN
+        ALTER TABLE analytics.feedbacks
+            ADD CONSTRAINT fk_feedbacks_conversation_id
+            FOREIGN KEY (conversation_id) REFERENCES conversation.conversations(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_feedbacks_user_id'
+    ) THEN
+        ALTER TABLE analytics.feedbacks
+            ADD CONSTRAINT fk_feedbacks_user_id
+            FOREIGN KEY (user_id) REFERENCES core.users(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- ============================================================
+-- M8: Set vector_indexed = TRUE for chunks with embeddings
+-- ============================================================
+UPDATE knowledge.chunks
+SET vector_indexed = TRUE
+WHERE embedding_vector IS NOT NULL
+  AND vector_indexed = FALSE;
+
+-- ============================================================
+-- L2: Change language default from 'vi' to NULL
+-- ============================================================
+ALTER TABLE knowledge.documents
+    ALTER COLUMN language DROP DEFAULT;
+
+-- ============================================================
+-- L3: Change chunk_type default from 'child' to 'parent'
+-- ============================================================
+ALTER TABLE knowledge.chunks
+    ALTER COLUMN chunk_type SET DEFAULT 'parent';
+
+-- ============================================================
+-- L9: Index for document access rules
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_access_rules_targets
+    ON metadata.document_access_rules(target_type, target_role, target_department_id, target_user_id);
+
+-- ============================================================
+-- L8: Drop redundant bucket_name column
+-- ============================================================
+ALTER TABLE knowledge.chunks DROP COLUMN IF EXISTS bucket_name;

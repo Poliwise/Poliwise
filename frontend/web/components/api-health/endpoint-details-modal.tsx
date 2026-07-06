@@ -43,13 +43,13 @@ function EndpointRow({ endpoint, recentErrorsLabel = 'Recent errors' }: Endpoint
       ? Math.round((endpoint.success / endpoint.total) * 100)
       : 100;
 
-  const getRowColor = () => {
-    if (endpoint.failure === 0) return '#22c55e';
-    if (successRate >= 90) return '#f59e0b';
-    return '#ef4444';
+  const getHealthClass = () => {
+    if (endpoint.failure === 0) return styles.successTone;
+    if (successRate >= 90) return styles.warningTone;
+    return styles.dangerTone;
   };
 
-  const color = getRowColor();
+  const healthClass = getHealthClass();
 
   return (
     <>
@@ -65,14 +65,14 @@ function EndpointRow({ endpoint, recentErrorsLabel = 'Recent errors' }: Endpoint
           <span className={styles.total}>{endpoint.total.toLocaleString()}</span>
         </td>
         <td className={styles.td}>
-          <span className={styles.success} style={{ color: '#22c55e' }}>
+          <span className={`${styles.success} ${styles.successTone}`}>
             <CheckCircle size={14} />
             {endpoint.success.toLocaleString()}
           </span>
         </td>
         <td className={styles.td}>
           {endpoint.failure > 0 ? (
-            <span className={styles.failure} style={{ color: '#ef4444' }}>
+            <span className={`${styles.failure} ${styles.dangerTone}`}>
               <XCircle size={14} />
               {endpoint.failure.toLocaleString()}
             </span>
@@ -88,10 +88,11 @@ function EndpointRow({ endpoint, recentErrorsLabel = 'Recent errors' }: Endpoint
             <div className={styles.barBg}>
               <div
                 className={styles.barFill}
-                style={{ width: `${successRate}%`, background: color }}
+                style={{ width: `${successRate}%` }}
+                data-health={endpoint.failure === 0 ? 'success' : successRate >= 90 ? 'warning' : 'danger'}
               />
             </div>
-            <span className={styles.rateValue} style={{ color }}>
+            <span className={`${styles.rateValue} ${healthClass}`}>
               {successRate}%
             </span>
           </div>
@@ -128,8 +129,13 @@ function EndpointRow({ endpoint, recentErrorsLabel = 'Recent errors' }: Endpoint
                   </span>
                   <span className={styles.errorMethod}>{err.method}</span>
                   <span
-                    className={styles.errorStatus}
-                    style={{ color: err.statusCode >= 500 ? '#ef4444' : err.statusCode >= 400 ? '#f59e0b' : '#6b7280' }}
+                    className={`${styles.errorStatus} ${
+                      err.statusCode >= 500
+                        ? styles.dangerTone
+                        : err.statusCode >= 400
+                          ? styles.warningTone
+                          : styles.neutralTone
+                    }`}
                   >
                     {err.statusCode}
                   </span>
@@ -175,28 +181,26 @@ export function EndpointDetailsModal({
         </div>
         <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>{successLabel}</span>
-          <span className={styles.summaryValue} style={{ color: '#22c55e' }}>
+          <span className={`${styles.summaryValue} ${styles.successTone}`}>
             {(overall.totalRequests - overall.totalErrors).toLocaleString()}
           </span>
         </div>
         <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>{errorsLabel}</span>
-          <span className={styles.summaryValue} style={{ color: '#ef4444' }}>
+          <span className={`${styles.summaryValue} ${styles.dangerTone}`}>
             {overall.totalErrors.toLocaleString()}
           </span>
         </div>
         <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>{colRate}</span>
           <span
-            className={styles.summaryValue}
-            style={{
-              color:
-                overall.successRate >= 99
-                  ? '#22c55e'
-                  : overall.successRate >= 95
-                  ? '#f59e0b'
-                  : '#ef4444',
-            }}
+            className={`${styles.summaryValue} ${
+              overall.successRate >= 99
+                ? styles.successTone
+                : overall.successRate >= 95
+                  ? styles.warningTone
+                  : styles.dangerTone
+            }`}
           >
             {overall.successRate}%
           </span>

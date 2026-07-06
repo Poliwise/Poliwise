@@ -28,6 +28,13 @@ CREATE TYPE analytics.audit_action AS ENUM (
     'DEPARTMENT_CREATE', 'DEPARTMENT_UPDATE', 'DEPARTMENT_DELETE'
 );
 
+CREATE TYPE analytics.violation_type AS ENUM ('TOXIC_QUERY', 'ABUSE', 'SPAM', 'POLICY_BREAK');
+CREATE TYPE analytics.violation_severity AS ENUM ('LOW', 'MEDIUM', 'HIGH');
+CREATE TYPE analytics.violation_status AS ENUM ('PENDING', 'REVIEWED', 'ACTIONED');
+CREATE TYPE analytics.violation_action AS ENUM ('DISMISSED', 'WARNED', 'DEACTIVATED', 'REVOKED');
+CREATE TYPE analytics.appeal_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+CREATE TYPE analytics.violation_source AS ENUM ('SYSTEM', 'ADMIN');
+
 CREATE TYPE analytics.resource_type AS ENUM (
     'USER', 'DOCUMENT', 'CONVERSATION', 'MESSAGE', 'FEEDBACK',
     'DEPARTMENT', 'CATEGORY', 'TAG', 'SETTINGS'
@@ -48,9 +55,9 @@ CREATE TYPE analytics.report_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED
 CREATE TABLE analytics.feedbacks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-    user_id UUID NOT NULL,
-    message_id UUID NOT NULL,
-    conversation_id UUID NOT NULL,
+    user_id UUID REFERENCES core.users(id) ON DELETE SET NULL,
+    message_id UUID REFERENCES conversation.messages(id) ON DELETE SET NULL,
+    conversation_id UUID REFERENCES conversation.conversations(id) ON DELETE SET NULL,
 
     type analytics.feedback_type NOT NULL,
     comment TEXT,
@@ -302,6 +309,45 @@ CREATE TABLE analytics.report_exports (
 );
 
 -- ============================================================
+-- TABLE: analytics.user_violations
+-- ============================================================
+CREATE TABLE analytics.user_violations (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+    violation_type      analytics.violation_type NOT NULL,
+    severity            analytics.violation_severity NOT NULL,
+    evidence            TEXT,
+    source              analytics.violation_source NOT NULL,
+    reported_by         UUID,
+    status              analytics.violation_status NOT NULL DEFAULT 'PENDING',
+    action_taken        analytics.violation_action,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at         TIMESTAMPTZ,
+    reviewed_by         UUID,
+    appeal_status       analytics.appeal_status,
+    appeal_text         TEXT,
+    appeal_reviewed_at  TIMESTAMPTZ,
+    appeal_reviewed_by  UUID,
+    deleted_at          TIMESTAMPTZ,
+    user_department_id  UUID,
+    user_role           VARCHAR(20)
+);
+
+-- ============================================================
+-- TABLE: analytics.user_warnings
+-- ============================================================
+CREATE TABLE analytics.user_warnings (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+    violation_id        UUID REFERENCES analytics.user_violations(id) ON DELETE SET NULL,
+    message             TEXT NOT NULL,
+    expires_at          TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    read_at             TIMESTAMPTZ,
+    user_department_id   UUID
+);
+
+-- ============================================================
 -- INDEXES: Analytics schema
 -- ============================================================
 CREATE INDEX idx_analytics_feedbacks_user_id ON analytics.feedbacks(user_id);
@@ -335,3 +381,11 @@ CREATE INDEX idx_analytics_document_popularity_total_citations ON analytics.docu
 
 CREATE INDEX idx_analytics_report_exports_requested_by ON analytics.report_exports(requested_by);
 CREATE INDEX idx_analytics_report_exports_status ON analytics.report_exports(status);
+
+CREATE INDEX idx_violations_user ON analytics.user_violations(user_id);
+CREATE INDEX idx_violations_status ON analytics.user_violations(status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_violations_user_deleted ON analytics.user_violations(user_id) WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_warnings_user ON analytics.user_warnings(user_id);
+CREATE INDEX idx_warnings_user_read ON analytics.user_warnings(user_id) WHERE read_at IS NULL;
+CREATE INDEX idx_warnings_expires ON analytics.user_warnings(expires_at) WHERE expires_at IS NOT NULL;

@@ -90,7 +90,7 @@
 }
 
 .destructive {
-  background: var(--destructive);
+  background: var(--danger);
   color: var(--destructive-foreground);
 }
 
@@ -106,6 +106,36 @@
 
 .outline:hover:not(:disabled) {
   background: var(--muted);
+}
+
+.success {
+  background: var(--success);
+  color: white;
+}
+
+.success:hover:not(:disabled) {
+  background: var(--success-foreground);
+}
+
+.dangerOutline {
+  background: var(--danger-soft);
+  color: var(--danger-foreground);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.dangerOutline:hover:not(:disabled) {
+  background: var(--danger);
+  color: white;
+}
+
+.primaryOutline {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid rgba(79, 70, 229, 0.35);
+}
+
+.primaryOutline:hover:not(:disabled) {
+  background: var(--primary-soft);
 }
 
 /* States */

@@ -53,8 +53,11 @@ class RerankerService:
 
                 return reranked_chunks[:limit]
 
+            except httpx.TimeoutException:
+                logger.warning("rerank_timeout", reranker_url=self.reranker_url)
+                return chunks[:limit]
             except Exception as e:
-                logger.warning("rerank_error", error=str(e))
+                logger.warning("rerank_error", error=str(e), reranker_url=self.reranker_url)
                 return chunks[:limit]
 
 

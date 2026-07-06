@@ -162,9 +162,14 @@ class ChunkRepository:
             rows = await conn.fetch(sql_query, *params)
 
             chunks = []
+            max_rank = max((row.get('rank', 0) for row in rows), default=1)
             for row in rows:
-                rank = row.get('rank', 0)
-                similarity = min(rank * 10, 1.0)
+                rank_score = row.get('rank', 0)
+                if max_rank > 0:
+                    normalized = rank_score / max_rank
+                else:
+                    normalized = 0.0
+                similarity = float(min(normalized, 1.0))
                 raw_metadata = row.get('metadata')
                 chunks.append(RetrievalChunk(
                     id=row['id'],

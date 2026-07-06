@@ -42,13 +42,13 @@ export function EditOldVersionModal({
     >
       <div className="flex flex-col gap-4">
         {/* Warning banner */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-warning-soft border border-warning rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm text-amber-900 font-medium">
+            <p className="text-sm text-warning-foreground font-medium">
               Bạn đang chỉnh sửa một phiên bản cũ
             </p>
-            <p className="text-sm text-amber-700 mt-1">
+            <p className="text-sm text-warning-foreground mt-1">
               Phiên bản bạn chọn là <strong>v{version.versionNumber}</strong>, nhưng phiên bản mới nhất hiện tại là{' '}
               <strong>v{currentVersion}</strong>. Sau khi lưu, hệ thống sẽ phát hiện xung đột
               và bạn cần giải quyết trước khi tạo phiên bản mới.
@@ -57,26 +57,26 @@ export function EditOldVersionModal({
         </div>
 
         {/* Version info */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Thông tin phiên bản</h3>
+        <div className="bg-muted border border-border rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-2">Thông tin phiên bản</h3>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-gray-500">Phiên bản:</span>
-              <span className="ml-2 font-medium text-gray-900">v{version.versionNumber}</span>
+              <span className="text-muted-foreground">Phiên bản:</span>
+              <span className="ml-2 font-medium text-foreground">v{version.versionNumber}</span>
             </div>
             <div>
-              <span className="text-gray-500">Changelog:</span>
-              <span className="ml-2 text-gray-900">{version.changelog || version.changesDescription || '-'}</span>
+              <span className="text-muted-foreground">Changelog:</span>
+              <span className="ml-2 text-foreground">{version.changelog || version.changesDescription || '-'}</span>
             </div>
             <div>
-              <span className="text-gray-500">Ngày tạo:</span>
-              <span className="ml-2 text-gray-900">
+              <span className="text-muted-foreground">Ngày tạo:</span>
+              <span className="ml-2 text-foreground">
                 {version.createdAt ? new Date(version.createdAt).toLocaleString('vi-VN') : '-'}
               </span>
             </div>
             <div>
-              <span className="text-gray-500">Người tạo:</span>
-              <span className="ml-2 text-gray-900">
+              <span className="text-muted-foreground">Người tạo:</span>
+              <span className="ml-2 text-foreground">
                 {version.uploadedByName || version.createdBy || version.uploadedBy || '-'}
               </span>
             </div>
@@ -84,9 +84,9 @@ export function EditOldVersionModal({
         </div>
 
         {/* Workflow explanation */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-blue-700 mb-2">Quy trình hoạt động</h3>
-          <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+        <div className="bg-info-soft border border-info rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-info-foreground mb-2">Quy trình hoạt động</h3>
+          <ol className="text-xs text-info-foreground space-y-1 list-decimal list-inside">
             <li>Bạn mở OnlyOffice với nội dung của <strong>v{version.versionNumber}</strong></li>
             <li>Chỉnh sửa và lưu trong OnlyOffice</li>
             <li>Hệ thống phát hiện xung đột vì có phiên bản mới hơn</li>
@@ -101,17 +101,17 @@ export function EditOldVersionModal({
             type="checkbox"
             checked={understood}
             onChange={e => setUnderstood(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="w-4 h-4 rounded border-input text-primary focus:ring-ring bg-background"
           />
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-foreground">
             Tôi hiểu rủi ro và muốn tiếp tục
           </span>
         </label>
 
         {/* Error note */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-gray-600">
+        <div className="bg-muted border border-border rounded-lg p-3 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
             Lưu ý: Nếu người khác đã chỉnh sửa cùng phiên bản này trước đó, phiên bản cũ có thể
             không còn chính xác. Trong trường hợp này, hãy cân nhắc "Kéo phiên bản mới nhất"
             thay vì chỉnh sửa phiên bản cũ.

@@ -18,6 +18,7 @@ import {
   FileText,
   Camera,
   Clock,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -72,7 +73,7 @@ interface PasswordForm {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, _hasHydrated } = useAuthStore();
   const { t } = useLanguage();
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,12 +97,13 @@ export default function ProfilePage() {
   const [showLoginHistory, setShowLoginHistory] = useState(false);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
     loadProfile();
-  }, [isAuthenticated]);
+  }, [_hasHydrated, isAuthenticated]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -262,6 +264,13 @@ export default function ProfilePage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
+        <button
+          onClick={() => router.push('/')}
+          className={styles.backButton}
+        >
+          <ArrowLeft size={16} />
+          {'Quay lại'}
+        </button>
         <h1 className={styles.pageTitle}>{t('profile.title')}</h1>
         <p className={styles.pageSubtitle}>{t('profile.subtitle')}</p>
       </div>
@@ -553,10 +562,10 @@ export default function ProfilePage() {
                 <Button
                   type="submit"
                   variant="primary"
+                  icon={<CheckCircle size={16} />}
                   loading={isSaving}
                   disabled={isSaving}
                 >
-                  <CheckCircle size={16} />
                   {t('profile.edit.save')}
                 </Button>
               </div>

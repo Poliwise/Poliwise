@@ -52,7 +52,7 @@ CREATE TABLE knowledge.documents (
     extracted_text TEXT,
     page_count INT,
     word_count INT,
-    language VARCHAR(10) DEFAULT 'vi',
+    language VARCHAR(10),
 
     domain VARCHAR(50),
     content_quality knowledge.content_quality,
@@ -119,10 +119,11 @@ CREATE TABLE knowledge.chunks (
     document_version INT NOT NULL,
 
     chunk_index INT NOT NULL,
-    chunk_type knowledge.chunk_type DEFAULT 'child',
+    chunk_type knowledge.chunk_type DEFAULT 'parent',
 
     content TEXT NOT NULL,
     content_length INT NOT NULL,
+    content_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED,
     token_count INT,
 
     page_number INT,
@@ -146,7 +147,6 @@ CREATE TABLE knowledge.chunks (
     section_level INT,
     section_path TEXT[],
     parent_chunk_id UUID REFERENCES knowledge.chunks(id) ON DELETE SET NULL,
-    bucket_name VARCHAR(100),
 
     -- Access control (pre-flattened for fast vector search)
     allowed_roles core.user_role[],
@@ -172,6 +172,7 @@ CREATE TABLE knowledge.chunks (
 CREATE TABLE knowledge.processing_jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     document_id UUID NOT NULL REFERENCES knowledge.documents(id) ON DELETE CASCADE,
+    document_version_id UUID REFERENCES knowledge.document_versions(id) ON DELETE SET NULL,
 
     job_type knowledge.processing_step NOT NULL,
     status knowledge.processing_status NOT NULL DEFAULT 'UPLOADED',
@@ -265,20 +266,15 @@ CREATE INDEX idx_knowledge_chunks_is_latest ON knowledge.chunks(is_latest) WHERE
 CREATE INDEX idx_knowledge_chunks_deleted_at ON knowledge.chunks(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_knowledge_chunks_chunk_type ON knowledge.chunks(chunk_type);
 CREATE INDEX idx_knowledge_chunks_section_level ON knowledge.chunks(section_level);
+CREATE INDEX idx_chunks_content_tsv ON knowledge.chunks USING GIN (content_tsv);
 
 CREATE INDEX idx_knowledge_processing_jobs_document_id ON knowledge.processing_jobs(document_id);
+CREATE INDEX idx_knowledge_processing_jobs_document_version_id ON knowledge.processing_jobs(document_version_id);
 CREATE INDEX idx_knowledge_processing_jobs_status ON knowledge.processing_jobs(status);
 CREATE INDEX idx_knowledge_processing_jobs_deleted_at ON knowledge.processing_jobs(deleted_at) WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_knowledge_embedding_cache_hash ON knowledge.embedding_cache(text_hash);
 CREATE INDEX idx_knowledge_embedding_cache_last_used ON knowledge.embedding_cache(last_used_at DESC);
-
-CREATE INDEX idx_document_audit_logs_document_id ON knowledge.document_audit_logs(document_id);
-CREATE INDEX idx_document_audit_logs_actor_id ON knowledge.document_audit_logs(actor_id);
-CREATE INDEX idx_document_audit_logs_action ON knowledge.document_audit_logs(action);
-CREATE INDEX idx_document_audit_logs_created_at ON knowledge.document_audit_logs(created_at DESC);
-
-COMMENT ON TABLE knowledge.document_audit_logs IS 'Audit trail for document operations including OnlyOffice editing and conflict resolution';
 
 -- ============================================================
 -- COMMENTS

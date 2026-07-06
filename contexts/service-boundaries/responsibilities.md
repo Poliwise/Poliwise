@@ -173,6 +173,10 @@ GET    /api/v1/documents/{id}
 POST   /api/v1/documents/upload
 DELETE /api/v1/documents/{id}
 
+# Duplicate Detection & Sync Confirm (v1.0+)
+GET    /api/v1/documents/check-duplicate?checksum={sha256}  # Pre-confirm duplicate check
+POST   /api/v1/documents/{id}/confirm                       # Sync confirm with ingestion polling
+
 # OnlyOffice Document Editing Integration
 POST   /api/v1/documents/{id}/lock           # Acquire edit lock
 DELETE /api/v1/documents/{id}/lock           # Release edit lock
@@ -269,6 +273,12 @@ POST   /api/v1/ingest              # Admin only
 GET    /api/v1/ingest/{job_id}/status
 POST   /api/v1/ingest/{doc_id}/reindex
 DELETE /api/v1/documents/{doc_id}
+
+# Duplicate Detection (v1.0+)
+GET    /api/v1/check-duplicate?checksum={sha256}  # Layer 1 duplicate check
+GET    /api/v1/jobs/{job_id}                       # Detailed job status with output metrics
+
+# Internal only
 POST   /api/v1/embed/query         # Internal only
 POST   /api/v1/embed/batch         # Internal only
 POST   /api/v1/rerank              # Internal only

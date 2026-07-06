@@ -54,6 +54,16 @@ Provides AI agents with the definitive Role-Based Access Control (RBAC) matrix f
 | 28 | **Edit Department** | ❌ | ❌ | ✅ |
 | 29 | **Deactivate/Activate Department** | ❌ | ❌ | ✅ |
 | 30 | **View Department Users** | ❌ | ❌ | ✅ |
+| 31 | **View Own Violation History** | ✅ | ✅ | ✅ |
+| 32 | **Submit Appeal for Own Violation** | ✅ | ✅ | ✅ |
+| 33 | **View Own Warnings** | ✅ | ✅ | ✅ |
+| 34 | **Acknowledge Own Warning** | ✅ | ✅ | ✅ |
+| 35 | **View All Users' Violations (Admin Queue)** | ❌ | ❌ | ✅ |
+| 36 | **Review / Dismiss Violations** | ❌ | ❌ | ✅ |
+| 37 | **Reset Strike Count** | ❌ | ❌ | ✅ |
+| 38 | **View Pending Appeals** | ❌ | ❌ | ✅ |
+| 39 | **Review Appeals** | ❌ | ❌ | ✅ |
+| 40 | **View Violation Statistics** | ❌ | ❌ | ✅ |
 
 ## Role Definitions
 

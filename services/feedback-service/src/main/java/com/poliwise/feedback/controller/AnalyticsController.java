@@ -105,14 +105,20 @@ public class AnalyticsController {
     }
 
     @PutMapping("/unanswered/{id}/resolve")
-    public ResponseEntity<ApiResponse<Void>> resolveUnanswered(@PathVariable UUID id, @RequestBody Map<String, String> request) {
-        dashboardService.resolveUnanswered(id, request.get("answer"));
+    public ResponseEntity<ApiResponse<Void>> resolveUnanswered(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> request) {
+        UUID resolvedBy = request.get("resolvedBy") != null ? UUID.fromString(request.get("resolvedBy")) : null;
+        dashboardService.resolveUnanswered(id, resolvedBy, request.get("answer"));
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PutMapping("/unanswered/{id}/reject")
-    public ResponseEntity<ApiResponse<Void>> rejectUnanswered(@PathVariable UUID id) {
-        dashboardService.rejectUnanswered(id);
+    public ResponseEntity<ApiResponse<Void>> rejectUnanswered(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> request) {
+        UUID resolvedBy = request.get("resolvedBy") != null ? UUID.fromString(request.get("resolvedBy")) : null;
+        dashboardService.rejectUnanswered(id, resolvedBy);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

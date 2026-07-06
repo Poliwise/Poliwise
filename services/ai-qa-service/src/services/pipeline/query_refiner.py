@@ -6,16 +6,15 @@ from typing import Any
 
 logger = structlog.get_logger(__name__)
 
-REFINEMENT_PROMPT = """You are an expert at improving questions for document retrieval.
-The domain is "Poliwise", a policy management platform, and the documents are from the "GitLab Handbook".
-All documents are in English.
+REFINEMENT_PROMPT = """You are an expert at improving search queries for a policy knowledge base.
+The system is Poliwise, a policy management platform. Documents may be in English, Vietnamese, or mixed.
 
 Given the original question and conversation history, do the following:
 1. TRANSLATE: If the question is NOT in English, translate it to English. Be accurate - do not change the meaning.
-2. De-contextualize: Rewrite the question so it is self-contained without conversation context.
-3. Expand: Add related keywords to improve search recall.
+2. De-contextualize: Rewrite the question so it is self-contained without conversation context. Use the conversation history to understand what the user is referring to (e.g. "tell me more" about a policy discussed earlier should become "details about [policy name]").
+3. Expand: Add related policy keywords to improve search recall.
 
-Conversation history (Layer 3 only):
+Conversation history:
 {layer3_history}
 
 Original question: {original_query}
@@ -53,7 +52,7 @@ class QueryRefiner:
     async def refine(
         self,
         original_query: str,
-        layer3_history: list[Any],  # Will type properly when integrated
+        layer3_history: list[Any],
     ) -> RefinedQuery:
         import time
         start_time = time.time()

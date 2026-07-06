@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown, AlertCircle, Clock, FileText, BookOpen } from 'lucide-react';
+import { User, Bot, Copy, Check, ThumbsUp, ThumbsDown, AlertCircle, Clock, FileText, BookOpen, Quote } from 'lucide-react';
 import { clsx } from 'clsx';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { Button } from '@/components/ui';
 import { Badge } from '@/components/ui';
 import { useUIStore } from '@/store/ui-store';
@@ -29,6 +32,20 @@ function formatLatency(ms?: number): string {
 /** Count total chunks across all source documents */
 function getTotalChunks(sources: SourceDocument[]): number {
   return sources.reduce((acc, s) => acc + (s.chunks?.length || 0), 0);
+}
+
+/** Get preview text from top source chunk */
+function getTopSourcePreview(sources: SourceDocument[]): { docName: string; preview: string } | null {
+  if (!sources || sources.length === 0) return null;
+  const topDoc = sources[0];
+  if (!topDoc.chunks || topDoc.chunks.length === 0) return null;
+  const topChunk = topDoc.chunks[0];
+  const content = topChunk.fullContent || topChunk.excerpt || '';
+  const preview = content.slice(0, 150).trim() + (content.length > 150 ? '...' : '');
+  return {
+    docName: topDoc.documentName,
+    preview,
+  };
 }
 
 function getModelName(id?: string): string {
@@ -107,11 +124,20 @@ export function ChatMessage({
               : 'bg-muted text-foreground rounded-tl-sm'
           )}
         >
-          <p className="whitespace-pre-wrap leading-relaxed">
-            {message.content}
-            {message.isStreaming && !message.streamingCompleted && (
-              <>
-                {message.content.length === 0 ? (
+          {isUser ? (
+            <p className="whitespace-pre-wrap leading-relaxed">
+              {message.content}
+            </p>
+          ) : (
+            <div className="chat-markdown leading-relaxed">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+              >
+                {message.content}
+              </ReactMarkdown>
+              {message.isStreaming && !message.streamingCompleted && (
+                message.content.length === 0 ? (
                   <span className="inline-flex gap-1 ml-1 align-middle">
                     <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '-0.3s' }}></span>
                     <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '-0.15s' }}></span>
@@ -119,10 +145,10 @@ export function ChatMessage({
                   </span>
                 ) : (
                   <span className="inline-block w-0.5 h-4 bg-foreground ml-0.5 animate-pulse align-middle"></span>
-                )}
-              </>
-            )}
-          </p>
+                )
+              )}
+            </div>
+          )}
         </div>
 
         {isFallback && (
@@ -134,21 +160,52 @@ export function ChatMessage({
           </div>
         )}
 
-        {/* Layer 1: Inline Sources Summary */}
-        {hasSources && (
-          <div className="flex items-center gap-2 mt-1 px-1">
-            <BookOpen size={14} className="text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              Được tổng hợp từ {totalChunks} chunks thuộc {totalDocs} tài liệu.
-            </span>
-            <button
-              onClick={() => openSourcesPanel(message.sources!)}
-              className="text-xs font-medium text-primary hover:underline hover:translate-x-0.5 transition-all duration-200 cursor-pointer"
-            >
-              Xem chi tiết nguồn
-            </button>
-          </div>
-        )}
+        {/* Layer 1: Inline Sources Summary with preview */}
+        {hasSources && (() => {
+          const topSource = getTopSourcePreview(message.sources!);
+          return (
+            <div className="mt-2 px-1">
+              {/* Source preview card */}
+              {topSource && (
+                <button
+                  onClick={() => openSourcesPanel(message.sources!)}
+                  className="w-full text-left group block"
+                >
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-all duration-200">
+                    <Quote size={14} className="text-primary/70 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText size={11} className="text-muted-foreground flex-shrink-0" />
+                        <span className="text-[11px] font-medium text-foreground truncate">
+                          {topSource.docName}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/80 leading-relaxed line-clamp-2">
+                        "{topSource.preview}"
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-primary/70 flex-shrink-0 group-hover:text-primary transition-colors">
+                      Xem thêm →
+                    </span>
+                  </div>
+                </button>
+              )}
+              {/* Source stats */}
+              <div className="flex items-center gap-2 mt-1.5 px-1">
+                <BookOpen size={12} className="text-muted-foreground/60 flex-shrink-0" />
+                <span className="text-[11px] text-muted-foreground/70">
+                  {totalChunks} chunks từ {totalDocs} tài liệu
+                </span>
+                <button
+                  onClick={() => openSourcesPanel(message.sources!)}
+                  className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                >
+                  Xem chi tiết nguồn
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {!isUser && (
           <div className="flex items-center gap-1 mt-1">

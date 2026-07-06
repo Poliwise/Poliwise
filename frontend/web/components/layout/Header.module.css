@@ -25,10 +25,33 @@
   border-radius: 0.5rem;
   color: var(--foreground);
   transition: background 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
 }
 
 .menuButton:hover {
   background: var(--muted);
+}
+
+.desktopOnly {
+  display: none;
+}
+
+.mobileOnly {
+  display: flex;
+}
+
+@media (min-width: 1024px) {
+  .desktopOnly {
+    display: flex;
+  }
+
+  .mobileOnly {
+    display: none;
+  }
 }
 
 .logo {
@@ -41,7 +64,7 @@
 .logoIcon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--primary), #818cf8);
+  background: linear-gradient(135deg, var(--primary), var(--sidebar-accent));
   border-radius: 0.75rem;
   display: flex;
   align-items: center;
@@ -80,7 +103,7 @@
 
 .navLink.active {
   color: var(--primary);
-  background: rgba(79, 70, 229, 0.1);
+  background: var(--primary-soft);
 }
 
 .right {
@@ -142,18 +165,18 @@
 }
 
 .roleAdmin {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger-foreground);
 }
 
 .roleManager {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: var(--info-soft);
+  color: var(--info-foreground);
 }
 
 .roleUser {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
+  background: var(--success-soft);
+  color: var(--success-foreground);
 }
 
 .chevron {
@@ -169,7 +192,7 @@
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   padding: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  box-shadow: var(--shadow-md);
   z-index: 100;
   animation: slideIn 0.15s ease-out;
 }
@@ -216,11 +239,7 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
-  .menuButton {
-    display: flex;
-  }
-
+@media (max-width: 1023px) {
   .nav {
     display: none;
   }

@@ -1,5 +1,31 @@
 // Document Types - Full Document Management System
 
+export interface ExistingDocumentInfo {
+  documentId: string;
+  originalFilename: string;
+  fileSizeBytes: number;
+  createdAt: string;
+  title: string | null;
+  categorySlug: string | null;
+  status: string;
+  fileChecksum: string | null;
+}
+
+export interface DuplicateCheckResponse {
+  isDuplicate: boolean;
+  action: 'BLOCK' | 'SUGGEST_VERSION' | null;
+  existingDocument: ExistingDocumentInfo | null;
+  similarity: number | null;
+  detectionMethod: string | null;
+}
+
+export interface ConfirmResultResponse {
+  status: 'READY' | 'DUPLICATE' | 'NEAR_DUPLICATE';
+  chunkCount: number | null;
+  nearDuplicateOf: ExistingDocumentInfo | null;
+  similarity: number | null;
+}
+
 export interface Document {
   id: string;
   title?: string;
@@ -364,6 +390,18 @@ export function formatDate(dateString: string): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  }).format(date);
+}
+
+export function formatDateWithSeconds(dateString: string): string {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   }).format(date);
 }
 

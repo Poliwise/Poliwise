@@ -1,0 +1,46 @@
+.summaryBox {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--spacing-3);
+  font-size: var(--text-sm);
+}
+
+.mutedText {
+  color: var(--muted-foreground);
+}
+
+.required,
+.errorText {
+  color: var(--danger-foreground);
+}
+
+.codeBlock {
+  display: block;
+  padding: var(--spacing-2);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.infoNotice,
+.warningNotice {
+  padding: var(--spacing-3);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.infoNotice {
+  background: var(--info-soft);
+  color: var(--info-foreground);
+}
+
+.warningNotice {
+  background: var(--warning-soft);
+  color: var(--warning-foreground);
+}

@@ -72,20 +72,22 @@ class VersionRepository:
             )
             await self.session.commit()
 
-    async def find_by_file_checksum(self, file_checksum: str) -> Optional[DocumentVersion]:
+    async def find_by_file_checksum(self, file_checksum: str, exclude_version_id: UUID = None) -> Optional[DocumentVersion]:
         """Find version by file checksum for exact duplicate detection.
-        Excludes versions from deleted documents.
+        Excludes versions from deleted documents and (optionally) a specific version id.
         """
-        result = await self.session.execute(
+        query = (
             select(DocumentVersion)
             .join(Document, DocumentVersion.document_id == Document.id)
             .where(
                 DocumentVersion.file_checksum == file_checksum,
                 Document.deleted_at == None
             )
-            .order_by(DocumentVersion.created_at.desc())
-            .limit(1)
         )
+        if exclude_version_id:
+            query = query.where(DocumentVersion.id != exclude_version_id)
+        query = query.order_by(DocumentVersion.created_at.desc()).limit(1)
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def find_by_content_hash(self, content_hash: str, exclude_version_id: UUID = None) -> list[DocumentVersion]:
@@ -106,20 +108,20 @@ class VersionRepository:
         return list(result.scalars().all())
 
     async def find_near_duplicates(
-        self, 
-        embedding: list[float], 
+        self,
+        embedding: list[float],
         threshold: float = 0.90,
         limit: int = 5
     ) -> list[tuple[DocumentVersion, float]]:
         """Find versions with high semantic similarity using vector distance.
-        The embedding should be a 'Semantic Fingerprint' (typically from the first 4000 chars).
+        The embedding should be a 'Semantic Fingerprint' (multi-sample weighted average).
         Excludes versions from deleted documents.
         """
         # pgvector uses <=> for cosine distance (1 - similarity)
         # So similarity = 1 - (embedding_vector <=> :embedding)
         # We want similarity > threshold  =>  distance < 1 - threshold
         distance_threshold = 1.0 - threshold
-        
+
         query = (
             select(
                 DocumentVersion,
@@ -133,6 +135,8 @@ class VersionRepository:
             .order_by("distance")
             .limit(limit)
         )
-        
+
         result = await self.session.execute(query)
-        return [(row[0], 1.0 - float(row[1])) for row in result.all()]
+        results = [(row[0], 1.0 - float(row[1])) for row in result.all()]
+
+        return results

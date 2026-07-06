@@ -29,6 +29,7 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [selectedModelId, setSelectedModelId] = useState('default');
@@ -40,7 +41,37 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
     api.ai.getModels().then(setModels).catch(() => {});
     const saved = typeof window !== 'undefined' ? localStorage.getItem('selected-model-id') : null;
     if (saved) setSelectedModelId(saved);
+    const historySaved = typeof window !== 'undefined' ? localStorage.getItem('chat-history-collapsed') : null;
+    if (historySaved === 'true') setHistoryCollapsed(true);
   }, []);
+
+  // Auto-collapse history panel on narrow viewports
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      const isNarrow = window.innerWidth < 1280;
+      const isTiny = window.innerWidth < 768;
+      if (isTiny) {
+        setHistoryCollapsed(true);
+        setIsSidebarOpen(false);
+      } else if (isNarrow) {
+        setHistoryCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleHistoryCollapse = () => {
+    setHistoryCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('chat-history-collapsed', String(next));
+      }
+      return next;
+    });
+  };
 
   const handleModelChange = (id: string) => {
     setSelectedModelId(id);
@@ -254,6 +285,8 @@ export function ChatContainer({ initialConversationId }: ChatContainerProps) {
         onNewChat={handleNewChat}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        collapsed={historyCollapsed}
+        onToggleCollapse={toggleHistoryCollapse}
       />
 
       {/* Main chat area - shrinks when sources panel is open */}

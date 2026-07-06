@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -12,6 +12,8 @@ import {
   LogOut,
   Menu,
   ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
   Shield,
 } from 'lucide-react';
 import { useAuthStore, useIsManager } from '@/store';
@@ -26,12 +28,33 @@ const ROLE_BADGE_CLASS: Record<UserRole, string> = {
   [UserRole.USER]: styles.roleUser,
 };
 
-export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
+interface HeaderProps {
+  onMenuClick: () => void;
+  onToggleCollapse?: () => void;
+  sidebarCollapsed?: boolean;
+}
+
+export default function Header({ onMenuClick, onToggleCollapse, sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const { t } = useLanguage();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const isManager = useIsManager();
+
+  // Track store hydration to prevent hydration mismatch
+  useEffect(() => {
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (state._hasHydrated) {
+        setIsHydrated(true);
+      }
+    });
+    // Check initial state
+    if (useAuthStore.getState()._hasHydrated) {
+      setIsHydrated(true);
+    }
+    return unsubscribe;
+  }, []);
 
   const ROLE_LABEL: Record<UserRole, string> = {
     [UserRole.ADMIN]: t('role.admin.short'),
@@ -51,7 +74,15 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <button className={styles.menuButton} onClick={onMenuClick} aria-label="Toggle menu">
+        <button
+          className={`${styles.menuButton} ${styles.desktopOnly}`}
+          onClick={onToggleCollapse}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+        </button>
+        <button className={`${styles.menuButton} ${styles.mobileOnly}`} onClick={onMenuClick} aria-label="Toggle menu">
           <Menu size={20} />
         </button>
 
@@ -80,7 +111,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           <span>{t('nav.documents')}</span>
         </Link>
 
-        {isManager && (
+        {isHydrated && isManager && (
           <Link
             href="/analytics"
             className={`${styles.navLink} ${pathname === '/analytics' ? styles.active : ''}`}
@@ -92,7 +123,9 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
       </nav>
 
       <div className={styles.right}>
-        {user ? (
+        {!isHydrated ? (
+          <div className={styles.userButton} style={{ width: 120, height: 36 }} />
+        ) : user ? (
           <div className={styles.userMenu}>
             <button
               className={styles.userButton}

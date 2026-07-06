@@ -10,6 +10,7 @@ services:
       POSTGRES_DB: poliwise
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -100,28 +101,6 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
 
-  flyway:
-    image: flyway/flyway:10.20.1-alpine
-    container_name: poliwise-flyway
-    restart: "no"
-    command:
-      - -url=jdbc:postgresql://postgres:5432/poliwise
-      - -user=poliwise
-      - -password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - -schemas=public,core,metadata,knowledge,conversation,analytics
-      - -defaultSchema=public
-      - -baselineOnMigrate=true
-      - -baselineVersion=1
-      - -connectRetries=60
-      - migrate
-    volumes:
-      - ./infrastructure/flyway/sql:/flyway/sql:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - poliwise
-
   # ============================================================
   # OnlyOffice Document Server
   # ============================================================
@@ -200,23 +179,24 @@ services:
       AUTH_REFRESH_TOKEN_TTL: P7D
       AUTH_MAX_FAILED_ATTEMPTS: 5
       AUTH_LOCK_DURATION: PT15M
-      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@poliwise.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@123}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: poliwise
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
-      EMAIL_USERNAME: ${EMAIL_USERNAME:-}
+      EMAIL_USERNAME: ${EMAIL_USER:-}
       EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD:-}
+      EMAIL_USER: ${EMAIL_USER:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Poliwise Support}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@poliwise.com}
-      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -254,8 +234,8 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       auth-service:
@@ -315,8 +295,8 @@ services:
       ONLYOFFICE_LOCK_DURATION_MINUTES: ${ONLYOFFICE_LOCK_DURATION_MINUTES:-30}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
@@ -358,8 +338,8 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       user-service:
@@ -403,8 +383,8 @@ services:
       MINIO_REPORT_BUCKET: ${MINIO_REPORT_BUCKET:-poliwise-reports}
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=85.0 -XX:InitialRAMPercentage=60.0 -Xms256m -Xmx384m"
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
@@ -459,8 +439,8 @@ services:
     volumes:
       - ./base_dataset:/app/base_dataset:ro
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:
@@ -491,7 +471,7 @@ services:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
     container_name: poliwise-bge-m3
     restart: unless-stopped
-    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 2048 --max-client-batch-size 8 --payload-limit 512000
+    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 16384 --max-client-batch-size 32 --payload-limit 512000
     volumes:
       - ./data/hf_cache:/data
     healthcheck:
@@ -504,9 +484,9 @@ services:
       resources:
         limits:
           cpus: "1.5"
-          memory: 3G
+          memory: 12G
         reservations:
-          memory: 1.5G
+          memory: 8G
     networks:
       - poliwise
 
@@ -541,14 +521,16 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
       LAYER1_MODEL: ${LAYER1_MODEL:-meta-llama/llama-prompt-guard-2-86m}
       LAYER2_MODEL: ${LAYER2_MODEL:-llama-3.1-8b-instant}
-      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.3}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.15}
+      USE_RERANKER: ${USE_RERANKER:-true}
+      QUERY_REFINER_HISTORY_LIMIT: ${QUERY_REFINER_HISTORY_LIMIT:-10}
       TITLE_GENERATION_ENABLED: ${TITLE_GENERATION_ENABLED:-true}
       TITLE_DEFAULT_PATTERNS: ${TITLE_DEFAULT_PATTERNS:-New Conversation,}
       CONTEXT_LAYER3_ONLY: ${CONTEXT_LAYER3_ONLY:-true}
       MAX_LAYER3_CONTEXT_PAIRS: ${MAX_LAYER3_CONTEXT_PAIRS:-5}
     depends_on:
-      flyway:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       bge-m3-embedding:

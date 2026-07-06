@@ -3,12 +3,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, MessageSquare, Sparkles, Shield, Zap } from 'lucide-react';
 import { Button, Input, Checkbox } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store';
 import { useLanguage } from '@/providers';
-import { AccountStatus } from '@/types';
 import styles from './login.module.css';
 
 interface LoginError {
@@ -83,82 +82,134 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <div className={styles.formContainer}>
-        <div className={styles.header}>
-          <div className={styles.logo}>
-            <MessageSquare size={32} />
+        <div className={styles.formWrapper}>
+          <div className={styles.header}>
+            <div className={styles.logoWrapper}>
+              <div className={styles.logoGlow} />
+              <div className={styles.logo}>
+                <MessageSquare size={28} />
+              </div>
+            </div>
+            <h1 className={styles.title}>{t('login.title')}</h1>
+            <p className={styles.subtitle}>{t('login.subtitle')}</p>
           </div>
-          <h1 className={styles.title}>{t('login.title')}</h1>
-          <p className={styles.subtitle}>{t('login.subtitle')}</p>
+
+          <form onSubmit={handleSubmit} className={styles.form}>
+            {error && (
+              <div className={styles.error} role="alert">
+                <div className={styles.errorIcon}>
+                  <Shield size={18} />
+                </div>
+                <span>{error.message}</span>
+              </div>
+            )}
+
+            <div className={styles.inputGroup}>
+              <Input
+                label={t('login.username')}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder={t('login.username.placeholder')}
+                required
+                autoComplete="username"
+                leftIcon={<span className={styles.inputIcon}>@</span>}
+                autoFocus
+              />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <Input
+                label={t('login.password')}
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t('login.password.placeholder')}
+                required
+                autoComplete="current-password"
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={styles.passwordToggle}
+                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
+            </div>
+
+            <div className={styles.rememberRow}>
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                label={t('login.rememberMe')}
+              />
+              <Link href="/forgot-password" className={styles.forgotLink}>
+                {t('login.forgotPassword')}
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isLoading}
+              disabled={isLoading || !username.trim() || !password}
+            >
+              {isLoading ? t('login.submitting') : t('login.submit')}
+            </Button>
+          </form>
+
+          <p className={styles.footer}>
+            {t('login.footer')}{' '}
+            <span className={styles.adminContact}>{t('login.footer.admin')}</span>{' '}
+            {t('login.footer.account')}
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.visualSide}>
+        <div className={styles.visualContent}>
+          <div className={styles.visualBadge}>
+            <Sparkles size={16} />
+            <span>AI-Powered</span>
+          </div>
+          <h2 className={styles.visualTitle}>Chào mừng đến với Poliwise</h2>
+          <p className={styles.visualText}>
+            Nền tảng quản lý tri thức thông minh với AI, giúp bạn tìm kiếm và quản lý tài liệu hiệu quả.
+          </p>
+
+          <div className={styles.features}>
+            <div className={styles.feature}>
+              <div className={styles.featureIcon}>
+                <Zap size={20} />
+              </div>
+              <div>
+                <h4>Tìm kiếm thông minh</h4>
+                <p>Trả lời câu hỏi bằng AI từ tài liệu của bạn</p>
+              </div>
+            </div>
+            <div className={styles.feature}>
+              <div className={styles.featureIcon}>
+                <Shield size={20} />
+              </div>
+              <div>
+                <h4>Bảo mật cao</h4>
+                <p>Quản lý quyền truy cập theo vai trò</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          {error && (
-            <div className={styles.error} role="alert">
-              {error.message}
-            </div>
-          )}
-
-          <Input
-            label={t('login.username')}
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder={t('login.username.placeholder')}
-            required
-            autoComplete="username"
-            leftIcon={<span className={styles.inputIcon}>@</span>}
-            autoFocus
-          />
-
-          <Input
-            label={t('login.password')}
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t('login.password.placeholder')}
-            required
-            autoComplete="current-password"
-            rightIcon={
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className={styles.passwordToggle}
-                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            }
-          />
-
-          <div className={styles.rememberRow}>
-            <Checkbox
-              id="remember"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              label={t('login.rememberMe')}
-            />
-            <Link href="/forgot-password" className={styles.forgotLink}>
-              {t('login.forgotPassword')}
-            </Link>
-          </div>
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={isLoading}
-            disabled={isLoading || !username.trim() || !password}
-          >
-            {isLoading ? t('login.submitting') : t('login.submit')}
-          </Button>
-        </form>
-
-        <p className={styles.footer}>
-          {t('login.footer')}{' '}
-          <span className={styles.adminContact}>{t('login.footer.admin')}</span>{' '}
-          {t('login.footer.account')}
-        </p>
+        <div className={styles.floatingOrbs}>
+          <div className={styles.orb1} />
+          <div className={styles.orb2} />
+          <div className={styles.orb3} />
+        </div>
       </div>
 
       <div className={styles.background}>

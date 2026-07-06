@@ -114,6 +114,8 @@ export interface Message {
   hasSources: boolean;
   isStreaming?: boolean;
   streamingCompleted?: boolean;
+  isToxic?: boolean;
+  isLayer2Response?: boolean;
   createdAt: string;
 }
 

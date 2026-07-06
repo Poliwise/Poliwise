@@ -27,12 +27,15 @@ import type {
   CreateAccessRuleRequest,
   AuditLog,
   AuditLogResponse,
+  DuplicateCheckResponse,
+  ConfirmResultResponse,
+  ExistingDocumentInfo,
 } from '@/types/document';
 
 const KNOWLEDGE_SERVICE_URL =
   typeof window === 'undefined'
     ? 'http://knowledge-service:8083'
-    : 'http://localhost:8083';
+    : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`;
 
 const METADATA_SERVICE_URL =
   typeof window === 'undefined'
@@ -346,6 +349,79 @@ export const documentService = {
    */
   async triggerProcess(documentId: string): Promise<void> {
     await api.documents.triggerProcess(documentId);
+  },
+
+  // ============ Duplicate Check ============
+
+  /**
+   * Check if a file (by SHA-256 checksum) is a duplicate before confirming.
+   * Called after upload, parallel to displaying the metadata form.
+   */
+  async checkDuplicate(fileChecksum: string): Promise<DuplicateCheckResponse> {
+    const token = localStorage.getItem('accessToken');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(
+      `${apiUrl}/api/v1/documents/check-duplicate?checksum=${encodeURIComponent(fileChecksum)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) throw new Error(`Check duplicate failed: ${res.status}`);
+    return res.json();
+  },
+
+  /**
+   * Confirm metadata and wait for sync ingestion result.
+   * Returns ConfirmResultResponse with status READY, DUPLICATE, or NEAR_DUPLICATE.
+   * Throws on HTTP 409 (duplicate).
+   */
+  async confirmMetadataSync(
+    documentId: string,
+    data: {
+      title: string;
+      description?: string;
+      categorySlug?: string;
+      tags?: string[];
+      language: string;
+      isPolicy: boolean;
+      fileChecksum?: string;
+    }
+  ): Promise<ConfirmResultResponse> {
+    const token = localStorage.getItem('accessToken');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiUrl}/api/v1/documents/${documentId}/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        title: data.title,
+        description: data.description || '',
+        categorySlug: data.categorySlug || '',
+        tags: data.tags || [],
+        language: data.language,
+        isPolicy: data.isPolicy,
+        fileChecksum: data.fileChecksum,
+      }),
+    });
+
+    if (res.status === 409) {
+      const error = await res.json();
+      const err = new Error(error.message || 'Duplicate document') as Error & {
+        status: number;
+        code: string;
+        existingDocument: ExistingDocumentInfo;
+      };
+      err.status = 409;
+      err.code = error.code;
+      err.existingDocument = error.existingDocument;
+      throw err;
+    }
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Confirm failed' }));
+      throw new Error(error.message || `Confirm failed: ${res.status}`);
+    }
+    return res.json();
   },
 };
 

@@ -7,19 +7,17 @@ import {
   Search,
   Loader2,
   User,
-  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Monitor,
+  Globe,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  X,
 } from 'lucide-react';
-import {
-  Button,
-  Input,
-  Select,
-  Badge,
-  Table,
-  Column,
-  Modal,
-  Pagination,
-  EmptyState,
-} from '@/components/ui';
+import { Input, Select, Badge, Modal, EmptyState } from '@/components/ui';
 import { useIsAdmin } from '@/store';
 import { Translator } from '@/lib/i18n';
 import { useLanguage } from '@/providers';
@@ -32,8 +30,15 @@ function formatDate(dateStr: string): string {
   const year = d.getFullYear();
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
   const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  return `${hours}:${minutes}:${seconds}`;
 }
 
 interface AuditLog {
@@ -52,54 +57,62 @@ interface AuditLog {
   status: 'SUCCESS' | 'FAILURE';
 }
 
+interface GroupedLogs {
+  action: string;
+  label: string;
+  variant: string;
+  count: number;
+  logs: AuditLog[];
+}
+
 function getActionConfig(t: Translator) {
   return {
-    LOGIN_SUCCESS: { label: t('admin.audit.action.login'), variant: 'success' as const },
-    LOGIN_FAILED: { label: t('admin.audit.action.loginFailed'), variant: 'destructive' as const },
-    LOGOUT: { label: t('admin.audit.action.logout'), variant: 'neutral' as const },
-    PASSWORD_CHANGE: { label: t('admin.audit.action.passwordChange'), variant: 'warning' as const },
-    USER_CREATE: { label: t('admin.audit.action.userCreate'), variant: 'info' as const },
-    USER_UPDATE: { label: t('admin.audit.action.userUpdate'), variant: 'info' as const },
-    USER_PROFILE_UPDATE: { label: t('admin.audit.action.profileUpdate'), variant: 'info' as const },
-    USER_DEACTIVATE: { label: t('admin.audit.action.userDeactivate'), variant: 'warning' as const },
-    USER_ACTIVATE: { label: t('admin.audit.action.userActivate'), variant: 'success' as const },
-    USER_REVOKE: { label: t('admin.audit.action.userRevoke'), variant: 'warning' as const },
-    USER_DELETE: { label: t('admin.audit.action.userDelete'), variant: 'destructive' as const },
-    ROLE_CHANGE: { label: t('admin.audit.action.roleChange'), variant: 'warning' as const },
-    STATUS_CHANGE: { label: t('admin.audit.action.statusChange'), variant: 'warning' as const },
-    DOCUMENT_UPLOAD: { label: t('admin.audit.action.docUpload'), variant: 'info' as const },
-    DOCUMENT_DELETE: { label: t('admin.audit.action.docDelete'), variant: 'destructive' as const },
-    DOCUMENT_UPDATE: { label: t('admin.audit.action.docUpdate'), variant: 'info' as const },
-    DOCUMENT_PUBLISH: { label: t('admin.audit.action.docPublish'), variant: 'info' as const },
-    DOCUMENT_ARCHIVE: { label: t('admin.audit.action.docArchive'), variant: 'neutral' as const },
-    DOCUMENT_VERSION_CREATE: { label: t('admin.audit.action.docVersionCreate'), variant: 'info' as const },
-    QUESTION_ASK: { label: t('admin.audit.action.questionAsk'), variant: 'info' as const },
-    CONVERSATION_CREATE: { label: t('admin.audit.action.conversationCreate'), variant: 'info' as const },
-    CONVERSATION_DELETE: { label: t('admin.audit.action.conversationDelete'), variant: 'destructive' as const },
-    FEEDBACK_SUBMIT: { label: t('admin.audit.action.feedbackSubmit'), variant: 'info' as const },
-    SETTINGS_UPDATE: { label: t('admin.audit.action.settingsChange'), variant: 'warning' as const },
-    USER_SETTINGS_UPDATE: { label: t('admin.audit.action.userSettingsUpdate'), variant: 'warning' as const },
-    CATEGORY_CREATE: { label: t('admin.audit.action.categoryCreate'), variant: 'info' as const },
-    CATEGORY_UPDATE: { label: t('admin.audit.action.categoryUpdate'), variant: 'info' as const },
-    CATEGORY_DELETE: { label: t('admin.audit.action.categoryDelete'), variant: 'destructive' as const },
-    TAG_CREATE: { label: t('admin.audit.action.tagCreate'), variant: 'info' as const },
-    TAG_UPDATE: { label: t('admin.audit.action.tagUpdate'), variant: 'info' as const },
-    TAG_DELETE: { label: t('admin.audit.action.tagDelete'), variant: 'destructive' as const },
-    DEPARTMENT_CREATE: { label: t('admin.audit.action.departmentCreate'), variant: 'info' as const },
-    DEPARTMENT_UPDATE: { label: t('admin.audit.action.departmentUpdate'), variant: 'info' as const },
-    DEPARTMENT_DELETE: { label: t('admin.audit.action.departmentDelete'), variant: 'destructive' as const },
-    BULK_IMPORT: { label: t('admin.audit.action.bulkImport'), variant: 'info' as const },
-    REPORT_EXPORT: { label: t('admin.audit.action.reportExport'), variant: 'info' as const },
-    ONLYOFFICE_LOCK_ACQUIRED: { label: 'Khóa chỉnh sửa', variant: 'info' as const },
-    ONLYOFFICE_LOCK_RELEASED: { label: 'Mở khóa chỉnh sửa', variant: 'neutral' as const },
-    ONLYOFFICE_LOCK_EXTENDED: { label: 'Gia hạn khóa chỉnh sửa', variant: 'neutral' as const },
-    ONLYOFFICE_LOCK_EXPIRED: { label: 'Khóa hết hạn', variant: 'warning' as const },
-    ONLYOFFICE_CONFLICT_DETECTED: { label: 'Phát hiện xung đột phiên bản', variant: 'warning' as const },
-    ONLYOFFICE_CONFLICT_RESOLVED: { label: 'Giải quyết xung đột', variant: 'info' as const },
-    ONLYOFFICE_SAVE_SUCCESS: { label: 'Lưu OnlyOffice thành công', variant: 'success' as const },
-    ONLYOFFICE_MANUAL_SAVE: { label: 'Lưu thủ công OnlyOffice', variant: 'info' as const },
-    ONLYOFFICE_FORCESAVE_TRIGGERED: { label: 'Tự động lưu OnlyOffice', variant: 'info' as const },
-    ONLYOFFICE_VERSION_DELETED: { label: 'Xóa phiên bản OnlyOffice', variant: 'destructive' as const },
+    LOGIN_SUCCESS: { label: t('admin.audit.action.login'), variant: 'success' },
+    LOGIN_FAILED: { label: t('admin.audit.action.loginFailed'), variant: 'destructive' },
+    LOGOUT: { label: t('admin.audit.action.logout'), variant: 'neutral' },
+    PASSWORD_CHANGE: { label: t('admin.audit.action.passwordChange'), variant: 'warning' },
+    USER_CREATE: { label: t('admin.audit.action.userCreate'), variant: 'info' },
+    USER_UPDATE: { label: t('admin.audit.action.userUpdate'), variant: 'info' },
+    USER_PROFILE_UPDATE: { label: t('admin.audit.action.profileUpdate'), variant: 'info' },
+    USER_DEACTIVATE: { label: t('admin.audit.action.userDeactivate'), variant: 'warning' },
+    USER_ACTIVATE: { label: t('admin.audit.action.userActivate'), variant: 'success' },
+    USER_REVOKE: { label: t('admin.audit.action.userRevoke'), variant: 'warning' },
+    USER_DELETE: { label: t('admin.audit.action.userDelete'), variant: 'destructive' },
+    ROLE_CHANGE: { label: t('admin.audit.action.roleChange'), variant: 'warning' },
+    STATUS_CHANGE: { label: t('admin.audit.action.statusChange'), variant: 'warning' },
+    DOCUMENT_UPLOAD: { label: t('admin.audit.action.docUpload'), variant: 'info' },
+    DOCUMENT_DELETE: { label: t('admin.audit.action.docDelete'), variant: 'destructive' },
+    DOCUMENT_UPDATE: { label: t('admin.audit.action.docUpdate'), variant: 'info' },
+    DOCUMENT_PUBLISH: { label: t('admin.audit.action.docPublish'), variant: 'info' },
+    DOCUMENT_ARCHIVE: { label: t('admin.audit.action.docArchive'), variant: 'neutral' },
+    DOCUMENT_VERSION_CREATE: { label: t('admin.audit.action.docVersionCreate'), variant: 'info' },
+    QUESTION_ASK: { label: t('admin.audit.action.questionAsk'), variant: 'info' },
+    CONVERSATION_CREATE: { label: t('admin.audit.action.conversationCreate'), variant: 'info' },
+    CONVERSATION_DELETE: { label: t('admin.audit.action.conversationDelete'), variant: 'destructive' },
+    FEEDBACK_SUBMIT: { label: t('admin.audit.action.feedbackSubmit'), variant: 'info' },
+    SETTINGS_UPDATE: { label: t('admin.audit.action.settingsChange'), variant: 'warning' },
+    USER_SETTINGS_UPDATE: { label: t('admin.audit.action.userSettingsUpdate'), variant: 'warning' },
+    CATEGORY_CREATE: { label: t('admin.audit.action.categoryCreate'), variant: 'info' },
+    CATEGORY_UPDATE: { label: t('admin.audit.action.categoryUpdate'), variant: 'info' },
+    CATEGORY_DELETE: { label: t('admin.audit.action.categoryDelete'), variant: 'destructive' },
+    TAG_CREATE: { label: t('admin.audit.action.tagCreate'), variant: 'info' },
+    TAG_UPDATE: { label: t('admin.audit.action.tagUpdate'), variant: 'info' },
+    TAG_DELETE: { label: t('admin.audit.action.tagDelete'), variant: 'destructive' },
+    DEPARTMENT_CREATE: { label: t('admin.audit.action.departmentCreate'), variant: 'info' },
+    DEPARTMENT_UPDATE: { label: t('admin.audit.action.departmentUpdate'), variant: 'info' },
+    DEPARTMENT_DELETE: { label: t('admin.audit.action.departmentDelete'), variant: 'destructive' },
+    BULK_IMPORT: { label: t('admin.audit.action.bulkImport'), variant: 'info' },
+    REPORT_EXPORT: { label: t('admin.audit.action.reportExport'), variant: 'info' },
+    ONLYOFFICE_LOCK_ACQUIRED: { label: 'Khóa chỉnh sửa', variant: 'info' },
+    ONLYOFFICE_LOCK_RELEASED: { label: 'Mở khóa chỉnh sửa', variant: 'neutral' },
+    ONLYOFFICE_LOCK_EXTENDED: { label: 'Gia hạn khóa chỉnh sửa', variant: 'neutral' },
+    ONLYOFFICE_LOCK_EXPIRED: { label: 'Khóa hết hạn', variant: 'warning' },
+    ONLYOFFICE_CONFLICT_DETECTED: { label: 'Phát hiện xung đột phiên bản', variant: 'warning' },
+    ONLYOFFICE_CONFLICT_RESOLVED: { label: 'Giải quyết xung đột', variant: 'info' },
+    ONLYOFFICE_SAVE_SUCCESS: { label: 'Lưu OnlyOffice thành công', variant: 'success' },
+    ONLYOFFICE_MANUAL_SAVE: { label: 'Lưu thủ công OnlyOffice', variant: 'info' },
+    ONLYOFFICE_FORCESAVE_TRIGGERED: { label: 'Tự động lưu OnlyOffice', variant: 'info' },
+    ONLYOFFICE_VERSION_DELETED: { label: 'Xóa phiên bản OnlyOffice', variant: 'destructive' },
   };
 }
 
@@ -144,7 +157,13 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [expandedActions, setExpandedActions] = useState<Set<string>>(new Set());
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [detailPage, setDetailPage] = useState(1);
+  const [detailTotalPages, setDetailTotalPages] = useState(1);
+
+  const ITEMS_PER_GROUP = 10;
 
   const loadLogs = useCallback(async (currentPage: number, currentSearch: string, currentActionFilter: string) => {
     setLoading(true);
@@ -153,12 +172,13 @@ export default function AuditLogsPage() {
       const { api } = await import('@/lib/api');
       const response = await api.audit.search({
         page: currentPage - 1,
-        limit: 20,
+        limit: 50,
         action: currentActionFilter || undefined,
         search: currentSearch || undefined,
       });
       const backendLogs = (response.data as unknown as BackendAuditLog[]) || [];
       setLogs(backendLogs.map(mapBackendToAuditLog));
+      setTotalItems(response.pagination?.total ?? backendLogs.length);
       setTotalPages(response.pagination?.totalPages ?? 1);
     } catch {
       setError(t('admin.audit.loadError'));
@@ -183,6 +203,46 @@ export default function AuditLogsPage() {
   const handleActionChange = (value: string) => {
     setActionFilter(value);
     setPage(1);
+  };
+
+  const groupedLogs: GroupedLogs[] = React.useMemo(() => {
+    const groups: Record<string, AuditLog[]> = {};
+    logs.forEach(log => {
+      if (!groups[log.action]) {
+        groups[log.action] = [];
+      }
+      groups[log.action].push(log);
+    });
+
+    return Object.entries(groups)
+      .map(([action, groupLogs]) => {
+        const cfg = ACTION_CONFIG[action as keyof typeof ACTION_CONFIG];
+        return {
+          action,
+          label: cfg?.label ?? action,
+          variant: cfg?.variant ?? 'neutral',
+          count: groupLogs.length,
+          logs: groupLogs,
+        };
+      })
+      .sort((a, b) => new Date(b.logs[0].timestamp).getTime() - new Date(a.logs[0].timestamp).getTime());
+  }, [logs, ACTION_CONFIG]);
+
+  const toggleAction = (action: string) => {
+    setExpandedActions(prev => {
+      const next = new Set(prev);
+      if (next.has(action)) {
+        next.delete(action);
+      } else {
+        next.add(action);
+      }
+      return next;
+    });
+  };
+
+  const getPaginatedLogs = (group: GroupedLogs, pageNum: number) => {
+    const start = (pageNum - 1) * ITEMS_PER_GROUP;
+    return group.logs.slice(start, start + ITEMS_PER_GROUP);
   };
 
   const actionOptions = [
@@ -231,177 +291,265 @@ export default function AuditLogsPage() {
     { value: 'ONLYOFFICE_VERSION_DELETED', label: 'Xóa phiên bản OnlyOffice' },
   ];
 
-  const columns: Column<AuditLog>[] = [
-    {
-      key: 'timestamp',
-      header: t('admin.audit.table.time'),
-      width: '10rem',
-      render: (log) => (
-        <span className={styles.timestamp}>
-          {formatDate(log.timestamp)}
-        </span>
-      ),
-    },
-    {
-      key: 'userName',
-      header: t('admin.audit.table.user'),
-      render: (log) => (
-        <div className={styles.userCell}>
-          <User size={14} />
-          <span>{log.userName}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'action',
-      header: t('admin.audit.table.action'),
-      render: (log) => {
-        const cfg = ACTION_CONFIG[log.action as keyof typeof ACTION_CONFIG];
-        return (
-          <Badge variant={cfg?.variant ?? 'neutral'}>
-            {cfg?.label ?? log.action}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: 'resourceName',
-      header: t('admin.audit.table.resource'),
-      render: (log) => (
-        <span className={styles.resourceText}>
-          {log.resourceName || log.resourceType || '-'}
-        </span>
-      ),
-    },
-    {
-      key: 'ipAddress',
-      header: t('admin.audit.table.ip'),
-      render: (log) => <code className={styles.ip}>{log.ipAddress}</code>,
-    },
-    {
-      key: 'status',
-      header: t('admin.audit.table.result'),
-      align: 'center',
-      render: (log) => (
-        <Badge variant={log.status === 'SUCCESS' ? 'success' : 'destructive'}>
-          {log.status === 'SUCCESS' ? t('admin.audit.result.success') : t('admin.audit.result.failure')}
-        </Badge>
-      ),
-    },
-    {
-      key: 'details',
-      header: '',
-      width: '4rem',
-      align: 'center',
-      render: (log) =>
-        log.details ? (
-          <Button variant="ghost" size="icon" onClick={() => setSelectedLog(log)}>
-            <AlertCircle size={14} />
-          </Button>
-        ) : null,
-    },
-  ];
-
   return (
     <div className={styles.pageWrapper}>
-      {/* Page Header */}
       <div className={styles.pageHeader}>
         <div className={styles.pageHeaderInner}>
-          <div>
-            <h1 className={styles.pageTitle}>{t('admin.audit.title')}</h1>
-            <p className={styles.pageSubtitle}>{t('admin.audit.subtitle')}</p>
+          <div className={styles.headerContent}>
+            <div className={styles.headerIcon}>
+              <ScrollText size={28} />
+            </div>
+            <div>
+              <h1 className={styles.pageTitle}>{t('admin.audit.title')}</h1>
+              <p className={styles.pageSubtitle}>{t('admin.audit.subtitle')}</p>
+            </div>
+          </div>
+          <div className={styles.headerStats}>
+            <div className={styles.statItem}>
+              <span className={styles.statValue}>{totalItems}</span>
+              <span className={styles.statLabel}>Tổng sự kiện</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statValue}>{groupedLogs.length}</span>
+              <span className={styles.statLabel}>Loại hành động</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
       <div className={styles.pageBody}>
         {error && <div className={styles.error}>{error}</div>}
 
-        <div className={styles.filters}>
+        <div className={styles.toolbar}>
           <Input
             placeholder={t('admin.audit.search.placeholder')}
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            leftIcon={<Search size={16} />}
-            inputSize="sm"
+            leftIcon={<Search size={18} />}
+            inputSize="md"
             className={styles.searchInput}
           />
           <Select
             value={actionFilter}
             onChange={(e) => handleActionChange(e.target.value)}
             options={actionOptions}
-            selectSize="sm"
+            selectSize="md"
             className={styles.actionSelect}
           />
         </div>
 
         {loading ? (
           <div className={styles.loading}>
-            <Loader2 size={24} className={styles.spinner} />
+            <Loader2 size={32} className={styles.spinner} />
+            <span>Đang tải dữ liệu...</span>
           </div>
-        ) : logs.length === 0 ? (
+        ) : groupedLogs.length === 0 ? (
           <EmptyState
-            icon={<ScrollText size={32} />}
+            icon={<ScrollText size={40} />}
             title={t('admin.audit.empty.title')}
             description={t('admin.audit.empty.description')}
           />
         ) : (
-          <>
-            <Table columns={columns} data={logs} keyExtractor={(l) => l.id} />
+          <div className={styles.groupsContainer}>
+            {groupedLogs.map((group) => (
+              <div key={group.action} className={styles.group}>
+                <button
+                  className={`${styles.groupHeader} ${expandedActions.has(group.action) ? styles.expanded : ''}`}
+                  onClick={() => toggleAction(group.action)}
+                >
+                  <div className={styles.groupHeaderLeft}>
+                    {expandedActions.has(group.action) ? (
+                      <ChevronDown size={20} className={styles.chevron} />
+                    ) : (
+                      <ChevronRight size={20} className={styles.chevron} />
+                    )}
+                    <Badge variant={group.variant as any}>{group.label}</Badge>
+                    <span className={styles.groupCount}>{group.count} sự kiện</span>
+                  </div>
+                  <span className={styles.groupLatest}>
+                    <Clock size={14} />
+                    {formatDate(group.logs[0].timestamp)}
+                  </span>
+                </button>
+
+                {expandedActions.has(group.action) && (
+                  <div className={styles.groupContent}>
+                    <div className={styles.logList}>
+                      {getPaginatedLogs(group, 1).map((log, idx) => (
+                        <div
+                          key={log.id}
+                          className={styles.logItem}
+                          onClick={() => {
+                            setSelectedLog(log);
+                            setDetailPage(1);
+                            setDetailTotalPages(Math.ceil(group.logs.length / ITEMS_PER_GROUP));
+                          }}
+                        >
+                          <div className={styles.logItemMain}>
+                            <div className={styles.logItemLeft}>
+                              <div className={styles.logTime}>
+                                <span className={styles.logDate}>{formatDate(log.timestamp)}</span>
+                                <span className={styles.logTimestamp}>{formatTime(log.timestamp)}</span>
+                              </div>
+                              <div className={styles.logUser}>
+                                <div className={styles.userAvatar}>
+                                  <User size={14} />
+                                </div>
+                                <span className={styles.userName}>{log.userName}</span>
+                              </div>
+                            </div>
+                            <div className={styles.logItemRight}>
+                              {log.resourceName && (
+                                <div className={styles.logResource}>
+                                  <FileText size={14} />
+                                  <span>{log.resourceName}</span>
+                                </div>
+                              )}
+                              <div className={styles.logMeta}>
+                                <span className={styles.logIp}>
+                                  <Globe size={12} />
+                                  {log.ipAddress}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className={styles.logItemArrow}>
+                            <ChevronRight size={16} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {Math.ceil(group.logs.length / ITEMS_PER_GROUP) > 1 && (
+                      <div className={styles.groupPagination}>
+                        <span className={styles.pageInfo}>
+                          Trang 1 / {Math.ceil(group.logs.length / ITEMS_PER_GROUP)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+
             {totalPages > 1 && (
-              <div className={styles.pagination}>
-                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+              <div className={styles.paginationWrapper}>
+                <button
+                  className={styles.pageBtn}
+                  disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}
+                >
+                  <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+                  Trước
+                </button>
+                <span className={styles.pageIndicator}>
+                  Trang {page} / {totalPages}
+                </span>
+                <button
+                  className={styles.pageBtn}
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Sau
+                  <ChevronRight size={16} />
+                </button>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Detail Modal */}
       <Modal
         open={!!selectedLog}
         onClose={() => setSelectedLog(null)}
-        title={t('admin.audit.detail.title')}
-        size="sm"
-        footer={<Button variant="secondary" onClick={() => setSelectedLog(null)}>{t('admin.audit.close')}</Button>}
+        title="Chi tiết sự kiện"
+        size="lg"
+        footer={
+          <button className={styles.closeBtn} onClick={() => setSelectedLog(null)}>
+            <X size={16} />
+            Đóng
+          </button>
+        }
       >
         {selectedLog && (
-          <div className={styles.detailGrid}>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>{t('admin.audit.detail.id')}</span>
-              <code className={styles.detailValue}>{selectedLog.id}</code>
-            </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>{t('admin.audit.detail.user')}</span>
-              <span className={styles.detailValue}>{selectedLog.userName}</span>
-            </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>{t('admin.audit.detail.action')}</span>
-              <span className={styles.detailValue}>{selectedLog.action}</span>
-            </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>{t('admin.audit.detail.resource')}</span>
-              <span className={styles.detailValue}>
-                {selectedLog.resourceType}{selectedLog.resourceId ? ` / ${selectedLog.resourceId}` : ''}
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <Badge variant={ACTION_CONFIG[selectedLog.action as keyof typeof ACTION_CONFIG]?.variant as any || 'neutral'}>
+                {ACTION_CONFIG[selectedLog.action as keyof typeof ACTION_CONFIG]?.label || selectedLog.action}
+              </Badge>
+              <span className={styles.modalTime}>
+                <Clock size={16} />
+                {formatDate(selectedLog.timestamp)} lúc {formatTime(selectedLog.timestamp)}
               </span>
             </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>{t('admin.audit.detail.ip')}</span>
-              <span className={styles.detailValue}>{selectedLog.ipAddress}</span>
+
+            <div className={styles.modalGrid}>
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>
+                  <User size={16} />
+                  Người thực hiện
+                </h4>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Tên</span>
+                  <span className={styles.infoValue}>{selectedLog.userName}</span>
+                </div>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>ID</span>
+                  <code className={styles.infoCode}>{selectedLog.userId}</code>
+                </div>
+              </div>
+
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>
+                  <FileText size={16} />
+                  Tài nguyên
+                </h4>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Loại</span>
+                  <span className={styles.infoValue}>{selectedLog.resourceType || '-'}</span>
+                </div>
+                {selectedLog.resourceId && (
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>ID</span>
+                    <code className={styles.infoCode}>{selectedLog.resourceId}</code>
+                  </div>
+                )}
+                {selectedLog.resourceName && (
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>Tên</span>
+                    <span className={styles.infoValue}>{selectedLog.resourceName}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.modalSection}>
+                <h4 className={styles.sectionTitle}>
+                  <Monitor size={16} />
+                  Thông tin hệ thống
+                </h4>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>Địa chỉ IP</span>
+                  <code className={styles.infoCode}>{selectedLog.ipAddress}</code>
+                </div>
+                {selectedLog.userAgent && (
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>User Agent</span>
+                    <span className={styles.infoValueSmall}>{selectedLog.userAgent}</span>
+                  </div>
+                )}
+              </div>
+
+              {selectedLog.details && (
+                <div className={styles.modalSection}>
+                  <h4 className={styles.sectionTitle}>
+                    <FileText size={16} />
+                    Chi tiết
+                  </h4>
+                  <div className={styles.detailsBox}>
+                    {selectedLog.details}
+                  </div>
+                </div>
+              )}
             </div>
-            {selectedLog.userAgent && (
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.userAgent')}</span>
-                <span className={styles.detailValue}>{selectedLog.userAgent}</span>
-              </div>
-            )}
-            {selectedLog.details && (
-              <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>{t('admin.audit.detail.details')}</span>
-                <span className={styles.detailValue}>{selectedLog.details}</span>
-              </div>
-            )}
           </div>
         )}
       </Modal>

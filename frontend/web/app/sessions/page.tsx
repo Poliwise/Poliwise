@@ -32,7 +32,7 @@ interface Session {
 
 export default function SessionsPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -40,12 +40,13 @@ export default function SessionsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
     loadSessions();
-  }, [isAuthenticated]);
+  }, [_hasHydrated, isAuthenticated]);
 
   const loadSessions = async () => {
     try {

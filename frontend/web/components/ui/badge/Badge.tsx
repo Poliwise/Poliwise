@@ -4,7 +4,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 import styles from './badge.module.css';
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'destructive' | 'info' | 'neutral';
+type BadgeVariant = 'default' | 'success' | 'warning' | 'destructive' | 'danger' | 'info' | 'neutral' | 'purple';
 
 export interface BadgeProps {
   variant?: BadgeVariant;

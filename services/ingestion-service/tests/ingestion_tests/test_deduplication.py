@@ -767,3 +767,217 @@ class TestPipelineEndToEnd:
                 p.stop()
 
         deps["doc_repo"].update_status.assert_called_with(DOCUMENT_ID, "DUPLICATE")
+
+
+# ---------------------------------------------------------------------------
+# ══════════════════════════════════════════════════════════════════
+# NEAR-DUPLICATE TESTS – 3-way threshold (0.85, 0.98)
+# ══════════════════════════════════════════════════════════════════
+# ---------------------------------------------------------------------------
+
+class TestNearDuplicateThreshold:
+    """Tests for the 3-way semantic duplicate threshold decision."""
+
+    @pytest.mark.asyncio
+    async def test_semantic_duplicate_at_098_is_block(self):
+        """Similarity >= 0.98 → is_duplicate=True, should_suggest_version=False."""
+        text = "Employees must follow all safety protocols."
+        vec = _fake_embedding()
+        existing = _make_version_mock()
+
+        emb_service = MagicMock()
+        emb_service.embed_batch = AsyncMock(return_value=[vec])
+
+        repo = MagicMock()
+        repo.find_near_duplicates = AsyncMock(return_value=[(existing, 0.99)])
+
+        cm, _ = _make_async_session_cm(repo)
+
+        with patch("src.services.deduplicator.embedding_service", emb_service), \
+             patch("src.services.deduplicator.async_session", return_value=cm), \
+             patch("src.services.deduplicator.VersionRepository", return_value=repo):
+            deduplicator = Deduplicator()
+            result = await deduplicator.check_semantic_duplicate(text)
+
+        assert result.is_duplicate is True
+        assert result.should_suggest_version is False
+        assert result.similarity == 0.99
+        assert result.method == "semantic"
+
+    @pytest.mark.asyncio
+    async def test_semantic_duplicate_at_092_suggests_version(self):
+        """0.85 <= similarity < 0.98 → is_duplicate=False, should_suggest_version=True."""
+        text = "This is a slightly paraphrased version of a policy document."
+        vec = _fake_embedding()
+        existing = _make_version_mock()
+
+        emb_service = MagicMock()
+        emb_service.embed_batch = AsyncMock(return_value=[vec])
+
+        repo = MagicMock()
+        repo.find_near_duplicates = AsyncMock(return_value=[(existing, 0.92)])
+
+        cm, _ = _make_async_session_cm(repo)
+
+        with patch("src.services.deduplicator.embedding_service", emb_service), \
+             patch("src.services.deduplicator.async_session", return_value=cm), \
+             patch("src.services.deduplicator.VersionRepository", return_value=repo):
+            deduplicator = Deduplicator()
+            result = await deduplicator.check_semantic_duplicate(text)
+
+        assert result.is_duplicate is False
+        assert result.should_suggest_version is True
+        assert result.similarity == 0.92
+        assert result.existing_version_id == existing.id
+
+    @pytest.mark.asyncio
+    async def test_semantic_duplicate_at_085_suggests_version(self):
+        """Similarity == 0.85 (lower boundary) → should_suggest_version=True."""
+        text = "Lower boundary test document."
+        vec = _fake_embedding()
+        existing = _make_version_mock()
+
+        emb_service = MagicMock()
+        emb_service.embed_batch = AsyncMock(return_value=[vec])
+
+        repo = MagicMock()
+        repo.find_near_duplicates = AsyncMock(return_value=[(existing, 0.85)])
+
+        cm, _ = _make_async_session_cm(repo)
+
+        with patch("src.services.deduplicator.embedding_service", emb_service), \
+             patch("src.services.deduplicator.async_session", return_value=cm), \
+             patch("src.services.deduplicator.VersionRepository", return_value=repo):
+            deduplicator = Deduplicator()
+            result = await deduplicator.check_semantic_duplicate(text)
+
+        assert result.is_duplicate is False
+        assert result.should_suggest_version is True
+        assert result.similarity == 0.85
+
+    @pytest.mark.asyncio
+    async def test_semantic_duplicate_below_085_is_unique(self):
+        """Similarity < 0.85 → is_duplicate=False, should_suggest_version=False."""
+        text = "Completely different document content."
+        vec = _fake_embedding()
+        existing = _make_version_mock()
+
+        emb_service = MagicMock()
+        emb_service.embed_batch = AsyncMock(return_value=[vec])
+
+        repo = MagicMock()
+        # No near-duplicates found (below version threshold)
+        repo.find_near_duplicates = AsyncMock(return_value=[])
+
+        cm, _ = _make_async_session_cm(repo)
+
+        with patch("src.services.deduplicator.embedding_service", emb_service), \
+             patch("src.services.deduplicator.async_session", return_value=cm), \
+             patch("src.services.deduplicator.VersionRepository", return_value=repo):
+            deduplicator = Deduplicator()
+            result = await deduplicator.check_semantic_duplicate(text)
+
+        assert result.is_duplicate is False
+        assert result.should_suggest_version is False
+        assert result.existing_version_id is None
+
+    @pytest.mark.asyncio
+    async def test_deduplication_result_has_should_suggest_version_field(self):
+        """DeduplicationResult NamedTuple includes should_suggest_version field."""
+        from src.services.deduplicator import DeduplicationResult
+
+        result = DeduplicationResult(
+            is_duplicate=False,
+            should_suggest_version=True,
+            existing_version_id=EXISTING_VERSION_ID,
+            method="semantic",
+            similarity=0.92,
+            vector=[0.1, 0.2, 0.3, 0.4]
+        )
+
+        assert result.is_duplicate is False
+        assert result.should_suggest_version is True
+        assert result.existing_version_id == EXISTING_VERSION_ID
+        assert result.similarity == 0.92
+
+
+class TestPipelineNearDuplicate:
+    """Tests for pipeline handling of near-duplicates."""
+
+    @pytest.mark.asyncio
+    async def test_near_duplicate_continues_ingestion(self):
+        """Near-duplicate (should_suggest_version=True) should continue ingestion."""
+        deps = _make_pipeline_deps()
+        # Override layer 3 to return near-duplicate
+        existing = _make_version_mock()
+        vec = _fake_embedding()
+
+        dup_l3 = DeduplicationResult(
+            is_duplicate=False,
+            should_suggest_version=True,
+            existing_version_id=existing.id,
+            method="semantic",
+            similarity=0.92,
+            vector=vec,
+        )
+        deps["mock_dedup"].check_semantic_duplicate = AsyncMock(return_value=dup_l3)
+
+        patches = _patch_pipeline(deps)
+        for p in patches:
+            p.start()
+        try:
+            result = await IngestionPipeline().process(
+                document_id=DOCUMENT_ID, version_id=NEW_VERSION_ID, job_id=JOB_ID,
+                bucket_name="docs", file_key="new_doc.pdf", metadata={},
+            )
+        finally:
+            for p in patches:
+                p.stop()
+
+        # Pipeline should complete successfully (not skip)
+        assert result["status"] == "completed"
+
+        # Near-duplicate info should be in output metrics
+        deps["mock_job_svc"].complete_job.assert_called_once()
+        call_args = deps["mock_job_svc"].complete_job.call_args
+        metrics = call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get("metrics", {})
+        assert "near_duplicate" in metrics
+        assert metrics["near_duplicate"] is not None
+        assert metrics["near_duplicate"]["similarity"] == 0.92
+
+    @pytest.mark.asyncio
+    async def test_near_duplicate_info_includes_existing_version_id(self):
+        """Near-duplicate metrics should include the existing version ID."""
+        deps = _make_pipeline_deps()
+        existing = _make_version_mock()
+        vec = _fake_embedding()
+
+        dup_l3 = DeduplicationResult(
+            is_duplicate=False,
+            should_suggest_version=True,
+            existing_version_id=existing.id,
+            method="semantic",
+            similarity=0.92,
+            vector=vec,
+        )
+        deps["mock_dedup"].check_semantic_duplicate = AsyncMock(return_value=dup_l3)
+
+        patches = _patch_pipeline(deps)
+        for p in patches:
+            p.start()
+        try:
+            await IngestionPipeline().process(
+                document_id=DOCUMENT_ID, version_id=NEW_VERSION_ID, job_id=JOB_ID,
+                bucket_name="docs", file_key="doc.pdf", metadata={},
+            )
+        finally:
+            for p in patches:
+                p.stop()
+
+        deps["mock_job_svc"].complete_job.assert_called_once()
+        call_args = deps["mock_job_svc"].complete_job.call_args
+        metrics = call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get("metrics", {})
+        near_dup = metrics["near_duplicate"]
+        assert near_dup["existing_version_id"] == str(existing.id)
+        assert near_dup["similarity"] == 0.92
+        assert near_dup["method"] == "semantic"

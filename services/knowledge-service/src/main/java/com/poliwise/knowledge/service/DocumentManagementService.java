@@ -6,14 +6,20 @@ import com.poliwise.knowledge.entity.Document;
 import com.poliwise.knowledge.entity.DocumentAuditLog;
 import com.poliwise.knowledge.entity.DocumentVersion;
 import com.poliwise.knowledge.client.MetadataServiceClient;
+import com.poliwise.knowledge.client.IngestionServiceClient;
 import com.poliwise.knowledge.enums.ChunkingStrategy;
 import com.poliwise.knowledge.enums.EmbeddingModel;
+import com.poliwise.knowledge.enums.FileType;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.event.DocumentEventPublisher;
+import com.poliwise.knowledge.exception.DuplicateDocumentException;
+import com.poliwise.knowledge.entity.ProcessingJob;
+import com.poliwise.knowledge.enums.ProcessingStep;
 import com.poliwise.knowledge.repository.DocumentAuditLogRepository;
 import com.poliwise.knowledge.repository.DocumentRepository;
 import com.poliwise.knowledge.repository.DocumentSpecifications;
 import com.poliwise.knowledge.repository.DocumentVersionRepository;
+import com.poliwise.knowledge.repository.ProcessingJobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -31,7 +37,6 @@ import com.poliwise.knowledge.exception.ResourceNotFoundException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -47,6 +52,9 @@ public class DocumentManagementService {
     private final DocumentEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final MetadataServiceClient metadataServiceClient;
+    private final DocumentParsingService parsingService;
+    private final IngestionServiceClient ingestionServiceClient;
+    private final ProcessingJobRepository jobRepository;
 
     public DocumentManagementService(
             DocumentRepository documentRepository,
@@ -55,7 +63,10 @@ public class DocumentManagementService {
             StorageService storageService,
             DocumentEventPublisher eventPublisher,
             ObjectMapper objectMapper,
-            MetadataServiceClient metadataServiceClient) {
+            MetadataServiceClient metadataServiceClient,
+            DocumentParsingService parsingService,
+            IngestionServiceClient ingestionServiceClient,
+            ProcessingJobRepository jobRepository) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
         this.auditLogRepository = auditLogRepository;
@@ -63,6 +74,9 @@ public class DocumentManagementService {
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.metadataServiceClient = metadataServiceClient;
+        this.parsingService = parsingService;
+        this.ingestionServiceClient = ingestionServiceClient;
+        this.jobRepository = jobRepository;
     }
 
     // ========== Document CRUD ==========
@@ -77,6 +91,10 @@ public class DocumentManagementService {
 
         // 3. Upload to MinIO
         String fileKey = storageService.uploadFile(file, documentId);
+
+        // DEBUG: Log upload for deduplication debugging
+        log.info("DEBUG_UPLOAD_REQUEST: documentId={}, fileName={}, fileSize={}, fileKey={}", 
+                documentId, file.getOriginalFilename(), file.getSize(), fileKey);
 
         // 4. Create document entity
         Document document = createDocumentEntity(documentId, fileKey, file, request, uploadedBy);
@@ -258,6 +276,48 @@ public class DocumentManagementService {
         log.info("Document soft deleted: id={}", documentId);
     }
 
+    /**
+     * Filter accessible documents for the current user.
+     * Calls metadata-service to check access rules.
+     */
+    public Set<UUID> filterAccessibleDocuments(List<UUID> documentIds) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        try {
+            return metadataServiceClient.filterAccessibleDocuments(documentIds);
+        } catch (Exception e) {
+            log.warn("Failed to filter accessible documents: {}. Returning empty for security.", e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    /**
+     * Check if the current user has access to a document.
+     * Throws AccessDeniedException if access is denied.
+     */
+    public void checkDocumentAccessOrThrow(UUID documentId) {
+        try {
+            Map<String, Object> result = metadataServiceClient.checkDocumentAccess(documentId);
+            if (result != null) {
+                Object hasAccess = result.get("hasAccess");
+                if (hasAccess instanceof Boolean && !((Boolean) hasAccess)) {
+                    Object reason = result.get("reason");
+                    String message = reason != null ? reason.toString() : "You do not have access to this document";
+                    throw new org.springframework.security.access.AccessDeniedException(message);
+                }
+            }
+        } catch (org.springframework.security.access.AccessDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Failed to check document access for {}: {}. Denying access for security.",
+                    documentId, e.getMessage());
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Access denied: unable to verify permissions");
+        }
+    }
+
     public StreamingResponseBody downloadDocument(UUID documentId) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
@@ -326,15 +386,83 @@ public class DocumentManagementService {
     }
 
     public String getExtractedText(UUID documentId, Integer versionNumber) {
-        if (versionNumber != null) {
-            DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
-                    .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
-            return storageService.readFileContent(version.getFileKey());
-        } else {
-            Document document = documentRepository.findById(documentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
-            return storageService.readFileContent(document.getFileKey());
+        try {
+            if (versionNumber != null) {
+                DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
+                        .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
+
+                // First, try to use stored extracted text
+                if (version.getExtractedText() != null && !version.getExtractedText().isBlank()) {
+                    return version.getExtractedText();
+                }
+
+                // Fallback: parse the file
+                return parseFileContent(version.getFileKey(), version.getFileKey());
+            } else {
+                Document document = documentRepository.findById(documentId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+                // First, try to use stored extracted text
+                if (document.getExtractedText() != null && !document.getExtractedText().isBlank()) {
+                    return document.getExtractedText();
+                }
+
+                // Fallback: parse the file
+                return parseFileContent(document.getFileKey(), document.getFileKey());
+            }
+        } catch (Exception e) {
+            log.error("Failed to get extracted text for document {}: {}", documentId, e.getMessage());
+            return "";
         }
+    }
+
+    /**
+     * Parse file content from storage using DocumentParsingService.
+     */
+    private String parseFileContent(String fileKey, String filename) {
+        try {
+            try (InputStream is = storageService.downloadFile(fileKey)) {
+                byte[] fileBytes = is.readAllBytes();
+                if (fileBytes == null || fileBytes.length == 0) {
+                    log.warn("Empty file for key: {}", fileKey);
+                    return "";
+                }
+
+                // Detect file type from filename
+                FileType fileType = detectFileTypeFromKey(filename);
+                DocumentParsingService.ParsingResult result = parsingService.parse(
+                        new java.io.ByteArrayInputStream(fileBytes),
+                        fileType,
+                        filename
+                );
+
+                String text = result.text();
+                if (text == null) {
+                    text = "";
+                }
+
+                log.info("Parsed content for key {} ({} bytes -> {} chars)", fileKey, fileBytes.length, text.length());
+                return text;
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse content for key {}: {}", fileKey, e.getMessage());
+            return "";
+        }
+    }
+
+    private FileType detectFileTypeFromKey(String fileKey) {
+        if (fileKey == null) return FileType.UNKNOWN;
+        String lower = fileKey.toLowerCase();
+        if (lower.endsWith(".pdf")) return FileType.PDF;
+        if (lower.endsWith(".docx")) return FileType.DOCX;
+        if (lower.endsWith(".doc")) return FileType.DOC;
+        if (lower.endsWith(".xlsx")) return FileType.XLSX;
+        if (lower.endsWith(".xls")) return FileType.XLS;
+        if (lower.endsWith(".txt")) return FileType.TXT;
+        if (lower.endsWith(".png")) return FileType.PNG;
+        if (lower.endsWith(".jpg")) return FileType.JPG;
+        if (lower.endsWith(".jpeg")) return FileType.JPEG;
+        return FileType.UNKNOWN;
     }
 
     // ========== Stats ==========
@@ -543,11 +671,13 @@ public class DocumentManagementService {
             throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
         }
 
-        // 4. Update document language, status, and clear expiresAt
+        // 4. Update document language and clear expiresAt
+        // NOTE: Do NOT set status to READY here! Status should only be set AFTER
+        // ingestion completes successfully. Setting READY before ingestion causes
+        // duplicate documents to appear as READY in the database.
         if (request.language() != null) {
             document.setLanguage(request.language());
         }
-        document.setStatus(ProcessingStatus.READY);
         document.setExpiresAt(null);
         document.setUpdatedAt(OffsetDateTime.now());
         Document saved = documentRepository.save(document);
@@ -609,5 +739,344 @@ public class DocumentManagementService {
         eventPublisher.publishIngestionRequested(payload);
         
         log.info("Ingestion triggered: documentId={}, versionId={}, jobId={}", documentId, latestVersionId, jobId);
+    }
+
+    // ========== Duplicate Check ==========
+
+    /**
+     * Pre-confirm duplicate check. Called by GET /check-duplicate.
+     * Checks Layer 1 (file checksum) via ingestion-service.
+     * Returns duplicate info if found, otherwise indicates no duplicate.
+     */
+    public DuplicateCheckResponse checkDuplicate(String fileChecksum) {
+        if (fileChecksum == null || fileChecksum.isBlank()) {
+            return DuplicateCheckResponse.notDuplicate();
+        }
+
+        // Layer 1: exact file checksum via ingestion-service
+        try {
+            DuplicateCheckResponse result = ingestionServiceClient.checkDuplicateByChecksum(fileChecksum);
+            if (result.isDuplicate()) {
+                log.info("Duplicate detected via checksum: {}", fileChecksum);
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to check duplicate via ingestion-service: {}", e.getMessage());
+        }
+
+        // Fallback: check local knowledge schema
+        Optional<DocumentVersion> versionByChecksum = versionRepository.findFirstByFileChecksum(fileChecksum);
+        if (versionByChecksum.isPresent()) {
+            DocumentVersion v = versionByChecksum.get();
+            Document doc = documentRepository.findById(v.getDocumentId()).orElse(null);
+            if (doc != null && doc.getDeletedAt() == null) {
+                DocumentDuplicateInfo docInfo = toDuplicateInfo(doc, v);
+                return DuplicateCheckResponse.duplicate(
+                        DuplicateCheckResponse.BlockAction.BLOCK,
+                        docInfo,
+                        "file_checksum"
+                );
+            }
+        }
+
+        return DuplicateCheckResponse.notDuplicate();
+    }
+
+    private DocumentDuplicateInfo toDuplicateInfo(Document doc, DocumentVersion version) {
+        String title = null;
+        String categorySlug = null;
+        try {
+            title = metadataServiceClient.getDocumentTitle(doc.getId());
+            categorySlug = metadataServiceClient.getDocumentCategorySlug(doc.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get document metadata for {}: {}", doc.getId(), e.getMessage());
+        }
+        return new DocumentDuplicateInfo(
+                doc.getId(),
+                doc.getOriginalFilename(),
+                doc.getFileSizeBytes(),
+                doc.getCreatedAt(),
+                title,
+                categorySlug,
+                doc.getStatus() != null ? doc.getStatus().toString() : null,
+                version.getFileChecksum()
+        );
+    }
+
+    // ========== Sync Confirm Flow ==========
+
+    /**
+     * Synchronous confirm with ingestion polling.
+     * Saves metadata, triggers ingestion sync, polls for result.
+     * Returns ConfirmResultResponse with final status.
+     * Throws DuplicateDocumentException if duplicate detected during ingestion.
+     */
+    public ConfirmResultResponse confirmMetadataSync(UUID documentId, DocumentConfirmRequest request, UUID confirmedBy) {
+        // NOTE: This method is intentionally NOT @Transactional. The synchronous
+        // ingestion polling below holds a connection for up to 60s, which would
+        // exhaust the Hikari pool. Instead, each repository.save() call below
+        // runs in its own short-lived transaction (Spring Data default).
+
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        if (document.getStatus() != ProcessingStatus.STAGING && document.getStatus() != ProcessingStatus.READY) {
+            throw new IllegalStateException("Document is not in staging or ready status: " + document.getStatus());
+        }
+
+        // 1. Resolve category slug → UUID
+        UUID categoryId = metadataServiceClient.resolveCategorySlug(request.categorySlug());
+        if (request.categorySlug() != null && !request.categorySlug().isBlank() && categoryId == null) {
+            log.warn("Category resolution failed for slug: {}", request.categorySlug());
+        }
+
+        // 2. Resolve tag names → UUIDs
+        List<UUID> tagIds = metadataServiceClient.resolveTagNames(request.tags());
+
+        // 3. Create document_metadata record
+        try {
+            metadataServiceClient.createDocumentMetadata(
+                    documentId,
+                    request.title(),
+                    request.description(),
+                    categoryId,
+                    tagIds,
+                    request.isPolicy()
+            );
+        } catch (RuntimeException e) {
+            log.error("Failed to persist metadata to metadata-service: {}", e.getMessage());
+            throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
+        }
+
+        // 4. Update document language and save file checksum
+        // NOTE: Do NOT set status to READY here! Status should only be set AFTER
+        // ingestion completes successfully. Setting READY before ingestion causes
+        // duplicate documents to appear as READY in the database.
+        if (request.language() != null) {
+            document.setLanguage(request.language());
+        }
+        if (request.fileChecksum() != null && !request.fileChecksum().isBlank()) {
+            saveFileChecksum(documentId, request.fileChecksum());
+        }
+        // Keep current status (STAGING or PARSING) - don't set READY yet
+        document.setExpiresAt(null);
+        document.setUpdatedAt(OffsetDateTime.now());
+        documentRepository.save(document);
+        log.info("DEBUG_FIX_BEFORE_INGESTION: documentId={}, status={}", documentId, document.getStatus());
+
+        log.info("Document metadata confirmed (sync): documentId={}, title='{}', categorySlug='{}'",
+                documentId, request.title(), request.categorySlug());
+
+        // 5. Trigger sync ingestion and poll for result (outside any DB transaction)
+        return triggerAndPollIngestion(documentId, confirmedBy);
+    }
+
+    private void saveFileChecksum(UUID documentId, String checksum) {
+        try {
+            List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+            if (!versions.isEmpty()) {
+                DocumentVersion latestVersion = versions.get(0);
+                latestVersion.setFileChecksum(checksum);
+                versionRepository.save(latestVersion);
+                log.info("Saved file checksum for document {} version {}: {}",
+                        documentId, latestVersion.getVersionNumber(), checksum);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to save file checksum for document {}: {}", documentId, e.getMessage());
+        }
+    }
+
+    private ConfirmResultResponse triggerAndPollIngestion(UUID documentId, UUID triggeredBy) {
+        Document document;
+        DocumentVersion latestVersion;
+        try {
+            document = documentRepository.findById(documentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+            List<DocumentVersion> versions = versionRepository.findByDocumentIdOrderByVersionNumberDesc(documentId);
+            if (versions.isEmpty()) {
+                throw new IllegalStateException("No versions found for document: " + documentId);
+            }
+            latestVersion = versions.get(0);
+        } catch (Exception e) {
+            log.warn("Could not get document for sync ingestion, returning READY: {}", e.getMessage());
+            return ConfirmResultResponse.ready(0);
+        }
+
+        // Build ingestion payload
+        Map<String, Object> payload = new HashMap<>();
+        UUID jobId = UUID.randomUUID();
+        payload.put("job_id", jobId.toString());
+        payload.put("document_id", documentId.toString());
+        payload.put("document_version_id", latestVersion.getId().toString());
+        payload.put("document_version", latestVersion.getVersionNumber());
+        payload.put("file_key", document.getFileKey());
+        payload.put("bucket_name", document.getBucketName());
+
+        Map<String, Object> metadata = new HashMap<>(metadataServiceClient.getIngestionAccessMetadata(documentId, triggeredBy));
+        metadata.put("language", document.getLanguage());
+        metadata.put("uploaded_by", triggeredBy.toString());
+        payload.put("metadata", metadata);
+
+        // Update document status to PARSING
+        document.setStatus(ProcessingStatus.PARSING);
+        document.setUpdatedAt(OffsetDateTime.now());
+        documentRepository.save(document);
+
+        // Persist the ProcessingJob row so ingestion-service can update its progress.
+        // Without this row, ingestion-service's UPDATE statements would not match any
+        // record, and the sync confirm poll would time out with status UNKNOWN.
+        OffsetDateTime now = OffsetDateTime.now();
+        ProcessingJob job = ProcessingJob.builder()
+                .id(jobId)
+                .documentId(documentId)
+                .documentVersionId(latestVersion.getId())
+                .jobType(ProcessingStep.PARSE)
+                .status(ProcessingStatus.UPLOADED)
+                .progressPercent(0)
+                .startedAt(now)
+                .retryCount(0)
+                .maxRetries(3)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        jobRepository.save(job);
+
+        // Publish to RabbitMQ for async processing
+        eventPublisher.publishIngestionRequested(payload);
+        log.info("Ingestion triggered for sync poll: documentId={}, jobId={}", documentId, jobId);
+
+        // Poll for result
+        return pollIngestionResult(jobId, documentId);
+    }
+
+    private ConfirmResultResponse pollIngestionResult(UUID jobId, UUID documentId) {
+        int pollIntervalMs = 2000;
+        int maxWaitMs = 60000;
+        int waited = 0;
+
+        while (waited < maxWaitMs) {
+            try {
+                Thread.sleep(pollIntervalMs);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            waited += pollIntervalMs;
+
+            IngestionServiceClient.SyncJobStatus status = ingestionServiceClient.getJobStatus(jobId);
+            log.debug("Polling ingestion job {}: status={}, waited={}ms", jobId, status.status(), waited);
+
+            if (status.isCompleted()) {
+                if (status.isSkipped()) {
+                    // Duplicate detected during ingestion
+                    String method = status.getMethod();
+                    Double similarity = status.getSimilarity();
+
+                    // Try to get existing document info
+                    DocumentDuplicateInfo existingDoc = null;
+                    try {
+                        existingDoc = getDuplicateInfoFromJobMetrics(status);
+                    } catch (Exception e) {
+                        log.warn("Could not get existing doc info for duplicate: {}", e.getMessage());
+                    }
+
+                    if (similarity != null && similarity >= 0.85 && similarity < 0.98) {
+                        // Near-duplicate: suggest version
+                        log.info("Near-duplicate detected during ingestion: similarity={}", similarity);
+                        return ConfirmResultResponse.nearDuplicate(existingDoc, similarity);
+                    }
+
+                    // Exact duplicate: throw exception
+                    log.info("Exact duplicate detected during ingestion: method={}", method);
+
+                    // Update document status to DUPLICATE before throwing
+                    Document doc = documentRepository.findById(documentId).orElse(null);
+                    if (doc != null) {
+                        doc.setStatus(ProcessingStatus.DUPLICATE);
+                        documentRepository.save(doc);
+                        log.info("Document status updated to DUPLICATE: documentId={}", documentId);
+                    }
+
+                    throw new DuplicateDocumentException(
+                            "Document is a duplicate of an existing document (method: " + method + ")",
+                            existingDoc,
+                            method
+                    );
+                }
+
+                // Check if near-duplicate was detected (stored in output_metrics)
+                if (status.isNearDuplicate()) {
+                    Double similarity = status.getSimilarity();
+                    // Use a default similarity if not found, but ensure it's not null for the factory method
+                    double simValue = similarity != null ? similarity : 0.85;
+                    DocumentDuplicateInfo existingDoc = null;
+                    try {
+                        existingDoc = getDuplicateInfoFromJobMetrics(status);
+                    } catch (Exception e) {
+                        log.warn("Could not get existing doc info for near-duplicate: {}", e.getMessage());
+                    }
+                    log.info("Near-duplicate detected (via output_metrics): similarity={}", similarity);
+                    return ConfirmResultResponse.nearDuplicate(existingDoc, simValue);
+                }
+
+                // Normal completion - set status to READY
+                Integer chunkCount = status.getChunkCount();
+                log.info("Ingestion completed: jobId={}, chunkCount={}", jobId, chunkCount);
+                
+                // Set document status to READY after successful ingestion
+                try {
+                    Document doc = documentRepository.findById(documentId).orElse(null);
+                    if (doc != null) {
+                        doc.setStatus(ProcessingStatus.READY);
+                        doc.setUpdatedAt(OffsetDateTime.now());
+                        documentRepository.save(doc);
+                        log.info("Document status set to READY after successful ingestion: documentId={}", documentId);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to set document status to READY: {}", e.getMessage());
+                }
+                
+                return ConfirmResultResponse.ready(chunkCount != null ? chunkCount : 0);
+            }
+
+            if (status.isFailed()) {
+                String errorMsg = status.errorMessage() != null ? status.errorMessage() : "Unknown error";
+                log.error("Ingestion failed: jobId={}, error={}", jobId, errorMsg);
+                throw new RuntimeException("Ingestion pipeline failed: " + errorMsg);
+            }
+        }
+
+        log.warn("Ingestion polling timed out after {}ms: jobId={}", maxWaitMs, jobId);
+        throw new RuntimeException("Ingestion pipeline timed out after " + maxWaitMs + "ms");
+    }
+
+    @SuppressWarnings("unchecked")
+    private DocumentDuplicateInfo getDuplicateInfoFromJobMetrics(IngestionServiceClient.SyncJobStatus status) {
+        if (status.outputMetrics() == null) return null;
+
+        Map<String, Object> metrics = status.outputMetrics();
+
+        // Try to get near_duplicate info with existing version ID
+        Object nearDup = metrics.get("near_duplicate");
+        if (nearDup instanceof Map) {
+            Map<String, Object> nearDupMap = (Map<String, Object>) nearDup;
+            String existingVersionId = (String) nearDupMap.get("existing_version_id");
+            if (existingVersionId != null) {
+                try {
+                    UUID versionUuid = UUID.fromString(existingVersionId);
+                    Optional<DocumentVersion> version = versionRepository.findById(versionUuid);
+                    if (version.isPresent()) {
+                        Document doc = documentRepository.findById(version.get().getDocumentId()).orElse(null);
+                        if (doc != null) {
+                            return toDuplicateInfo(doc, version.get());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not resolve existing document from near_duplicate info: {}", e.getMessage());
+                }
+            }
+        }
+
+        return null;
     }
 }

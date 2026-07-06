@@ -19,11 +19,10 @@ CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
     USING hnsw (embedding_vector vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);
 
--- BM25 Full-text search via TSVECTOR generated column
--- Uses 'simple' dictionary (lowercase + split) for Vietnamese content compatibility
-ALTER TABLE knowledge.chunks
-    ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
-    GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
+-- NOTE: content_tsv columns already exist as GENERATED columns in:
+--   - knowledge.chunks (003_knowledge.sql line 126)
+--   - conversation.messages (004_conversation.sql line 45)
+-- Indexes below are just recreating GIN indexes (dropped and recreated for clarity)
 
 CREATE INDEX IF NOT EXISTS idx_chunks_content_tsv
     ON knowledge.chunks USING GIN (content_tsv);
@@ -76,9 +75,8 @@ CREATE INDEX IF NOT EXISTS idx_document_metadata_document
 -- CONVERSATION SCHEMA: Full-text search on messages
 -- ============================================================
 
-ALTER TABLE conversation.messages
-    ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
-    GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
+-- NOTE: content_tsv column already exists as GENERATED column in conversation.messages (004_conversation.sql line 45)
+-- Index below is just recreating GIN index
 
 CREATE INDEX IF NOT EXISTS idx_messages_content_tsv
     ON conversation.messages USING GIN (content_tsv);

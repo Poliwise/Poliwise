@@ -13,6 +13,7 @@ import type { SourceDocument, ChunkRef } from '@/types';
 export function SourcesPanel() {
   const { isSourcesPanelOpen, activeMessageSources, closeSourcesPanel, openDocumentViewer } = useUIStore();
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
+  const [expandedChunks, setExpandedChunks] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   if (!isSourcesPanelOpen) return null;
@@ -29,8 +30,21 @@ export function SourcesPanel() {
     });
   };
 
+  const toggleChunk = (chunkId: string) => {
+    setExpandedChunks((prev) => {
+      const next = new Set(prev);
+      if (next.has(chunkId)) {
+        next.delete(chunkId);
+      } else {
+        next.add(chunkId);
+      }
+      return next;
+    });
+  };
+
   const handleCopyChunk = async (chunk: ChunkRef) => {
-    const text = `${chunk.sectionTitle ? chunk.sectionTitle + '\n' : ''}${chunk.excerpt}`;
+    const content = chunk.fullContent || chunk.excerpt;
+    const text = `${chunk.sectionTitle ? chunk.sectionTitle + '\n' : ''}${content}`;
     await navigator.clipboard.writeText(text);
     setCopiedId(chunk.chunkId);
     setTimeout(() => setCopiedId(null), 2000);
@@ -112,37 +126,76 @@ export function SourcesPanel() {
               {isExpanded && (
                 <div className="px-3 pb-3 space-y-2">
                   {/* Chunk list */}
-                  {source.chunks?.map((chunk) => (
-                    <div
-                      key={chunk.chunkId}
-                      className="bg-muted/40 rounded-lg p-2.5 border border-border/40 group"
-                    >
-                      {chunk.sectionTitle && (
-                        <p className="text-xs font-semibold text-primary/80 mb-1">
-                          ## {chunk.sectionTitle}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-                        {chunk.excerpt}
-                      </p>
-                      <div className="flex items-center justify-between mt-1.5">
-                        <span className="text-[10px] text-muted-foreground/60">
-                          {(chunk.similarityScore * 100).toFixed(0)}% tương đồng
-                        </span>
+                  {source.chunks?.map((chunk, idx) => {
+                    const fullContent = chunk.fullContent || chunk.excerpt;
+                    const isExpandedChunk = expandedChunks.has(chunk.chunkId);
+                    const previewLength = 300;
+                    const needsTruncation = fullContent.length > previewLength;
+                    const previewText = needsTruncation
+                      ? fullContent.slice(0, previewLength) + '...'
+                      : fullContent;
+
+                    return (
+                      <div
+                        key={chunk.chunkId}
+                        className="bg-muted/40 rounded-lg border border-border/40 group overflow-hidden"
+                      >
+                        {/* Chunk Header */}
                         <button
-                          onClick={() => handleCopyChunk(chunk)}
-                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-                          title="Sao chép nội dung chunk"
+                          onClick={() => toggleChunk(chunk.chunkId)}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
                         >
-                          {copiedId === chunk.chunkId ? (
-                            <Check size={12} className="text-green-600" />
-                          ) : (
-                            <Copy size={12} />
+                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
+                            {idx + 1}
+                          </span>
+                          {chunk.sectionTitle && (
+                            <p className="flex-1 text-xs font-semibold text-primary/90 truncate">
+                              {chunk.sectionTitle}
+                            </p>
+                          )}
+                          {!chunk.sectionTitle && (
+                            <p className="flex-1 text-xs text-muted-foreground truncate">
+                              Đoạn trích #{idx + 1}
+                            </p>
+                          )}
+                          <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
+                            {fullContent.length} ký tự
+                          </span>
+                          {needsTruncation && (
+                            <span className="text-[10px] text-primary/70 flex-shrink-0">
+                              {isExpandedChunk ? 'Thu gọn' : 'Xem thêm'}
+                            </span>
                           )}
                         </button>
+
+                        {/* Chunk Content */}
+                        <div className="px-3 pb-3">
+                          <p className="text-xs text-muted-foreground/90 leading-relaxed whitespace-pre-wrap">
+                            {isExpandedChunk ? fullContent : previewText}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-[10px] text-muted-foreground/60">
+                              {(chunk.similarityScore * 100).toFixed(0)}% tương đồng
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyChunk(chunk);
+                              }}
+                              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                              title="Sao chép nội dung chunk"
+                            >
+                              {copiedId === chunk.chunkId ? (
+                                <Check size={12} className="text-green-600" />
+                              ) : (
+                                <Copy size={12} />
+                              )}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* View full document button */}
                   <button
