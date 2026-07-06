@@ -14,6 +14,7 @@ import com.poliwise.knowledge.exception.DuplicateDocumentException;
 import com.poliwise.knowledge.repository.DocumentAuditLogRepository;
 import com.poliwise.knowledge.repository.DocumentRepository;
 import com.poliwise.knowledge.repository.DocumentVersionRepository;
+import com.poliwise.knowledge.repository.ProcessingJobRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,9 @@ class DocumentManagementServiceTest {
     @Mock
     private IngestionServiceClient ingestionServiceClient;
 
+    @Mock
+    private ProcessingJobRepository jobRepository;
+
     private DocumentManagementService service;
 
     @BeforeEach
@@ -71,7 +75,8 @@ class DocumentManagementServiceTest {
                 objectMapper,
                 metadataServiceClient,
                 parsingService,
-                ingestionServiceClient
+                ingestionServiceClient,
+                jobRepository
         );
     }
 
@@ -141,7 +146,7 @@ class DocumentManagementServiceTest {
 
         when(ingestionServiceClient.checkDuplicateByChecksum(checksum))
                 .thenReturn(DuplicateCheckResponse.notDuplicate());
-        when(versionRepository.findByFileChecksum(checksum)).thenReturn(Optional.of(version));
+        when(versionRepository.findFirstByFileChecksum(checksum)).thenReturn(Optional.of(version));
         when(documentRepository.findById(docId)).thenReturn(Optional.of(doc));
         when(metadataServiceClient.getDocumentTitle(docId)).thenReturn("Test Doc");
         when(metadataServiceClient.getDocumentCategorySlug(docId)).thenReturn(null);
@@ -161,7 +166,7 @@ class DocumentManagementServiceTest {
 
         when(ingestionServiceClient.checkDuplicateByChecksum(checksum))
                 .thenReturn(DuplicateCheckResponse.notDuplicate());
-        when(versionRepository.findByFileChecksum(checksum)).thenReturn(Optional.empty());
+        when(versionRepository.findFirstByFileChecksum(checksum)).thenReturn(Optional.empty());
 
         DuplicateCheckResponse result = service.checkDuplicate(checksum);
 
@@ -193,7 +198,7 @@ class DocumentManagementServiceTest {
 
         when(ingestionServiceClient.checkDuplicateByChecksum(checksum))
                 .thenThrow(new RuntimeException("Service unavailable"));
-        when(versionRepository.findByFileChecksum(checksum)).thenReturn(Optional.of(version));
+        when(versionRepository.findFirstByFileChecksum(checksum)).thenReturn(Optional.of(version));
         when(documentRepository.findById(docId)).thenReturn(Optional.of(doc));
         when(metadataServiceClient.getDocumentTitle(docId)).thenReturn("Test Doc");
         when(metadataServiceClient.getDocumentCategorySlug(docId)).thenReturn(null);

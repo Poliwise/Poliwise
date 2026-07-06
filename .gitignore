@@ -92,11 +92,7 @@ yarn.lock
 config/rabbitmq.env
 
 # Reports (local drafts, keep source files only)
-reports/*.md
-reports/*.txt
-reports/*.mmd
-reports/main_part1.tex
-reports/main_part2.tex
+reports/
 
 # Test artifacts
 test-*.ps1

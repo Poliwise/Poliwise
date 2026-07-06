@@ -700,6 +700,17 @@ export class ProxyController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @All('violations/actioned')
+  @Roles(UserRole.ADMIN)
+  handleActionedViolations(@Req() request: Request) {
+    return this.proxyService.forward(
+      ServiceName.FEEDBACK,
+      request,
+      downstreamPath(request, '/api/v1/violations/actioned'),
+    );
+  }
+
   // User-facing: own violations, warnings, submit appeal
   @UseGuards(JwtAuthGuard, RolesGuard)
   @All('violations/me')

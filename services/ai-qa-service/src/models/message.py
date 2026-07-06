@@ -37,6 +37,8 @@ class MessageCreate(BaseModel):
     latency_ms: Optional[int] = None
     confidence: Optional[ConfidenceLevel] = None
     has_sources: bool = False
+    is_toxic: bool = False
+    is_layer2_response: bool = False
 
 
 class MessageResponse(BaseModel):
@@ -55,6 +57,8 @@ class MessageResponse(BaseModel):
     metadata: Optional[dict] = None
     is_streaming: bool = False
     streaming_completed: bool = True
+    is_toxic: bool = False
+    is_layer2_response: bool = False
     created_at: datetime
 
     class Config:

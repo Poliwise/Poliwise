@@ -17,7 +17,12 @@ export class TimeoutInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<Request>();
     const path = request?.path || request?.url || '';
 
-    const isLongRunning = path.includes('/preview') || path.includes('/download');
+    const isLongRunning =
+      path.includes('/preview') ||
+      path.includes('/download') ||
+      // Document confirm is synchronous and may wait up to 60s for ingestion
+      // to complete (file extraction, embedding generation, dedup checks).
+      (path.includes('/documents/') && path.endsWith('/confirm'));
     const timeoutMs = isLongRunning ? this.longTimeoutMs : this.defaultTimeoutMs;
 
     return next.handle().pipe(

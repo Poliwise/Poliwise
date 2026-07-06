@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, Bell, Clock, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle, Clock } from 'lucide-react';
 import { StatCard } from '@/components/ui';
 import { ViolationStats as ViolationStatsType } from '@/types/violation';
 
@@ -12,6 +12,8 @@ export interface ViolationStatsProps {
 
 export function ViolationStats({ stats, isLoading = false }: ViolationStatsProps) {
   if (!stats && !isLoading) return null;
+
+  const processedViolations = (stats?.totalViolations ?? 0) - (stats?.pendingViolations ?? 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -30,12 +32,10 @@ export function ViolationStats({ stats, isLoading = false }: ViolationStatsProps
         tone="info"
       />
       <StatCard
-        label="Khiếu nại chờ duyệt"
-        value={stats?.pendingAppeals ?? 0}
-        icon={<MessageSquare size={20} />}
-        tone="purple"
-        change={stats?.pendingAppeals ?? 0}
-        changeLabel="cần xem xét"
+        label="Đã xử lý"
+        value={processedViolations}
+        icon={<CheckCircle size={20} />}
+        tone="success"
       />
       <StatCard
         label="Cảnh báo"

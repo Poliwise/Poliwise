@@ -305,11 +305,13 @@ public class DocumentService {
             throw e; // Re-throw the structured exception from client
         }
 
-        // 4. Update document language, status, and clear expiresAt
+        // 4. Update document language and clear expiresAt
+        // NOTE: Do NOT set status to READY here! Status should only be set AFTER
+        // ingestion completes successfully. Setting READY before ingestion causes
+        // duplicate documents to appear as READY in the database.
         if (request.language() != null) {
             document.setLanguage(request.language());
         }
-        document.setStatus(ProcessingStatus.READY);
         document.setExpiresAt(null);
         document.setUpdatedAt(OffsetDateTime.now());
         Document saved = documentRepository.save(document);

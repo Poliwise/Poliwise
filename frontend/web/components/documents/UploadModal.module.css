@@ -858,6 +858,15 @@
   margin-top: 0.5rem;
 }
 
+.warningFallback {
+  padding: 1rem;
+  background: var(--muted);
+  border-radius: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
 .cancelBtn {
   display: inline-flex;
   align-items: center;

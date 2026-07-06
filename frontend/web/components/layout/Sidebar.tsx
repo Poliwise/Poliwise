@@ -53,7 +53,7 @@ export default function Sidebar({ isOpen, collapsed, onClose }: SidebarProps) {
     { label: t('admin.categories.title'), href: '/admin/metadata/categories', icon: <FolderOpen size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
     { label: t('admin.tags.title'), href: '/admin/metadata/tags', icon: <Tags size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
     { label: t('admin.violations.title'), href: '/admin/violations', icon: <ShieldAlert size={20} />, roles: [UserRole.ADMIN] as UserRole[], dividerBefore: true },
-    { label: t('admin.violations.appeals.title'), href: '/admin/violations/appeals', icon: <ScrollText size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
+    { label: t('admin.violations.history.title'), href: '/admin/violations/history', icon: <ScrollText size={20} />, roles: [UserRole.ADMIN] as UserRole[] },
     { label: t('admin.audit.title'), href: '/admin/audit-logs', icon: <ScrollText size={20} />, roles: [UserRole.ADMIN] as UserRole[], dividerBefore: true },
     { label: t('admin.unanswered.title'), href: '/admin/unanswered', icon: <Brain size={20} />, roles: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[], dividerBefore: true },
     { label: t('analytics.export'), href: '/analytics/reports', icon: <FileBarChart size={20} />, roles: [UserRole.ADMIN, UserRole.MANAGER] as UserRole[] },

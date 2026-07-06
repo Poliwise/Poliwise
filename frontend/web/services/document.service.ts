@@ -35,7 +35,7 @@ import type {
 const KNOWLEDGE_SERVICE_URL =
   typeof window === 'undefined'
     ? 'http://knowledge-service:8083'
-    : 'http://localhost:8083';
+    : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}`;
 
 const METADATA_SERVICE_URL =
   typeof window === 'undefined'

@@ -143,11 +143,19 @@ export function ChatSidebar({
               ) : (
                 <div className="space-y-1">
                   {data.conversations.map((conv) => (
-                    <button
+                    <div
                       key={conv.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => onSelect(conv.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelect(conv.id);
+                        }
+                      }}
                       className={clsx(
-                        'w-full text-left p-3 rounded-lg transition-colors group relative',
+                        'w-full text-left p-3 rounded-lg transition-colors group relative cursor-pointer',
                         selectedId === conv.id
                           ? 'bg-primary/10 text-primary'
                           : 'hover:bg-accent text-foreground'
@@ -184,7 +192,7 @@ export function ChatSidebar({
                       >
                         <Trash2 size={14} />
                       </button>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}

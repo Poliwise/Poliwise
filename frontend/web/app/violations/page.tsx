@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store';
 import { api } from '@/lib/api';
 import { Badge, Button, EmptyState, Pagination, Spinner } from '@/components/ui';
 import { MainLayout } from '@/components/layout';
-import { AppealModal, ViolationCard } from '@/components/violations';
+import { ViolationCard } from '@/components/violations';
 import { Violation, ViolationStatus, ViolationStatusLabels } from '@/types/violation';
 import styles from './violations.module.css';
 
@@ -31,8 +31,6 @@ export default function UserViolationsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
-  const [appealModalOpen, setAppealModalOpen] = useState(false);
-  const [selectedViolation, setSelectedViolation] = useState<Violation | null>(null);
 
   const limit = 10;
 
@@ -68,16 +66,6 @@ export default function UserViolationsPage() {
     setCurrentPage(1);
   };
 
-  const handleAppeal = (violation: Violation) => {
-    setSelectedViolation(violation);
-    setAppealModalOpen(true);
-  };
-
-  const handleSubmitAppeal = async (violationId: string, appealText: string) => {
-    await api.violations.submitAppeal(violationId, appealText);
-    await loadViolations();
-  };
-
   return (
     <MainLayout>
       <div className={styles.container}>
@@ -92,7 +80,7 @@ export default function UserViolationsPage() {
               Lịch sử vi phạm
             </h1>
             <p className={styles.pageSubtitle}>
-              Xem lịch sử các vi phạm và khiếu nại của bạn
+              Xem lịch sử các vi phạm của bạn
             </p>
           </div>
         </div>
@@ -124,14 +112,14 @@ export default function UserViolationsPage() {
           <EmptyState
             icon={<ShieldAlert size={64} />}
             title="Chưa có vi phạm nào"
-            description="Các vi phạm chính sách hoặc cảnh báo liên quan đến tài khoản của bạn sẽ xuất hiện tại đây khi được ghi nhận."
+            description="Các vi phạm chính sách liên quan đến tài khoản của bạn sẽ xuất hiện tại đây khi được ghi nhận."
             action={<Button variant="secondary" onClick={() => router.push('/')}>Quay về trang hỏi đáp</Button>}
           />
         ) : (
           <>
             <div className={styles.violationList}>
               {violations.map((violation) => (
-                <ViolationCard key={violation.id} violation={violation} onAppeal={handleAppeal} />
+                <ViolationCard key={violation.id} violation={violation} />
               ))}
             </div>
 
@@ -142,16 +130,6 @@ export default function UserViolationsPage() {
             )}
           </>
         )}
-
-        <AppealModal
-          open={appealModalOpen}
-          onClose={() => {
-            setAppealModalOpen(false);
-            setSelectedViolation(null);
-          }}
-          violation={selectedViolation}
-          onSubmit={handleSubmitAppeal}
-        />
       </div>
     </MainLayout>
   );

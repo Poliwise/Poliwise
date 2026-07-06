@@ -19,7 +19,8 @@ class ViolationPublisher:
         evidence: str,
         source: str,
         user_department_id: Optional[UUID] = None,
-        user_role: str = "USER"
+        user_role: str = "USER",
+        is_admin_exempt: bool = False
     ) -> None:
         """
         Publish a violation event to RabbitMQ.
@@ -32,6 +33,7 @@ class ViolationPublisher:
             source: Source of violation (SYSTEM for auto-detected, ADMIN for manual reports)
             user_department_id: Optional department ID for tracking
             user_role: User's role at time of violation
+            is_admin_exempt: If true, admin is testing the system (no strike increment)
         """
         event = {
             "event_type": "violation.layer1",
@@ -44,7 +46,8 @@ class ViolationPublisher:
                 "evidence": evidence,
                 "source": source,
                 "user_department_id": str(user_department_id) if user_department_id else None,
-                "user_role": user_role
+                "user_role": user_role,
+                "is_admin_exempt": is_admin_exempt  # NEW: flag for feedback service
             }
         }
 
@@ -54,7 +57,8 @@ class ViolationPublisher:
                 "violation_published",
                 user_id=str(user_id),
                 violation_type=violation_type,
-                severity=severity
+                severity=severity,
+                is_admin_exempt=is_admin_exempt
             )
         except Exception as e:
             logger.error("failed_to_publish_violation", error=str(e), user_id=str(user_id))

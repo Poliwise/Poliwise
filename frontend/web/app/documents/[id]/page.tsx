@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ArrowLeft,
@@ -48,6 +48,7 @@ import {
 import { useAuthStore, useIsAdmin, useIsManager } from '@/store/auth-store';
 import PreviewModal from '@/components/documents/PreviewModal';
 import { UploadModal } from '@/components/documents/UploadModal';
+import { UploadNewVersionModal } from '@/components/documents/UploadNewVersionModal';
 import styles from './document-detail.module.css';
 
 type Tab = 'detail' | 'content' | 'versions' | 'access' | 'simulation' | 'audit';
@@ -106,6 +107,7 @@ export default function DocumentDetailPage() {
   const [auditTotalPages, setAuditTotalPages] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [uploadVersionOpen, setUploadVersionOpen] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -127,6 +129,47 @@ export default function DocumentDetailPage() {
   const [currentFileAtConflict, setCurrentFileAtConflict] = useState<File | null>(null);
   const [editorCurrentFile, setEditorCurrentFile] = useState<File | null>(null);
   const [editorLatestVersionPreview, setEditorLatestVersionPreview] = useState<{ versionNumber: number } | null>(null);
+
+  // Derived values - must be defined before early returns to follow Rules of Hooks
+  const fileConfig = document ? getFileTypeConfig(document.fileType as unknown as string) : null;
+  const statusConfig = document ? getStatusConfig(document.status) : null;
+  const isOwner = document && authUser ? document.uploadedBy === authUser.id : false;
+  const categoryName = metadata?.category && categories.length > 0
+    ? categories.find(c => c.id === (metadata as any).category?.id)?.name
+    : null;
+
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { id: 'detail', label: 'Chi tiết', icon: Eye },
+      { id: 'content', label: 'Nội dung', icon: FileText },
+      { id: 'versions', label: 'Phiên bản', icon: History },
+    ];
+
+    // Admin sees all tabs
+    if (isAdmin) {
+      return [
+        ...baseTabs,
+        { id: 'access', label: 'Phân quyền', icon: Shield },
+        { id: 'simulation', label: 'Mô phỏng', icon: Shield },
+        { id: 'audit', label: 'Nhật ký', icon: Clock },
+      ];
+    }
+
+    // Manager sees simulation and audit
+    if (isManager) {
+      return [
+        ...baseTabs,
+        { id: 'simulation', label: 'Mô phỏng', icon: Shield },
+        { id: 'audit', label: 'Nhật ký', icon: Clock },
+      ];
+    }
+
+    // Regular user sees only basic tabs + audit
+    return [
+      ...baseTabs,
+      { id: 'audit', label: 'Nhật ký', icon: Clock },
+    ];
+  }, [isAdmin, isManager]);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -300,69 +343,26 @@ export default function DocumentDetailPage() {
 
   if (error || !document) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-background p-8">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => router.back()}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="flex items-center text-muted-foreground hover:text-foreground mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Quay lại
           </button>
           <div className={styles.errorState}>
-            <AlertCircle className="w-5 h-5 text-red-500" />
+            <AlertCircle className="w-5 h-5 text-danger" />
             <div>
-              <h3 className="text-sm font-medium text-red-800">Lỗi</h3>
-              <p className="mt-1 text-sm text-red-600">{error || 'Không tìm thấy tài liệu'}</p>
+              <h3 className="text-sm font-medium text-danger">Lỗi</h3>
+              <p className="mt-1 text-sm text-danger">{error || 'Không tìm thấy tài liệu'}</p>
             </div>
           </div>
         </div>
       </div>
     );
   }
-
-  const fileConfig = getFileTypeConfig(document.fileType as unknown as string);
-  const statusConfig = getStatusConfig(document.status);
-  const isOwner = document.uploadedBy === authUser?.id;
-  const categoryName = metadata?.category
-    ? categories.find(c => c.id === (metadata as any).category?.id)?.name
-    : null;
-
-  // Define tabs based on user role
-  const getTabs = () => {
-    const baseTabs = [
-      { id: 'detail', label: 'Chi tiết', icon: Eye },
-      { id: 'content', label: 'Nội dung', icon: FileText },
-      { id: 'versions', label: 'Phiên bản', icon: History },
-    ];
-
-    // Admin sees all tabs
-    if (isAdmin) {
-      return [
-        ...baseTabs,
-        { id: 'access', label: 'Phân quyền', icon: Shield },
-        { id: 'simulation', label: 'Mô phỏng', icon: Shield },
-        { id: 'audit', label: 'Nhật ký', icon: Clock },
-      ];
-    }
-
-    // Manager sees simulation and audit
-    if (isManager) {
-      return [
-        ...baseTabs,
-        { id: 'simulation', label: 'Mô phỏng', icon: Shield },
-        { id: 'audit', label: 'Nhật ký', icon: Clock },
-      ];
-    }
-
-    // Regular user sees only basic tabs + audit
-    return [
-      ...baseTabs,
-      { id: 'audit', label: 'Nhật ký', icon: Clock },
-    ];
-  };
-
-  const tabs = getTabs();
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--background)' }}>
@@ -378,7 +378,7 @@ export default function DocumentDetailPage() {
             </button>
 
             <div className={styles.docInfo}>
-              <div className={styles.docIcon}>{fileConfig.icon}</div>
+              <div className={styles.docIcon}>{fileConfig?.icon}</div>
               <div className={styles.docTitle}>
                 <h1>{document.title || document.originalFilename}</h1>
                 <p className={styles.docFilename}>{document.originalFilename}</p>
@@ -459,7 +459,7 @@ export default function DocumentDetailPage() {
         {document.status === 'DUPLICATE' && (
           <div className={`${styles.statusBanner} ${styles.statusBannerError}`}>
             <div className={styles.statusBannerContent}>
-              <AlertCircle className="w-5 h-5 text-red-500" />
+              <AlertCircle className="w-5 h-5 text-danger" />
               <span>Cảnh báo: Tài liệu này được xác định là trùng lặp.</span>
             </div>
           </div>
@@ -481,7 +481,7 @@ export default function DocumentDetailPage() {
                   <div className={styles.infoGrid}>
                     <div className={styles.infoItem}>
                       <span className={styles.infoLabel}>Loại file</span>
-                      <span className={styles.infoValue}>{fileConfig.label}</span>
+                      <span className={styles.infoValue}>{fileConfig?.label}</span>
                     </div>
                     <div className={styles.infoItem}>
                       <span className={styles.infoLabel}>Kích thước</span>
@@ -497,9 +497,9 @@ export default function DocumentDetailPage() {
                       <span className={styles.infoLabel}>Trạng thái</span>
                       <span
                         className={styles.statusBadge}
-                        style={{ backgroundColor: `${statusConfig.color}15`, color: statusConfig.color }}
+                        style={{ backgroundColor: `${statusConfig?.color}15`, color: statusConfig?.color }}
                       >
-                        {statusConfig.label}
+                        {statusConfig?.label}
                       </span>
                     </div>
                     {document.pageCount && (
@@ -706,7 +706,10 @@ export default function DocumentDetailPage() {
                 Lịch sử phiên bản
               </h2>
               {isAdmin && (
-                <button className={styles.actionBtn}>
+                <button
+                  className={styles.actionBtn}
+                  onClick={() => setUploadVersionOpen(true)}
+                >
                   <Upload className="w-4 h-4" />
                   Tải lên mới
                 </button>
@@ -940,10 +943,10 @@ export default function DocumentDetailPage() {
               </div>
             ) : simulationError ? (
               <div className={styles.errorState}>
-                <AlertCircle className="w-5 h-5 text-red-500" />
+                <AlertCircle className="w-5 h-5 text-danger" />
                 <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi mô phỏng</p>
-                  <p className="text-sm text-red-600 mt-1">{simulationError}</p>
+                  <p className="text-sm font-medium text-danger">Lỗi mô phỏng</p>
+                  <p className="text-sm text-danger mt-1">{simulationError}</p>
                 </div>
               </div>
             ) : simulationData ? (
@@ -1165,6 +1168,20 @@ export default function DocumentDetailPage() {
           }}
           categories={categories}
           initialDocument={document as any}
+        />
+      )}
+
+      {uploadVersionOpen && document && (
+        <UploadNewVersionModal
+          open={uploadVersionOpen}
+          documentId={documentId}
+          documentTitle={document.originalFilename || document.fileName || 'document'}
+          currentVersion={document.currentVersion || 1}
+          onClose={() => setUploadVersionOpen(false)}
+          onSuccess={() => {
+            setUploadVersionOpen(false);
+            loadDocument();
+          }}
         />
       )}
 

@@ -191,6 +191,15 @@ public class UserService {
             user.setRole(request.newRole());
         }
 
+        // Set timestamps for status changes
+        if (newStatus == AccountStatus.DEACTIVATED && previousStatus != AccountStatus.DEACTIVATED) {
+            user.setDeactivatedAt(java.time.OffsetDateTime.now());
+        } else if (newStatus == AccountStatus.ACTIVE && previousStatus == AccountStatus.DEACTIVATED) {
+            user.setDeactivatedAt(null);
+        } else if (newStatus == AccountStatus.REVOKED && previousStatus != AccountStatus.REVOKED) {
+            user.setRevokedAt(java.time.OffsetDateTime.now());
+        }
+
         User saved = userRepository.save(user);
 
         UserStatusChangedEvent event = UserStatusChangedEvent.create(

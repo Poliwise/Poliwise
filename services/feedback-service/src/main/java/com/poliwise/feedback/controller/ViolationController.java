@@ -1,11 +1,10 @@
 package com.poliwise.feedback.controller;
 
-import com.poliwise.feedback.dto.request.AppealRequest;
 import com.poliwise.feedback.dto.request.ReviewViolationRequest;
 import com.poliwise.feedback.dto.response.ApiResponse;
 import com.poliwise.feedback.entity.Violation;
 import com.poliwise.feedback.entity.Warning;
-import com.poliwise.feedback.enums.AppealStatus;
+import com.poliwise.feedback.enums.ViolationAction;
 import com.poliwise.feedback.security.JwtAuthenticationToken;
 import com.poliwise.feedback.security.UserPrincipal;
 import com.poliwise.feedback.service.ViolationService;
@@ -46,19 +45,6 @@ public class ViolationController {
         UUID userId = getUserId(authentication);
         Page<Violation> violations = violationService.getUserViolations(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(violations));
-    }
-
-    /**
-     * Submit an appeal for a violation.
-     */
-    @PostMapping("/{id}/appeal")
-    public ResponseEntity<ApiResponse<Violation>> submitAppeal(
-            @PathVariable UUID id,
-            @Valid @RequestBody AppealRequest request,
-            Authentication authentication) {
-        UUID userId = getUserId(authentication);
-        Violation violation = violationService.submitAppeal(id, request, userId);
-        return ResponseEntity.ok(ApiResponse.success(violation, "Appeal submitted successfully"));
     }
 
     /**
@@ -125,34 +111,6 @@ public class ViolationController {
     }
 
     /**
-     * Get pending appeals.
-     */
-    @GetMapping("/appeals")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<Violation>>> getAppeals(
-            @RequestParam(defaultValue = "PENDING") AppealStatus status,
-            @PageableDefault(size = 20) Pageable pageable) {
-        // Get all violations with the specified appeal status
-        Page<Violation> violations = violationService.getAppeals(status, pageable);
-        return ResponseEntity.ok(ApiResponse.success(violations));
-    }
-
-    /**
-     * Review an appeal.
-     */
-    @PostMapping("/appeals/{id}/review")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Violation>> reviewAppeal(
-            @PathVariable UUID id,
-            @RequestParam boolean approved,
-            Authentication authentication) {
-        UUID adminId = getUserId(authentication);
-        Violation violation = violationService.reviewAppeal(id, approved, adminId);
-        String message = approved ? "Appeal approved" : "Appeal rejected";
-        return ResponseEntity.ok(ApiResponse.success(violation, message));
-    }
-
-    /**
      * Reset strike count for a user.
      */
     @PostMapping("/users/{userId}/reset-strikes")
@@ -173,14 +131,24 @@ public class ViolationController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getViolationStats() {
         long pendingCount = violationService.countPendingViolations();
         long totalCount = violationService.countTotalViolations();
-        long pendingAppealsCount = violationService.countPendingAppeals();
         long warningsCount = warningService.countTotalWarnings();
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "pendingViolations", pendingCount,
                 "totalViolations", totalCount,
-                "pendingAppeals", pendingAppealsCount,
                 "totalWarnings", warningsCount
         )));
+    }
+
+    /**
+     * Get actioned violations (processed history).
+     */
+    @GetMapping("/actioned")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Page<Violation>>> getActionedViolations(
+            @RequestParam(required = false) ViolationAction action,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<Violation> violations = violationService.getActionedViolations(action, pageable);
+        return ResponseEntity.ok(ApiResponse.success(violations));
     }
 
     private UUID getUserId(Authentication authentication) {

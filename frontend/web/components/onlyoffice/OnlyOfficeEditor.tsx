@@ -981,44 +981,44 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
     >
       <div className="flex flex-col h-full min-h-0">
         {/* Status bar */}
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm shrink-0">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b border-border text-sm shrink-0">
           <div className="flex items-center gap-3">
             {/* Acquiring lock */}
             <div style={{ display: state !== 'acquiring_lock' ? 'none' : undefined }}>
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <Loader2 className="w-4 h-4 animate-spin text-info" />
               <span className="ml-1">Đang khóa tài liệu...</span>
             </div>
             {/* Loading config */}
             <div style={{ display: state !== 'loading_config' ? 'none' : undefined }}>
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <Loader2 className="w-4 h-4 animate-spin text-info" />
               <span className="ml-1">Đang tải cấu hình editor...</span>
             </div>
             {/* Editing */}
             <div style={{ display: state !== 'editing' ? 'none' : undefined }}>
-              <Lock className="w-4 h-4 text-green-600" />
-              <span className="ml-1 text-green-700 font-medium">
+              <Lock className="w-4 h-4 text-success" />
+              <span className="ml-1 text-success-foreground font-medium">
                 Đang chỉnh sửa (phiên bản v{targetVersion ?? lock?.versionAtLock ?? currentVersion})
                 {targetVersion && targetVersion !== currentVersion && (
-                  <span className="ml-1 text-amber-600 font-normal">
+                  <span className="ml-1 text-warning font-normal">
                     (cũ, mới nhất v{currentVersion})
                   </span>
                 )}
               </span>
               {lock && (
-                <span className="ml-1 text-gray-500" suppressHydrationWarning>
+                <span className="ml-1 text-muted-foreground" suppressHydrationWarning>
                   — Khóa hết hạn: {new Date(lock.expiresAt).toLocaleTimeString('vi-VN')}
                 </span>
               )}
             </div>
             {/* Saved */}
             <div style={{ display: state !== 'saved' ? 'none' : undefined }}>
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="ml-1 text-green-700">Đã lưu thành công!</span>
+              <CheckCircle className="w-4 h-4 text-success" />
+              <span className="ml-1 text-success-foreground">Đã lưu thành công!</span>
             </div>
             {/* Error */}
             <div style={{ display: (!error || (state !== 'error' && state !== 'editing')) ? 'none' : undefined }}>
-              <AlertTriangle className="w-4 h-4 text-red-500" />
-              <span className="ml-1 text-red-700">{error}</span>
+              <AlertTriangle className="w-4 h-4 text-danger" />
+              <span className="ml-1 text-danger-foreground">{error}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1044,35 +1044,35 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Latest version preview side panel (re-edit mode) */}
           {latestVersionPreview && diffPanelOpen && (
-            <div className="w-[420px] flex-shrink-0 border-r border-purple-200 bg-white flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 bg-purple-50 border-b border-purple-200 shrink-0">
+            <div className="w-[420px] flex-shrink-0 border-r border-purple bg-card flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-purple-soft border-b border-purple shrink-0">
                 <div>
-                  <p className="text-xs font-semibold text-purple-900">
+                  <p className="text-xs font-semibold text-purple-foreground">
                     Mới nhất (v{latestVersionPreview.versionNumber})
                   </p>
-                  <p className="text-[10px] text-purple-600">Xem trước bản mới nhất</p>
+                  <p className="text-[10px] text-purple-foreground">Xem trước bản mới nhất</p>
                 </div>
                 <button
                   onClick={() => setDiffPanelOpen(false)}
-                  className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100"
+                  className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted"
                   title="Đóng panel"
                 >
                   ✕
                 </button>
               </div>
-              <div className="flex-1 overflow-auto bg-gray-50">
+              <div className="flex-1 overflow-auto bg-muted">
                 {latestPreview.loading ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                    <p className="text-gray-400 text-xs">Đang chuyển đổi DOCX...</p>
+                    <Loader2 className="w-6 h-6 animate-spin text-purple" />
+                    <p className="text-muted-foreground text-xs">Đang chuyển đổi DOCX...</p>
                   </div>
                 ) : latestPreview.error ? (
                   <div className="flex flex-col items-center justify-center h-full gap-2 p-4 text-center">
-                    <AlertTriangle className="w-8 h-8 text-red-400" />
-                    <p className="text-red-400 text-xs">{latestPreview.error}</p>
+                    <AlertTriangle className="w-8 h-8 text-danger" />
+                    <p className="text-danger text-xs">{latestPreview.error}</p>
                     <button
                       onClick={() => loadLatestPreview(latestVersionPreview.versionNumber)}
-                      className="text-xs text-purple-600 hover:underline"
+                      className="text-xs text-purple hover:underline"
                     >
                       Thử lại
                     </button>
@@ -1080,13 +1080,13 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
                 ) : latestPreview.html ? (
                   <div
                     className="p-4"
-                    style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '13px', lineHeight: '1.7', color: '#1a1a1a' }}
+                    style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '13px', lineHeight: '1.7', color: 'var(--foreground)' }}
                     dangerouslySetInnerHTML={{ __html: latestPreview.html }}
                   />
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-400">
-                    <Loader2 className="w-6 h-6 animate-spin text-purple-300" />
-                    <p className="text-gray-400 text-xs">Đang chuyển đổi DOCX...</p>
+                  <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple" />
+                    <p className="text-muted-foreground text-xs">Đang chuyển đổi DOCX...</p>
                   </div>
                 )}
               </div>
@@ -1097,7 +1097,7 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
           {latestVersionPreview && !diffPanelOpen && (
             <button
               onClick={() => setDiffPanelOpen(true)}
-              className="w-8 flex-shrink-0 bg-purple-50 hover:bg-purple-100 border-r border-purple-200 flex flex-col items-center justify-center text-purple-500 transition-colors"
+              className="w-8 flex-shrink-0 bg-purple-soft hover:bg-purple border-r border-purple flex flex-col items-center justify-center text-purple transition-colors"
               title="Xem bản mới nhất"
             >
               <span className="text-xs font-bold" style={{ writingMode: 'vertical-lr' }}>MỚI NHẤT</span>
@@ -1108,9 +1108,9 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
           <div className="flex-1 relative flex flex-col min-h-0 overflow-hidden">
             {/* Non-editing overlays */}
             {state !== 'editing' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white">
-                <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-                <p className="text-gray-600">
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card">
+                <Loader2 className="w-10 h-10 animate-spin text-info mb-4" />
+                <p className="text-muted-foreground">
                   {state === 'acquiring_lock'
                     ? 'Đang khóa tài liệu để chỉnh sửa...'
                     : state === 'loading_config'
@@ -1121,10 +1121,10 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
             )}
             {/* Saved overlay */}
             {state === 'saved' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white">
-                <CheckCircle className="w-12 h-12 text-green-500 mb-4" />
-                <p className="text-lg font-medium text-gray-800 mb-2">Lưu thành công!</p>
-                <p className="text-gray-500 mb-4">Tài liệu đã được lưu dưới phiên bản mới</p>
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card">
+                <CheckCircle className="w-12 h-12 text-success mb-4" />
+                <p className="text-lg font-medium text-foreground mb-2">Lưu thành công!</p>
+                <p className="text-muted-foreground mb-4">Tài liệu đã được lưu dưới phiên bản mới</p>
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={handleClose}>Đóng</Button>
                   {onSaveSuccess && (
@@ -1141,10 +1141,10 @@ const OnlyOfficeEditorComponent = forwardRef<OnlyOfficeEditorHandle, OnlyOfficeE
 
             {/* Error overlay */}
             {state === 'error' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white">
-                <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-                <p className="text-lg font-medium text-gray-800 mb-2">Không thể mở editor</p>
-                {error && <p className="text-red-600 mb-4 text-center max-w-md">{error}</p>}
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card">
+                <AlertTriangle className="w-12 h-12 text-danger mb-4" />
+                <p className="text-lg font-medium text-foreground mb-2">Không thể mở editor</p>
+                {error && <p className="text-danger mb-4 text-center max-w-md">{error}</p>}
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={handleClose}>Đóng</Button>
                   <Button variant="primary" onClick={resetEditorState}>

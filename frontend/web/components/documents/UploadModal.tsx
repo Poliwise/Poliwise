@@ -44,6 +44,14 @@ const STEPS = {
   COMPLETE: 6,
 } as const;
 
+type UploadStep = typeof STEPS[keyof typeof STEPS];
+
+const HIDE_PROGRESS_STEPS: UploadStep[] = [
+  STEPS.COMPLETE,
+  STEPS.DUPLICATE_WARNING,
+  STEPS.NEAR_DUPLICATE,
+];
+
 const STEP_LABELS = [
   'Chọn file',
   'Đang tải',
@@ -54,7 +62,7 @@ const STEP_LABELS = [
 ];
 
 export function UploadModal({ onClose, onSuccess, categories, initialDocument }: UploadModalProps) {
-  const [step, setStep] = useState<number>(initialDocument ? STEPS.METADATA : STEPS.SELECT);
+  const [step, setStep] = useState<UploadStep>(initialDocument ? STEPS.METADATA : STEPS.SELECT);
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -83,6 +91,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
   const [confirming, setConfirming] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isClickFromInputRef = useRef(false);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -117,6 +126,8 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Stop propagation to prevent the dropzone's onClick from triggering again
+    e.stopPropagation();
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
@@ -151,16 +162,35 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
 
     setFile(selectedFile);
     setError(null);
+    setShowDuplicateWarning(false);
+    setDuplicateCheck(null);
 
-    // Compute checksum client-side (non-blocking)
+    // Compute checksum client-side
+    let computedChecksum: string | null = null;
     try {
-      const computedChecksum = await computeFileChecksum(selectedFile);
+      computedChecksum = await computeFileChecksum(selectedFile);
       setChecksum(computedChecksum);
+
+      // Pre-check duplicate BEFORE allowing upload (Layer 1 only via frontend)
+      if (computedChecksum) {
+        try {
+          const dup = await documentService.checkDuplicate(computedChecksum);
+          setDuplicateCheck(dup);
+          if (dup.isDuplicate && dup.action === 'BLOCK') {
+            setShowDuplicateWarning(true);
+            setStep(STEPS.DUPLICATE_WARNING); // block upload - stay at SELECT
+            return;
+          }
+        } catch (err) {
+          console.warn('Check duplicate failed:', err);
+          // fall through — allow upload if check fails
+        }
+      }
     } catch (err) {
       console.warn('Failed to compute file checksum:', err);
     }
 
-    setStep(STEPS.UPLOAD);
+    setStep(STEPS.UPLOAD); // only reached if no duplicate found
   };
 
   const handleUpload = async () => {
@@ -185,20 +215,6 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
         language: response.suggestedLanguage || 'vi',
         isPolicy: response.suggestedIsPolicy || false,
       });
-
-      // Call check-duplicate in parallel (fire-and-forget for UX)
-      if (checksum) {
-        documentService.checkDuplicate(checksum)
-          .then((result) => {
-            setDuplicateCheck(result);
-            if (result.isDuplicate && result.action === 'BLOCK') {
-              setShowDuplicateWarning(true);
-            }
-          })
-          .catch((err) => {
-            console.warn('Check duplicate failed:', err);
-          });
-      }
 
       setStep(STEPS.METADATA);
     } catch (err: any) {
@@ -251,7 +267,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
       // result.status === 'READY'
       setProcessingStatus(null);
       setStep(STEPS.COMPLETE);
-      onSuccess();
+      // Note: Do NOT call onSuccess() here - let user see the success screen first
     } catch (err: unknown) {
       const anyErr = err as { status?: number; response?: { data?: { code?: string; message?: string } }; message?: string };
       if (anyErr.status === 409 || anyErr.response?.data?.code === 'DUPLICATE') {
@@ -286,14 +302,24 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
           file!,
           `Auto-uploaded version via upload flow (${new Date().toISOString()})`
         );
+
+        // Clean up the orphan STAGING document created during handleUpload
+        if (uploadedDocument?.id && uploadedDocument.id !== nearDuplicateInfo.nearDuplicateOf.documentId) {
+          try {
+            await documentService.deleteDocument(uploadedDocument.id);
+          } catch (cleanupErr) {
+            console.warn('Failed to clean up staging document:', cleanupErr);
+          }
+        }
+
         setProcessing(false);
         setStep(STEPS.COMPLETE);
-        onSuccess();
+        // Note: Do NOT call onSuccess() here - let user see the success screen first
       } else {
         // CREATE_NEW: just show success (already ingested)
         setProcessing(false);
         setStep(STEPS.COMPLETE);
-        onSuccess();
+        // Note: Do NOT call onSuccess() here - let user see the success screen first
       }
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi xử lý tài liệu.');
@@ -316,6 +342,18 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
       ...formData,
       tags: formData.tags.filter((t: string) => t !== tag),
     });
+  };
+
+  const handleCancelNearDuplicate = async () => {
+    // Delete the staging document before closing
+    if (uploadedDocument?.id) {
+      try {
+        await documentService.deleteDocument(uploadedDocument.id);
+      } catch (err) {
+        console.warn('Failed to delete staging document:', err);
+      }
+    }
+    onClose();
   };
 
   const handleFinish = () => {
@@ -397,7 +435,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
           </button>
         </div>
 
-        {![STEPS.COMPLETE, STEPS.DUPLICATE_WARNING, STEPS.NEAR_DUPLICATE].includes(step) && renderProgressSteps()}
+        {!HIDE_PROGRESS_STEPS.includes(step) && renderProgressSteps()}
 
         <div className={styles.content}>
           {/* Step 1: Select File */}
@@ -408,13 +446,24 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                if (!isClickFromInputRef.current) {
+                  fileInputRef.current?.click();
+                }
+              }}
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 className={styles.dropzoneInput}
                 onChange={handleFileChange}
+                onClick={() => {
+                  isClickFromInputRef.current = true;
+                  // Reset after a tick so next dropzone click doesn't get false positive
+                  setTimeout(() => {
+                    isClickFromInputRef.current = false;
+                  }, 100);
+                }}
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.md"
               />
               <div className={styles.dropzoneIcon}>
@@ -519,11 +568,12 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
                     <button
                       onClick={() => {
                         setShowDuplicateWarning(false);
-                        setStep(STEPS.UPLOAD);
-                        setFile(null);
-                        setUploadedDocument(null);
                         setDuplicateCheck(null);
                         setChecksum(null);
+                        setFile(null);
+                        setUploadedDocument(null);
+                        if (fileInputRef.current) fileInputRef.current.value = ''; // clear file input
+                        setStep(STEPS.SELECT);
                       }}
                       className={styles.secondaryBtn}
                     >
@@ -650,36 +700,45 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
           )}
 
           {/* Step 4: Duplicate Warning (Full Screen) */}
-          {step === STEPS.DUPLICATE_WARNING && duplicateCheck?.existingDocument && (
+          {step === STEPS.DUPLICATE_WARNING && (
             <div className={styles.duplicateWarningPanel}>
               <div className={styles.warningHeader}>
                 <AlertTriangle className="w-5 h-5" />
-                <span>Phát hiện tài liệu trùng lặp</span>
+                <span>Tài liệu trùng lặp</span>
               </div>
               <p className={styles.warningMessage}>
-                File bạn đang tải lên giống hệt tài liệu đã có trong hệ thống.
+                Tài liệu bạn đang tải lên gần như trùng lặp với tài liệu đã có trong hệ thống
+                {duplicateCheck?.existingDocument?.originalFilename && (
+                  <> (<strong>{duplicateCheck.existingDocument.originalFilename}</strong>)</>
+                )}.
                 Hệ thống sẽ không tạo tài liệu mới.
               </p>
-              <div className={styles.existingDocCard}>
-                <div className={styles.docCardRow}>
-                  <span className={styles.docCardLabel}>Tên file</span>
-                  <span>{duplicateCheck.existingDocument.originalFilename}</span>
-                </div>
-                <div className={styles.docCardRow}>
-                  <span className={styles.docCardLabel}>Kích thước</span>
-                  <span>{formatFileSize(duplicateCheck.existingDocument.fileSizeBytes)}</span>
-                </div>
-                <div className={styles.docCardRow}>
-                  <span className={styles.docCardLabel}>Ngày tạo</span>
-                  <span>{formatDate(duplicateCheck.existingDocument.createdAt)}</span>
-                </div>
-                {duplicateCheck.existingDocument.title && (
+              {duplicateCheck?.existingDocument ? (
+                <div className={styles.existingDocCard}>
                   <div className={styles.docCardRow}>
-                    <span className={styles.docCardLabel}>Tiêu đề</span>
-                    <span>{duplicateCheck.existingDocument.title}</span>
+                    <span className={styles.docCardLabel}>Tên file</span>
+                    <span>{duplicateCheck.existingDocument.originalFilename}</span>
                   </div>
-                )}
-              </div>
+                  <div className={styles.docCardRow}>
+                    <span className={styles.docCardLabel}>Kích thước</span>
+                    <span>{formatFileSize(duplicateCheck.existingDocument.fileSizeBytes)}</span>
+                  </div>
+                  <div className={styles.docCardRow}>
+                    <span className={styles.docCardLabel}>Ngày tạo</span>
+                    <span>{formatDate(duplicateCheck.existingDocument.createdAt)}</span>
+                  </div>
+                  {duplicateCheck.existingDocument.title && (
+                    <div className={styles.docCardRow}>
+                      <span className={styles.docCardLabel}>Tiêu đề</span>
+                      <span>{duplicateCheck.existingDocument.title}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={styles.warningFallback}>
+                  <p>Không tìm thấy thông tin tài liệu trùng lặp.</p>
+                </div>
+              )}
               <div className={styles.warningActions}>
                 <button onClick={onClose} className={styles.cancelBtn}>
                   Đóng
@@ -687,11 +746,12 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
                 <button
                   onClick={() => {
                     setShowDuplicateWarning(false);
-                    setStep(STEPS.UPLOAD);
-                    setFile(null);
-                    setUploadedDocument(null);
                     setDuplicateCheck(null);
                     setChecksum(null);
+                    setFile(null);
+                    setUploadedDocument(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    setStep(STEPS.SELECT);
                   }}
                   className={styles.secondaryBtn}
                 >
@@ -771,7 +831,7 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
               </div>
 
               <div className={styles.nearDuplicateActions}>
-                <button onClick={onClose} className={styles.cancelBtn}>
+                <button onClick={handleCancelNearDuplicate} className={styles.cancelBtn}>
                   Hủy bỏ
                 </button>
                 <button
@@ -838,7 +898,13 @@ export function UploadModal({ onClose, onSuccess, categories, initialDocument }:
 
               <div className={styles.successActions}>
                 <button
-                  onClick={() => window.location.href = `/documents/${uploadedDocument?.id}`}
+                  onClick={() => {
+                    if (uploadedDocument?.id) {
+                      window.location.href = `/documents/${uploadedDocument.id}`;
+                    } else {
+                      handleFinish();
+                    }
+                  }}
                   className={styles.primaryBtn}
                 >
                   <FileText className="w-4 h-4" />

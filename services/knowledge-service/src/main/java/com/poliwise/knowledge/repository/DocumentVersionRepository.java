@@ -37,11 +37,14 @@ public interface DocumentVersionRepository
 
     @Query("""
         SELECT v FROM DocumentVersion v
-        JOIN v.documentId d
         WHERE v.fileChecksum = :checksum
           AND v.deletedAt IS NULL
         ORDER BY v.createdAt DESC
-        LIMIT 1
         """)
-    Optional<DocumentVersion> findByFileChecksum(@Param("checksum") String fileChecksum);
+    List<DocumentVersion> findByFileChecksum(@Param("checksum") String fileChecksum);
+
+    default Optional<DocumentVersion> findFirstByFileChecksum(String checksum) {
+        List<DocumentVersion> results = findByFileChecksum(checksum);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
 }

@@ -330,6 +330,8 @@ function mapBackendMessageToFrontend(m: any): Message {
     hasSources: m.has_sources ?? m.hasSources ?? false,
     isStreaming: m.is_streaming ?? m.isStreaming ?? false,
     streamingCompleted: m.streaming_completed ?? m.streamingCompleted ?? true,
+    isToxic: m.is_toxic ?? m.isToxic ?? false,
+    isLayer2Response: m.is_layer2_response ?? m.isLayer2Response ?? false,
     createdAt: m.created_at ?? m.createdAt,
   };
 }
@@ -2855,10 +2857,10 @@ class ApiClient {
       });
     },
 
-    getAppeals: async (params?: {
+    getActionedViolations: async (params?: {
       page?: number;
       limit?: number;
-      status?: string;
+      action?: string;
     }): Promise<{
       data: unknown[];
       pagination: {
@@ -2872,25 +2874,16 @@ class ApiClient {
       if (params) {
         if (params.page !== undefined) mappedParams.page = params.page - 1;
         if (params.limit !== undefined) mappedParams.size = params.limit;
-        if (params.status !== undefined) mappedParams.status = params.status;
+        if (params.action !== undefined) mappedParams.action = params.action;
       }
       const res = await this.client.get<{ success: boolean; data?: unknown }>(
-        "/api/v1/violations/appeals",
+        "/api/v1/violations/actioned",
         { params: mappedParams },
       );
       return coercePaginated<unknown>(
         res.data as unknown as Record<string, unknown>,
         "data",
       );
-    },
-
-    reviewAppeal: async (
-      appealId: string,
-      approved: boolean,
-    ): Promise<void> => {
-      await this.client.post(`/api/v1/violations/appeals/${appealId}/review`, {
-        approved,
-      });
     },
 
     resetStrikes: async (userId: string): Promise<void> => {

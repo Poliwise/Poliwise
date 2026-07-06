@@ -43,8 +43,10 @@ public class Violation {
     @Column(name = "evidence", columnDefinition = "TEXT")
     private String evidence;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "source", nullable = false)
-    private String source;
+    private ViolationSource source;
 
     @Column(name = "reported_by")
     private UUID reportedBy;
@@ -90,6 +92,9 @@ public class Violation {
 
     @Column(name = "user_role", length = 20)
     private String userRole;
+
+    @Column(name = "is_admin_exempt")
+    private Boolean isAdminExempt = false;
 
     @PrePersist
     protected void onCreate() {

@@ -172,6 +172,7 @@ CREATE TABLE knowledge.chunks (
 CREATE TABLE knowledge.processing_jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     document_id UUID NOT NULL REFERENCES knowledge.documents(id) ON DELETE CASCADE,
+    document_version_id UUID REFERENCES knowledge.document_versions(id) ON DELETE SET NULL,
 
     job_type knowledge.processing_step NOT NULL,
     status knowledge.processing_status NOT NULL DEFAULT 'UPLOADED',
@@ -268,6 +269,7 @@ CREATE INDEX idx_knowledge_chunks_section_level ON knowledge.chunks(section_leve
 CREATE INDEX idx_chunks_content_tsv ON knowledge.chunks USING GIN (content_tsv);
 
 CREATE INDEX idx_knowledge_processing_jobs_document_id ON knowledge.processing_jobs(document_id);
+CREATE INDEX idx_knowledge_processing_jobs_document_version_id ON knowledge.processing_jobs(document_version_id);
 CREATE INDEX idx_knowledge_processing_jobs_status ON knowledge.processing_jobs(status);
 CREATE INDEX idx_knowledge_processing_jobs_deleted_at ON knowledge.processing_jobs(deleted_at) WHERE deleted_at IS NULL;
 

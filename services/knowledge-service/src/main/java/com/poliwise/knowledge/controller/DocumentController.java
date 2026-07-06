@@ -462,6 +462,7 @@ public class DocumentController {
         if (lower.endsWith(".doc")) return FileType.DOC;
         if (lower.endsWith(".xls")) return FileType.XLS;
         if (lower.endsWith(".txt")) return FileType.TXT;
+        if (lower.endsWith(".md")) return FileType.MD;
         if (lower.endsWith(".png")) return FileType.PNG;
         if (lower.endsWith(".jpg")) return FileType.JPG;
         if (lower.endsWith(".jpeg")) return FileType.JPEG;

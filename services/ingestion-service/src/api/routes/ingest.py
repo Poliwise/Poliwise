@@ -8,6 +8,7 @@ from src.db.session import get_session
 from src.services.pipeline import pipeline
 from src.db.repositories.job_repo import JobRepository
 from src.db.repositories.version_repo import VersionRepository
+from src.db.repositories.document_repo import DocumentRepository
 from src.api.dependencies import get_api_key
 from src.db.session import async_session
 
@@ -124,22 +125,26 @@ async def check_duplicate(
     async with async_session() as session:
         repo = VersionRepository(session)
         existing = await repo.find_by_file_checksum(checksum)
-        
+
         if existing:
             logger.info("duplicate_check_hit", method="file_checksum", version_id=str(existing.id))
+            # DocumentVersion does not have original_filename/file_size_bytes.
+            # Fetch the parent Document to expose those fields to callers.
+            doc_repo = DocumentRepository(session)
+            parent_doc = await doc_repo.get_by_id(existing.document_id)
             return DuplicateCheckResponse(
                 is_duplicate=True,
                 action="BLOCK",
                 existing_document={
                     "document_id": str(existing.document_id),
-                    "original_filename": existing.original_filename,
+                    "original_filename": parent_doc.original_filename if parent_doc else None,
                     "file_size_bytes": existing.file_size_bytes,
                     "file_checksum": existing.file_checksum,
                     "version_number": existing.version_number,
                 },
                 detection_method="file_checksum"
             )
-    
+
     return DuplicateCheckResponse(
         is_duplicate=False,
         action=None,

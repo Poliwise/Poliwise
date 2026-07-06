@@ -97,27 +97,27 @@ export default function CategoriesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t('admin.categories.title')}</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-foreground">{t('admin.categories.title')}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {t('admin.categories.count').replace('{count}', String(categories.length))}
               </p>
             </div>
             <button
               onClick={handleCreate}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary-strong"
             >
               <Plus className="w-4 h-4 mr-2" />
               {t('admin.categories.add')}
@@ -126,13 +126,13 @@ export default function CategoriesPage() {
 
           {/* Search */}
           <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               type="text"
               placeholder={t('admin.categories.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-primary bg-background text-foreground placeholder:text-placeholder"
             />
           </div>
         </div>
@@ -141,49 +141,49 @@ export default function CategoriesPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+          <div className="mb-4 p-4 bg-danger-soft border border-danger rounded-lg flex items-center text-danger-foreground">
             <AlertCircle className="w-5 h-5 mr-2" />
             {error}
           </div>
         )}
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-card shadow rounded-lg overflow-hidden border border-border">
           {filteredTree.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <div className="p-8 text-center text-muted-foreground">
+              <FolderOpen className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
               <p>{t('admin.categories.empty')}</p>
               <button
                 onClick={handleCreate}
-                className="mt-4 text-indigo-600 hover:text-indigo-800"
+                className="mt-4 text-primary hover:text-primary-strong"
               >
                 {t('admin.categories.empty.start')}
               </button>
             </div>
           ) : searchQuery ? (
             // Search results (flat list)
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-border">
               {filteredTree.map((cat) => (
                 <div
                   key={cat.id}
-                  className="p-4 flex items-center justify-between hover:bg-gray-50"
+                  className="p-4 flex items-center justify-between hover:bg-muted"
                 >
                   <div className="flex items-center">
-                    <FolderOpen className="w-5 h-5 text-indigo-500 mr-3" />
+                    <FolderOpen className="w-5 h-5 text-primary mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{cat.name}</p>
-                      <p className="text-xs text-gray-500">{cat.slug}</p>
+                      <p className="text-sm font-medium text-foreground">{cat.name}</p>
+                      <p className="text-xs text-muted-foreground">{cat.slug}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEdit(cat)}
-                      className="p-2 text-gray-400 hover:text-indigo-600"
+                      className="p-2 text-muted-foreground hover:text-primary"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(cat)}
-                      className="p-2 text-gray-400 hover:text-red-600"
+                      className="p-2 text-muted-foreground hover:text-danger"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -193,7 +193,7 @@ export default function CategoriesPage() {
             </div>
           ) : (
             // Tree view
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-border">
               {categoryTree.map((cat) => (
                 <CategoryTreeItem
                   key={cat.id}
@@ -241,10 +241,10 @@ function CategoryTreeItem({
 
   return (
     <>
-      <div className="p-4 flex items-center hover:bg-gray-50">
+      <div className="p-4 flex items-center hover:bg-muted">
         <button
           onClick={() => hasChildren && onToggle(category.id)}
-          className={`p-1 mr-2 ${hasChildren ? 'text-gray-400 hover:text-gray-600' : 'text-transparent'}`}
+          className={`p-1 mr-2 ${hasChildren ? 'text-muted-foreground hover:text-foreground' : 'text-transparent'}`}
         >
           {hasChildren ? (
             isExpanded ? (
@@ -257,33 +257,33 @@ function CategoryTreeItem({
           )}
         </button>
         {category.icon ? (
-          <div className="w-5 h-5 mr-3 text-indigo-500 flex items-center justify-center">
+          <div className="w-5 h-5 mr-3 text-primary flex items-center justify-center">
             {getIconByName(category.icon, 20)}
           </div>
         ) : (
-          <FolderOpen className="w-5 h-5 text-indigo-500 mr-3" />
+          <FolderOpen className="w-5 h-5 text-primary mr-3" />
         )}
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900">{category.name}</p>
-          <p className="text-xs text-gray-500">{category.slug}</p>
+          <p className="text-sm font-medium text-foreground">{category.name}</p>
+          <p className="text-xs text-muted-foreground">{category.slug}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(category as unknown as Category)}
-            className="p-2 text-gray-400 hover:text-indigo-600"
+            className="p-2 text-muted-foreground hover:text-primary"
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(category as unknown as Category)}
-            className="p-2 text-gray-400 hover:text-red-600"
+            className="p-2 text-muted-foreground hover:text-danger"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
       {hasChildren && isExpanded && (
-        <div className="bg-gray-50 border-l-4 border-indigo-200">
+        <div className="bg-muted border-l-4 border-primary-soft">
           {category.children!.map((child) => (
             <CategoryTreeItem
               key={child.id}
@@ -356,39 +356,39 @@ function CategoryModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-overlay/50" onClick={onClose} />
+        <div className="relative bg-card rounded-xl shadow-xl w-full max-w-md p-6 border border-border">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             {category ? t('admin.categories.modal.edit') : t('admin.categories.modal.create')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 {t('admin.categories.modal.name.required')}
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-ring bg-background text-foreground"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.categories.modal.description')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{t('admin.categories.modal.description')}</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-ring bg-background text-foreground"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.categories.modal.parent')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{t('admin.categories.modal.parent')}</label>
               <select
                 value={formData.parentId}
                 onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-ring bg-background text-foreground"
               >
                 <option value="">{t('admin.categories.modal.parent.none')}</option>
                 {categories.map((cat) => (
@@ -405,17 +405,17 @@ function CategoryModal({
                 onChange={(icon) => setFormData({ ...formData, icon })}
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.categories.modal.order')}</label>
+                <label className="block text-sm font-medium text-foreground mb-1">{t('admin.categories.modal.order')}</label>
                 <input
                   type="number"
                   value={formData.displayOrder}
                   onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-ring bg-background text-foreground"
                 />
               </div>
             </div>
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <div className="p-3 bg-danger-soft border border-danger rounded-lg text-danger-foreground text-sm">
                 {error}
               </div>
             )}
@@ -423,14 +423,14 @@ function CategoryModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-input rounded-lg text-sm font-medium text-foreground hover:bg-muted"
               >
                 {t('admin.categories.modal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary-strong disabled:opacity-50"
               >
                 {saving ? t('admin.categories.modal.saving') : t('admin.categories.modal.save')}
               </button>

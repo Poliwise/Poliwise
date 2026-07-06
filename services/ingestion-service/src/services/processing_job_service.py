@@ -10,10 +10,12 @@ class ProcessingJobService:
         """Update job progress percentage and status message."""
         async with async_session() as session:
             repo = JobRepository(session)
+            # Use PARSING (matches knowledge.processing_status enum). The job moves
+            # through PARSING → CHUNKING → EMBEDDING → INDEXING as it advances.
             await repo.update_status(
-                job_id, 
-                "PROCESSING", 
-                progress_percent=percent, 
+                job_id,
+                "PARSING",
+                progress_percent=percent,
                 error_message=message
             )
             await session.commit()
@@ -22,7 +24,7 @@ class ProcessingJobService:
         """Mark job as processing started."""
         async with async_session() as session:
             repo = JobRepository(session)
-            await repo.update_status(job_id, "PROCESSING", progress_percent=0)
+            await repo.update_status(job_id, "PARSING", progress_percent=0)
             await session.commit()
 
     async def complete_job(self, job_id: UUID, success: bool, metrics: dict | None = None, error_message: str | None = None) -> None:

@@ -105,6 +105,7 @@ frontend/web/
 | TanStack Query | Server state / data fetching |
 | CSS Modules | Styling |
 | lucide-react | Icons |
+| react-markdown + remark-gfm + rehype-raw | Markdown rendering (chat assistant bubbles, document viewer) |
 
 ## State Management
 
@@ -472,6 +473,25 @@ export async function* streamAIResponse(question: string, conversationId?: strin
   }
 }
 ```
+
+### Chat message rendering (markdown)
+
+The assistant response stream emits raw markdown text (headings, lists, tables, inline code, etc.). `components/chat/ChatMessage.tsx` renders the assistant bubble body through `ReactMarkdown` with the same plugin set used by the document viewer:
+
+```typescript
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+
+<ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+  {message.content}
+</ReactMarkdown>
+```
+
+- User messages keep the plain `<p>` rendering (no markdown parsing) to preserve the right-aligned bubble styling.
+- Assistant messages are wrapped in a `<div className="chat-markdown">`; prose styling (links, lists, code blocks, tables, blockquotes, hr) is scoped through `.chat-markdown` in `app/globals.css` so it never bleeds into `.doc-viewer-content` or other prose areas.
+- The streaming cursor / 3-dot loader remains appended after the markdown body and disappears once `streamingCompleted` is true.
+- `rehypeRaw` is included so any HTML the LLM emits (e.g. raw `<br/>`, table markup) still renders, matching the document viewer.
 
 ## RBAC in Components
 

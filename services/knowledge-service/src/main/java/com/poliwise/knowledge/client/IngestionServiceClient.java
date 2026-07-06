@@ -45,29 +45,37 @@ public class IngestionServiceClient {
                 return DuplicateCheckResponse.notDuplicate();
             }
 
-            boolean isDuplicate = Boolean.TRUE.equals(response.get("isDuplicate"));
+            boolean isDuplicate = Boolean.TRUE.equals(response.get("is_duplicate"))
+                    || Boolean.TRUE.equals(response.get("isDuplicate"));
             if (!isDuplicate) {
                 return DuplicateCheckResponse.notDuplicate();
             }
 
             String action = (String) response.get("action");
-            String detectionMethod = (String) response.get("detectionMethod");
+            String detectionMethod = (String) response.get("detection_method");
+            if (detectionMethod == null) detectionMethod = (String) response.get("detectionMethod");
             Double similarity = response.get("similarity") instanceof Number
                     ? ((Number) response.get("similarity")).doubleValue()
                     : null;
 
             DocumentDuplicateInfo existingDoc = null;
-            if (response.get("existingDocument") instanceof Map) {
-                Map<String, Object> docMap = (Map<String, Object>) response.get("existingDocument");
+            Object existingRaw = response.get("existing_document");
+            if (existingRaw == null) existingRaw = response.get("existingDocument");
+            if (existingRaw instanceof Map) {
+                Map<String, Object> docMap = (Map<String, Object>) existingRaw;
+                String docIdStr = (String) docMap.get("document_id");
+                if (docIdStr == null) docIdStr = (String) docMap.get("documentId");
+                Object fileSizeRaw = docMap.get("file_size_bytes");
+                if (fileSizeRaw == null) fileSizeRaw = docMap.get("fileSizeBytes");
                 existingDoc = new DocumentDuplicateInfo(
-                        docMap.get("documentId") != null ? UUID.fromString(docMap.get("documentId").toString()) : null,
-                        (String) docMap.get("originalFilename"),
-                        docMap.get("fileSizeBytes") != null ? ((Number) docMap.get("fileSizeBytes")).longValue() : null,
+                        docIdStr != null ? UUID.fromString(docIdStr) : null,
+                        (String) docMap.get("original_filename"),
+                        fileSizeRaw != null ? ((Number) fileSizeRaw).longValue() : null,
                         null,
                         (String) docMap.get("title"),
-                        (String) docMap.get("categorySlug"),
+                        (String) docMap.get("category_slug"),
                         (String) docMap.get("status"),
-                        (String) docMap.get("fileChecksum")
+                        (String) docMap.get("file_checksum")
                 );
             }
 
@@ -100,10 +108,17 @@ public class IngestionServiceClient {
             }
 
             String status = (String) response.get("status");
-            Map<String, Object> metrics = response.get("outputMetrics") instanceof Map
-                    ? (Map<String, Object>) response.get("outputMetrics")
-                    : null;
-            String errorMessage = (String) response.get("errorMessage");
+            // ingestion-service returns snake_case JSON (output_metrics, error_message).
+            Map<String, Object> metrics = null;
+            if (response.get("output_metrics") instanceof Map) {
+                metrics = (Map<String, Object>) response.get("output_metrics");
+            } else if (response.get("outputMetrics") instanceof Map) {
+                metrics = (Map<String, Object>) response.get("outputMetrics");
+            }
+            String errorMessage = (String) response.get("error_message");
+            if (errorMessage == null) {
+                errorMessage = (String) response.get("errorMessage");
+            }
 
             return new SyncJobStatus(status, metrics, errorMessage);
         } catch (Exception e) {
@@ -114,7 +129,9 @@ public class IngestionServiceClient {
 
     public record SyncJobStatus(String status, Map<String, Object> outputMetrics, String errorMessage) {
         public boolean isCompleted() {
-            return "COMPLETED".equals(status);
+            // The ingestion-service writes status='READY' on completion (matches
+            // knowledge.processing_status enum). 'COMPLETED' is the legacy name.
+            return "READY".equals(status) || "COMPLETED".equals(status);
         }
 
         public boolean isFailed() {
@@ -136,8 +153,24 @@ public class IngestionServiceClient {
 
         public Double getSimilarity() {
             if (outputMetrics == null) return null;
+            // Check top-level similarity first
             Object sim = outputMetrics.get("similarity");
             if (sim instanceof Number) return ((Number) sim).doubleValue();
+            // Fallback: check inside near_duplicate object
+            Object nearDup = outputMetrics.get("near_duplicate");
+            if (nearDup instanceof Map) {
+                Map<?, ?> nearDupMap = (Map<?, ?>) nearDup;
+                Object nestedSim = nearDupMap.get("similarity");
+                if (nestedSim instanceof Number) return ((Number) nestedSim).doubleValue();
+                // Also check for 'score' or 'cosine_distance' inside near_duplicate
+                Object score = nearDupMap.get("score");
+                if (score instanceof Number) return ((Number) score).doubleValue();
+                Object distance = nearDupMap.get("cosine_distance");
+                if (distance instanceof Number) {
+                    // Convert cosine distance to similarity (1 - distance)
+                    return 1.0 - ((Number) distance).doubleValue();
+                }
+            }
             return null;
         }
 

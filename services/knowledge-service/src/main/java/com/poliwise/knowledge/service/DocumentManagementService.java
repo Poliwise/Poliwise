@@ -13,10 +13,13 @@ import com.poliwise.knowledge.enums.FileType;
 import com.poliwise.knowledge.enums.ProcessingStatus;
 import com.poliwise.knowledge.event.DocumentEventPublisher;
 import com.poliwise.knowledge.exception.DuplicateDocumentException;
+import com.poliwise.knowledge.entity.ProcessingJob;
+import com.poliwise.knowledge.enums.ProcessingStep;
 import com.poliwise.knowledge.repository.DocumentAuditLogRepository;
 import com.poliwise.knowledge.repository.DocumentRepository;
 import com.poliwise.knowledge.repository.DocumentSpecifications;
 import com.poliwise.knowledge.repository.DocumentVersionRepository;
+import com.poliwise.knowledge.repository.ProcessingJobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -51,6 +54,7 @@ public class DocumentManagementService {
     private final MetadataServiceClient metadataServiceClient;
     private final DocumentParsingService parsingService;
     private final IngestionServiceClient ingestionServiceClient;
+    private final ProcessingJobRepository jobRepository;
 
     public DocumentManagementService(
             DocumentRepository documentRepository,
@@ -61,7 +65,8 @@ public class DocumentManagementService {
             ObjectMapper objectMapper,
             MetadataServiceClient metadataServiceClient,
             DocumentParsingService parsingService,
-            IngestionServiceClient ingestionServiceClient) {
+            IngestionServiceClient ingestionServiceClient,
+            ProcessingJobRepository jobRepository) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
         this.auditLogRepository = auditLogRepository;
@@ -71,6 +76,7 @@ public class DocumentManagementService {
         this.metadataServiceClient = metadataServiceClient;
         this.parsingService = parsingService;
         this.ingestionServiceClient = ingestionServiceClient;
+        this.jobRepository = jobRepository;
     }
 
     // ========== Document CRUD ==========
@@ -665,11 +671,13 @@ public class DocumentManagementService {
             throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
         }
 
-        // 4. Update document language, status, and clear expiresAt
+        // 4. Update document language and clear expiresAt
+        // NOTE: Do NOT set status to READY here! Status should only be set AFTER
+        // ingestion completes successfully. Setting READY before ingestion causes
+        // duplicate documents to appear as READY in the database.
         if (request.language() != null) {
             document.setLanguage(request.language());
         }
-        document.setStatus(ProcessingStatus.READY);
         document.setExpiresAt(null);
         document.setUpdatedAt(OffsetDateTime.now());
         Document saved = documentRepository.save(document);
@@ -757,7 +765,7 @@ public class DocumentManagementService {
         }
 
         // Fallback: check local knowledge schema
-        Optional<DocumentVersion> versionByChecksum = versionRepository.findByFileChecksum(fileChecksum);
+        Optional<DocumentVersion> versionByChecksum = versionRepository.findFirstByFileChecksum(fileChecksum);
         if (versionByChecksum.isPresent()) {
             DocumentVersion v = versionByChecksum.get();
             Document doc = documentRepository.findById(v.getDocumentId()).orElse(null);
@@ -803,8 +811,12 @@ public class DocumentManagementService {
      * Returns ConfirmResultResponse with final status.
      * Throws DuplicateDocumentException if duplicate detected during ingestion.
      */
-    @Transactional
     public ConfirmResultResponse confirmMetadataSync(UUID documentId, DocumentConfirmRequest request, UUID confirmedBy) {
+        // NOTE: This method is intentionally NOT @Transactional. The synchronous
+        // ingestion polling below holds a connection for up to 60s, which would
+        // exhaust the Hikari pool. Instead, each repository.save() call below
+        // runs in its own short-lived transaction (Spring Data default).
+
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
 
@@ -836,22 +848,26 @@ public class DocumentManagementService {
             throw new RuntimeException("Failed to save metadata: " + e.getMessage(), e);
         }
 
-        // 4. Update document language, status, and save file checksum
+        // 4. Update document language and save file checksum
+        // NOTE: Do NOT set status to READY here! Status should only be set AFTER
+        // ingestion completes successfully. Setting READY before ingestion causes
+        // duplicate documents to appear as READY in the database.
         if (request.language() != null) {
             document.setLanguage(request.language());
         }
         if (request.fileChecksum() != null && !request.fileChecksum().isBlank()) {
             saveFileChecksum(documentId, request.fileChecksum());
         }
-        document.setStatus(ProcessingStatus.READY);
+        // Keep current status (STAGING or PARSING) - don't set READY yet
         document.setExpiresAt(null);
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
+        log.info("DEBUG_FIX_BEFORE_INGESTION: documentId={}, status={}", documentId, document.getStatus());
 
         log.info("Document metadata confirmed (sync): documentId={}, title='{}', categorySlug='{}'",
                 documentId, request.title(), request.categorySlug());
 
-        // 5. Trigger sync ingestion and poll for result
+        // 5. Trigger sync ingestion and poll for result (outside any DB transaction)
         return triggerAndPollIngestion(documentId, confirmedBy);
     }
 
@@ -906,15 +922,34 @@ public class DocumentManagementService {
         document.setUpdatedAt(OffsetDateTime.now());
         documentRepository.save(document);
 
+        // Persist the ProcessingJob row so ingestion-service can update its progress.
+        // Without this row, ingestion-service's UPDATE statements would not match any
+        // record, and the sync confirm poll would time out with status UNKNOWN.
+        OffsetDateTime now = OffsetDateTime.now();
+        ProcessingJob job = ProcessingJob.builder()
+                .id(jobId)
+                .documentId(documentId)
+                .documentVersionId(latestVersion.getId())
+                .jobType(ProcessingStep.PARSE)
+                .status(ProcessingStatus.UPLOADED)
+                .progressPercent(0)
+                .startedAt(now)
+                .retryCount(0)
+                .maxRetries(3)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        jobRepository.save(job);
+
         // Publish to RabbitMQ for async processing
         eventPublisher.publishIngestionRequested(payload);
         log.info("Ingestion triggered for sync poll: documentId={}, jobId={}", documentId, jobId);
 
         // Poll for result
-        return pollIngestionResult(jobId);
+        return pollIngestionResult(jobId, documentId);
     }
 
-    private ConfirmResultResponse pollIngestionResult(UUID jobId) {
+    private ConfirmResultResponse pollIngestionResult(UUID jobId, UUID documentId) {
         int pollIntervalMs = 2000;
         int maxWaitMs = 60000;
         int waited = 0;
@@ -953,6 +988,15 @@ public class DocumentManagementService {
 
                     // Exact duplicate: throw exception
                     log.info("Exact duplicate detected during ingestion: method={}", method);
+
+                    // Update document status to DUPLICATE before throwing
+                    Document doc = documentRepository.findById(documentId).orElse(null);
+                    if (doc != null) {
+                        doc.setStatus(ProcessingStatus.DUPLICATE);
+                        documentRepository.save(doc);
+                        log.info("Document status updated to DUPLICATE: documentId={}", documentId);
+                    }
+
                     throw new DuplicateDocumentException(
                             "Document is a duplicate of an existing document (method: " + method + ")",
                             existingDoc,
@@ -960,9 +1004,38 @@ public class DocumentManagementService {
                     );
                 }
 
-                // Normal completion
+                // Check if near-duplicate was detected (stored in output_metrics)
+                if (status.isNearDuplicate()) {
+                    Double similarity = status.getSimilarity();
+                    // Use a default similarity if not found, but ensure it's not null for the factory method
+                    double simValue = similarity != null ? similarity : 0.85;
+                    DocumentDuplicateInfo existingDoc = null;
+                    try {
+                        existingDoc = getDuplicateInfoFromJobMetrics(status);
+                    } catch (Exception e) {
+                        log.warn("Could not get existing doc info for near-duplicate: {}", e.getMessage());
+                    }
+                    log.info("Near-duplicate detected (via output_metrics): similarity={}", similarity);
+                    return ConfirmResultResponse.nearDuplicate(existingDoc, simValue);
+                }
+
+                // Normal completion - set status to READY
                 Integer chunkCount = status.getChunkCount();
                 log.info("Ingestion completed: jobId={}, chunkCount={}", jobId, chunkCount);
+                
+                // Set document status to READY after successful ingestion
+                try {
+                    Document doc = documentRepository.findById(documentId).orElse(null);
+                    if (doc != null) {
+                        doc.setStatus(ProcessingStatus.READY);
+                        doc.setUpdatedAt(OffsetDateTime.now());
+                        documentRepository.save(doc);
+                        log.info("Document status set to READY after successful ingestion: documentId={}", documentId);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to set document status to READY: {}", e.getMessage());
+                }
+                
                 return ConfirmResultResponse.ready(chunkCount != null ? chunkCount : 0);
             }
 
