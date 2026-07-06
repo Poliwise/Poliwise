@@ -336,7 +336,7 @@ export function DocumentViewerModal() {
         </div>
 
         {chunkData.map((chunk, idx) => {
-          const fullText = `${chunk.sectionTitle ? chunk.sectionTitle + '\n' : ''}${chunk.excerpt}`;
+          const fullText = `${chunk.sectionTitle ? chunk.sectionTitle + '\n' : ''}${chunk.fullContent || chunk.excerpt}`;
 
           return (
             <div
@@ -389,7 +389,7 @@ export function DocumentViewerModal() {
                 </div>
 
                 <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap pl-7">
-                  {chunk.excerpt}
+                  {chunk.fullContent || chunk.excerpt}
                 </p>
               </div>
             </div>

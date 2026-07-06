@@ -2,7 +2,7 @@ package com.poliwise.feedback.repository;
 
 import com.poliwise.feedback.entity.Violation;
 import com.poliwise.feedback.enums.ViolationStatus;
-import com.poliwise.feedback.enums.AppealStatus;
+import com.poliwise.feedback.enums.ViolationAction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,7 +20,7 @@ public interface ViolationRepository extends JpaRepository<Violation, UUID> {
 
     Page<Violation> findByStatusAndDeletedAtIsNull(ViolationStatus status, Pageable pageable);
 
-    Page<Violation> findByAppealStatus(AppealStatus appealStatus, Pageable pageable);
+    Page<Violation> findByActionTakenAndDeletedAtIsNull(ViolationAction actionTaken, Pageable pageable);
 
     Optional<Violation> findByIdAndDeletedAtIsNull(UUID id);
 
@@ -32,9 +32,6 @@ public interface ViolationRepository extends JpaRepository<Violation, UUID> {
 
     @Query("SELECT COUNT(v) FROM Violation v WHERE v.deletedAt IS NULL")
     long countTotalViolations();
-
-    @Query("SELECT COUNT(v) FROM Violation v WHERE v.appealStatus = :status")
-    long countByAppealStatus(@Param("status") AppealStatus status);
 
     @Query("SELECT DISTINCT v.userId FROM Violation v WHERE v.status = :status AND v.deletedAt IS NULL")
     Page<UUID> findDistinctUserIdsWithStatus(@Param("status") ViolationStatus status, Pageable pageable);

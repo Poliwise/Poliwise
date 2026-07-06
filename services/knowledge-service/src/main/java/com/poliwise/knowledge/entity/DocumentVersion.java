@@ -51,4 +51,7 @@ public class DocumentVersion {
 
     @Column(name = "deletion_reason", columnDefinition = "text")
     private String deletionReason;
+
+    @Column(name = "file_checksum")
+    private String fileChecksum;
 }

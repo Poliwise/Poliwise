@@ -34,4 +34,17 @@ public interface DocumentVersionRepository
                                                                       @Param("versionNumber") Integer versionNumber);
 
     long countByDocumentIdAndDeletedAtIsNull(UUID documentId);
+
+    @Query("""
+        SELECT v FROM DocumentVersion v
+        WHERE v.fileChecksum = :checksum
+          AND v.deletedAt IS NULL
+        ORDER BY v.createdAt DESC
+        """)
+    List<DocumentVersion> findByFileChecksum(@Param("checksum") String fileChecksum);
+
+    default Optional<DocumentVersion> findFirstByFileChecksum(String checksum) {
+        List<DocumentVersion> results = findByFileChecksum(checksum);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
 }

@@ -83,27 +83,27 @@ export default function TagsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t('admin.tags.title')}</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-foreground">{t('admin.tags.title')}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {t('admin.tags.count').replace('{count}', String(tags.length))}
               </p>
             </div>
             <button
               onClick={handleCreate}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary-strong"
             >
               <Plus className="w-4 h-4 mr-2" />
               {t('admin.tags.add')}
@@ -112,13 +112,13 @@ export default function TagsPage() {
 
           {/* Search */}
           <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               type="text"
               placeholder={t('admin.tags.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-primary bg-background text-foreground placeholder:text-placeholder"
             />
           </div>
         </div>
@@ -127,20 +127,20 @@ export default function TagsPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
+          <div className="mb-4 p-4 bg-danger-soft border border-danger rounded-lg flex items-center text-danger-foreground">
             <AlertCircle className="w-5 h-5 mr-2" />
             {error}
           </div>
         )}
 
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-card shadow rounded-lg p-6 border border-border">
           {filteredTags.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              <TagIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <div className="text-center text-muted-foreground py-8">
+              <TagIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
               <p>{t('admin.tags.empty')}</p>
               <button
                 onClick={handleCreate}
-                className="mt-4 text-indigo-600 hover:text-indigo-800"
+                className="mt-4 text-primary hover:text-primary-strong"
               >
                 {t('admin.tags.empty.start')}
               </button>
@@ -150,7 +150,7 @@ export default function TagsPage() {
               {filteredTags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 group"
+                  className="inline-flex items-center px-3 py-1.5 rounded-full border group"
                   style={{
                     backgroundColor: `${getTagColor(tag.color)}10`,
                     borderColor: `${getTagColor(tag.color)}30`,
@@ -172,20 +172,20 @@ export default function TagsPage() {
                     {tag.name}
                   </span>
                   {tag.usageCount !== undefined && tag.usageCount > 0 && (
-                    <span className="ml-1.5 text-xs text-gray-500">
+                    <span className="ml-1.5 text-xs text-muted-foreground">
                       ({tag.usageCount})
                     </span>
                   )}
                   <div className="ml-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleEdit(tag)}
-                      className="p-1 text-gray-400 hover:text-indigo-600"
+                      className="p-1 text-muted-foreground hover:text-primary"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(tag)}
-                      className="p-1 text-gray-400 hover:text-red-600"
+                      className="p-1 text-muted-foreground hover:text-danger"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -258,27 +258,27 @@ function TagModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-overlay/50" onClick={onClose} />
+        <div className="relative bg-card rounded-xl shadow-xl w-full max-w-md p-6 border border-border">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             {tag ? t('admin.tags.modal.edit') : t('admin.tags.modal.create')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('admin.tags.modal.name')} <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                {t('admin.tags.modal.name')} <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-ring bg-background text-foreground placeholder:text-placeholder"
                 placeholder={t('admin.tags.modal.name.placeholder')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.tags.modal.color')}</label>
+              <label className="block text-sm font-medium text-foreground mb-2">{t('admin.tags.modal.color')}</label>
               <div className="flex flex-wrap gap-2">
                 {presetColors.map((color) => (
                   <button
@@ -287,7 +287,7 @@ function TagModal({
                     onClick={() => setFormData({ ...formData, color })}
                     className={`w-8 h-8 rounded-full border-2 transition-transform ${
                       formData.color === color
-                        ? 'border-gray-900 scale-110'
+                        ? 'border-foreground scale-110'
                         : 'border-transparent hover:scale-105'
                     }`}
                     style={{ backgroundColor: color }}
@@ -299,13 +299,13 @@ function TagModal({
                   type="color"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="w-10 h-10 rounded cursor-pointer"
+                  className="w-10 h-10 rounded cursor-pointer bg-background"
                 />
                 <input
                   type="text"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                  className="flex-1 border border-input rounded-lg px-3 py-2 text-sm font-mono bg-background text-foreground"
                 />
               </div>
             </div>
@@ -315,7 +315,7 @@ function TagModal({
               onChange={(icon) => setFormData({ ...formData, icon })}
             />
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <div className="p-3 bg-danger-soft border border-danger rounded-lg text-danger-foreground text-sm">
                 {error}
               </div>
             )}
@@ -323,14 +323,14 @@ function TagModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-input rounded-lg text-sm font-medium text-foreground hover:bg-muted"
               >
                 {t('admin.tags.modal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary-strong disabled:opacity-50"
               >
                 {saving ? t('admin.tags.modal.saving') : t('admin.tags.modal.save')}
               </button>

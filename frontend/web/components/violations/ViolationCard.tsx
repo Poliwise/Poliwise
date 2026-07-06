@@ -74,11 +74,6 @@ export function ViolationCard({
   onReview,
   isAdmin = false,
 }: ViolationCardProps) {
-  const canAppeal =
-    violation.appealStatus === AppealStatus.PENDING &&
-    !violation.appealText &&
-    violation.status !== ViolationStatus.ACTIONED;
-
   return (
     <Card className={clsx(styles.card, styles[`severity${violation.severity}`])} padding="md">
       <div className={styles.header}>
@@ -90,6 +85,9 @@ export function ViolationCard({
             {ViolationTypeLabels[violation.violationType]}
           </Badge>
           {violation.source === 'SYSTEM' && <Badge variant="info">Tự động</Badge>}
+          {violation.isAdminExempt && (
+            <Badge variant="purple">Admin Test</Badge>
+          )}
         </div>
 
         <div className={styles.statusSection}>
@@ -150,13 +148,8 @@ export function ViolationCard({
         </div>
       )}
 
-      {(showActions || onAppeal || onReview) && (
+      {(showActions || onReview) && (
         <div className={styles.actions}>
-          {canAppeal && onAppeal && !isAdmin && (
-            <Button type="button" onClick={() => onAppeal(violation)} size="sm">
-              Khiếu nại
-            </Button>
-          )}
           {showActions && isAdmin && violation.status === ViolationStatus.PENDING && onReview && (
             <Button
               type="button"

@@ -66,6 +66,13 @@ class PipelineOrchestrator:
         self.reranker_service = reranker_service
         self.settings = settings
 
+    def _detect_and_translate_warning(self, message: str) -> str:
+        """Detect user language and return appropriate warning message."""
+        vietnamese_chars = set("àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ")
+        if any(c in vietnamese_chars for c in message.lower()):
+            return "Tin nhắn của bạn chứa nội dung không phù hợp. Vui lòng diễn đạt lại câu hỏi."
+        return "Your message contains inappropriate content. Please rephrase your question."
+
     async def _save_layer2_exchange(
         self, conversation_id: UUID, response: Layer2Response, model_requested: str = "default"
     ) -> Any:
@@ -77,6 +84,7 @@ class PipelineOrchestrator:
             model_used=response.model_used,
             latency_ms=response.latency_ms,
             has_sources=False,
+            is_layer2_response=True,
             metadata={"model_requested": model_requested}
         )
 
@@ -141,16 +149,15 @@ class PipelineOrchestrator:
         user_department_id: Optional[UUID] = None,
         user_role: str = "USER"
     ):
-        """Publish violation event to RabbitMQ. Admins are exempt from escalation."""
-        # Admins are exempt - they may be testing the system
-        if user_role == "ADMIN":
+        """Publish violation event to RabbitMQ. Admins are exempt from strike escalation."""
+        is_admin_exempt = user_role == "ADMIN"
+        
+        if is_admin_exempt:
             logger.info(
                 "admin_violation_logged_but_exempt",
                 user_id=str(user_id),
                 violation_type=violation_type
             )
-            # Still log but don't trigger escalation for admins
-            return
         
         try:
             await violation_publisher.publish_violation(
@@ -160,7 +167,8 @@ class PipelineOrchestrator:
                 evidence=evidence,
                 source=source,
                 user_department_id=user_department_id,
-                user_role=user_role
+                user_role=user_role,
+                is_admin_exempt=is_admin_exempt  # NEW: flag for feedback service
             )
         except Exception as e:
             logger.error("failed_to_publish_violation", error=str(e), user_id=str(user_id))
@@ -192,7 +200,8 @@ class PipelineOrchestrator:
 
         # ── LAYER 2: Intent Classification ──────────────────────
         recent_msgs = await self.message_repository.get_by_conversation(
-            request.conversation_id, user_context.user_id, limit=4
+            request.conversation_id, user_context.user_id, limit=4,
+            exclude_layer2=True, exclude_toxic=True
         ) if request.conversation_id else []
         recent_history = [msg.content for msg in recent_msgs] if recent_msgs else None
 
@@ -220,7 +229,8 @@ class PipelineOrchestrator:
         if request.conversation_id:
             history_limit = self.settings.query_refiner_history_limit if self.settings else 10
             layer3_history = await self.message_repository.get_by_conversation(
-                request.conversation_id, user_context.user_id, limit=history_limit
+                request.conversation_id, user_context.user_id, limit=history_limit,
+                exclude_layer2=True, exclude_toxic=True
             )
 
         refined = await self.query_refiner.refine(
@@ -259,7 +269,8 @@ class PipelineOrchestrator:
 
         # Get conversation history for LLM context
         messages = await self.message_repository.get_by_conversation(
-            request.conversation_id, user_context.user_id, limit=20
+            request.conversation_id, user_context.user_id, limit=20,
+            exclude_layer2=True, exclude_toxic=True
         )
         history = [
             {"role": "user" if m.role.value == "USER" else "assistant", "content": m.content}
@@ -374,14 +385,33 @@ class PipelineOrchestrator:
                 user_department_id=user_context.department_id,
                 user_role=user_context.role,
             )
+            # Mark the last USER message as toxic
+            if request.conversation_id:
+                await self.message_repository.mark_last_user_message_toxic(
+                    request.conversation_id, user_context.user_id
+                )
+                # Detect user language and send appropriate warning
+                warning_msg = self._detect_and_translate_warning(request.message)
+                # Save ASSISTANT warning message to DB
+                await self.message_repository.create(
+                    conversation_id=request.conversation_id,
+                    role="ASSISTANT",
+                    content=warning_msg,
+                    model_used="system",
+                    tokens_prompt=0,
+                    tokens_completion=0,
+                    tokens_total=0,
+                    latency_ms=0,
+                )
             yield f"data: {json.dumps({'conversationId': str(request.conversation_id)})}\n\n"
-            yield f"data: {json.dumps({'content': 'Inappropriate content. Please rephrase your question.'})}\n\n"
+            yield f"data: {json.dumps({'content': warning_msg})}\n\n"
             yield "data: [DONE]\n\n"
             return
 
         # ── LAYER 2: Intent Classification ──────────────────────
         recent_msgs = await self.message_repository.get_by_conversation(
-            request.conversation_id, user_context.user_id, limit=4
+            request.conversation_id, user_context.user_id, limit=4,
+            exclude_layer2=True, exclude_toxic=True
         ) if request.conversation_id else []
         recent_history = [msg.content for msg in recent_msgs] if recent_msgs else None
 
@@ -414,7 +444,8 @@ class PipelineOrchestrator:
         if request.conversation_id:
             history_limit = self.settings.query_refiner_history_limit if self.settings else 10
             layer3_history = await self.message_repository.get_by_conversation(
-                request.conversation_id, user_context.user_id, limit=history_limit
+                request.conversation_id, user_context.user_id, limit=history_limit,
+                exclude_layer2=True, exclude_toxic=True
             )
 
         refined = await self.query_refiner.refine(
@@ -454,7 +485,8 @@ class PipelineOrchestrator:
             sources_data = await build_sources(chunks)
 
         messages = await self.message_repository.get_by_conversation(
-            request.conversation_id, user_context.user_id, limit=20
+            request.conversation_id, user_context.user_id, limit=20,
+            exclude_layer2=True, exclude_toxic=True
         )
         history = [
             {"role": "user" if m.role.value == "USER" else "assistant", "content": m.content}

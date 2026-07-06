@@ -390,19 +390,24 @@ public class DocumentController {
     // ===== 13. Confirm Metadata =====
     @PostMapping("/{documentId}/confirm")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<DocumentResponse> confirm(
+    public ResponseEntity<ConfirmResultResponse> confirm(
             @PathVariable UUID documentId,
             @Valid @RequestBody DocumentConfirmRequest request,
             HttpServletRequest httpRequest) {
         UUID confirmedBy = getCurrentUserId(httpRequest);
 
-        // Delegate to the existing confirm flow
-        Document document = documentManagementService.confirmMetadata(documentId, request, confirmedBy);
+        // Use sync confirm flow with ingestion polling
+        ConfirmResultResponse result = documentManagementService.confirmMetadataSync(documentId, request, confirmedBy);
+        return ResponseEntity.ok(result);
+    }
 
-        // Get metadata suggestion for response
-        MetadataSuggestionResponse suggestion = getMetadataSuggestion(document);
-
-        return ResponseEntity.ok(toResponse(document, suggestion));
+    // ===== Pre-confirm duplicate check =====
+    @GetMapping("/check-duplicate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DuplicateCheckResponse> checkDuplicate(
+            @RequestParam("checksum") String fileChecksum) {
+        DuplicateCheckResponse result = documentManagementService.checkDuplicate(fileChecksum);
+        return ResponseEntity.ok(result);
     }
 
     // ===== Helper Methods =====
@@ -479,6 +484,7 @@ public class DocumentController {
         if (lower.endsWith(".doc")) return FileType.DOC;
         if (lower.endsWith(".xls")) return FileType.XLS;
         if (lower.endsWith(".txt")) return FileType.TXT;
+        if (lower.endsWith(".md")) return FileType.MD;
         if (lower.endsWith(".png")) return FileType.PNG;
         if (lower.endsWith(".jpg")) return FileType.JPG;
         if (lower.endsWith(".jpeg")) return FileType.JPEG;

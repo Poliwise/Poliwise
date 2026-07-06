@@ -14,19 +14,19 @@ public interface UserServiceClient {
     @GetMapping("/api/v1/users/stats")
     UserStatsResponse getStats();
 
-    @PostMapping("/api/v1/internal/users/{userId}/strikes/increment")
+    @PostMapping("/api/v1/internal/{userId}/strikes/increment")
     void incrementStrikeCount(@PathVariable String userId);
 
-    @PostMapping("/api/v1/internal/users/{userId}/strikes/decrement")
+    @PostMapping("/api/v1/internal/{userId}/strikes/decrement")
     void decrementStrikeCount(@PathVariable String userId);
 
-    @PostMapping("/api/v1/internal/users/{userId}/strikes/decrement")
+    @PostMapping("/api/v1/internal/{userId}/strikes/decrement")
     void decrementStrikeCount(@PathVariable String userId, @RequestParam int count);
 
-    @PostMapping("/api/v1/internal/users/{userId}/strikes/reset")
+    @PostMapping("/api/v1/internal/{userId}/strikes/reset")
     void resetStrikeCount(@PathVariable String userId);
 
-    @GetMapping("/api/v1/internal/users/{userId}/strikes")
+    @GetMapping("/api/v1/internal/{userId}/strikes")
     int getStrikeCount(@PathVariable String userId);
 
     @PostMapping("/api/v1/internal/users/{userId}/status")

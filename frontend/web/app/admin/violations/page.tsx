@@ -29,7 +29,6 @@ export default function AdminViolationsPage() {
   const [stats, setStats] = useState<{
     pendingViolations: number;
     totalViolations?: number;
-    pendingAppeals?: number;
     totalWarnings?: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,9 +53,12 @@ export default function AdminViolationsPage() {
         api.violations.getStats(),
       ]);
 
-      setViolations(violationsResponse.data as Violation[]);
-      setTotalItems(violationsResponse.pagination.total);
-      setTotalPages(violationsResponse.pagination.totalPages);
+      const violationsData = (violationsResponse.data as Violation[]).filter(
+        (v) => v.userRole !== 'ADMIN'
+      );
+      setViolations(violationsData);
+      setTotalItems(violationsData.length);
+      setTotalPages(1);
       setStats(statsResponse);
     } catch (error) {
       console.error('Failed to load data:', error);

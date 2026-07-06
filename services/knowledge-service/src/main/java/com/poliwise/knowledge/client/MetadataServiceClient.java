@@ -297,4 +297,49 @@ public class MetadataServiceClient {
             throw new RuntimeException("Access denied to document " + documentId + ": " + reason);
         }
     }
+
+    /**
+     * Get document title from metadata-service by documentId.
+     */
+    @SuppressWarnings("unchecked")
+    public String getDocumentTitle(UUID documentId) {
+        try {
+            Map<String, Object> response = metadataWebClient.get()
+                    .uri("/api/v1/metadata/{documentId}", documentId)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(TIMEOUT)
+                    .block();
+            if (response != null && response.get("title") != null) {
+                return response.get("title").toString();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get document title for {}: {}", documentId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Get document category slug from metadata-service by documentId.
+     */
+    @SuppressWarnings("unchecked")
+    public String getDocumentCategorySlug(UUID documentId) {
+        try {
+            Map<String, Object> response = metadataWebClient.get()
+                    .uri("/api/v1/metadata/{documentId}", documentId)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .timeout(TIMEOUT)
+                    .block();
+            if (response != null && response.get("category") != null) {
+                Map<String, Object> category = (Map<String, Object>) response.get("category");
+                if (category != null && category.get("slug") != null) {
+                    return category.get("slug").toString();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get document category slug for {}: {}", documentId, e.getMessage());
+        }
+        return null;
+    }
 }

@@ -50,7 +50,8 @@ class JobRepository:
 
     async def mark_completed(self, job_id: UUID, output_metrics: Optional[str] = None) -> None:
         """Mark job as completed."""
-        await self.update_status(job_id, "COMPLETED", progress_percent=100, output_metrics=output_metrics)
+        # Use READY to match knowledge.processing_status enum (not COMPLETED).
+        await self.update_status(job_id, "READY", progress_percent=100, output_metrics=output_metrics)
 
     async def mark_failed(
         self, job_id: UUID, error_message: str, error_details: Optional[str] = None

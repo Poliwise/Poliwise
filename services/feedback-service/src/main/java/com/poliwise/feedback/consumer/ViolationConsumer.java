@@ -2,6 +2,7 @@ package com.poliwise.feedback.consumer;
 
 import com.poliwise.feedback.config.RabbitMQConfig;
 import com.poliwise.feedback.enums.ViolationSeverity;
+import com.poliwise.feedback.enums.ViolationSource;
 import com.poliwise.feedback.enums.ViolationType;
 import com.poliwise.feedback.service.ViolationService;
 import org.slf4j.Logger;
@@ -36,9 +37,12 @@ public class ViolationConsumer {
             String violationTypeStr = (String) payload.get("violation_type");
             String severityStr = (String) payload.get("severity");
             String evidence = (String) payload.get("evidence");
-            String source = (String) payload.get("source");
+            String sourceStr = (String) payload.get("source");
             String userRole = (String) payload.getOrDefault("user_role", "USER");
             UUID departmentId = parseUUID(payload.get("user_department_id"));
+            
+            // Admin exempt flag - admin violations are logged but no strike increment
+            boolean isAdminExempt = Boolean.TRUE.equals(payload.get("is_admin_exempt"));
 
             ViolationType violationType;
             try {
@@ -54,6 +58,13 @@ public class ViolationConsumer {
                 severity = ViolationSeverity.LOW;
             }
 
+            ViolationSource source;
+            try {
+                source = ViolationSource.valueOf(sourceStr);
+            } catch (Exception e) {
+                source = ViolationSource.SYSTEM;
+            }
+
             violationService.logViolation(
                     userId,
                     violationType,
@@ -61,11 +72,12 @@ public class ViolationConsumer {
                     evidence,
                     source,
                     departmentId,
-                    userRole
+                    userRole,
+                    isAdminExempt
             );
 
-            log.info("Processed violation for user {}: type={}, severity={}",
-                    userId, violationType, severity);
+            log.info("Processed violation for user {}: type={}, severity={}, adminExempt={}",
+                    userId, violationType, severity, isAdminExempt);
         } catch (Exception e) {
             log.error("Failed to handle violation message", e);
         }

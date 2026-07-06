@@ -71,6 +71,8 @@ export interface Violation {
   deletedAt?: string;
   userDepartmentId?: string;
   userRole?: string;
+  /** Flag indicating admin was testing the system (no strike/ban applied) */
+  isAdminExempt?: boolean;
 }
 
 export interface Warning {
@@ -107,7 +109,6 @@ export interface ReviewAppealRequest {
 export interface ViolationStats {
   pendingViolations: number;
   totalViolations?: number;
-  pendingAppeals?: number;
   totalWarnings?: number;
 }
 

@@ -28,10 +28,13 @@ class Settings(BaseSettings):
     embedding_url: str = "http://bge-m3-embedding:80"
     reranker_url: Optional[str] = "http://reranker:8002"
 
-    # Layer 1 & 2 - Groq
+    # Layer 1 - Groq
     groq_api_key: str = Field(..., description="Groq API Key for pipeline layers")
     layer1_model: str = "meta-llama/llama-prompt-guard-2-86m"
     layer1_fail_open: bool = True
+    # Layer 1 - Toxic/Abusive Detection
+    toxic_model: str = "llama-3.1-8b-instant"
+    toxic_threshold: float = 0.5
     layer2_model: str = "llama-3.1-8b-instant"
     layer2_max_tokens_classify: int = 10
     layer2_max_tokens_respond: int = 256

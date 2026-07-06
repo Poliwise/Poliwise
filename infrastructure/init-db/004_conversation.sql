@@ -58,6 +58,9 @@ CREATE TABLE conversation.messages (
     is_streaming BOOLEAN DEFAULT FALSE,
     streaming_completed BOOLEAN DEFAULT TRUE,
 
+    is_toxic BOOLEAN DEFAULT FALSE,           -- User message was flagged as toxic/blocked
+    is_layer2_response BOOLEAN DEFAULT FALSE, -- Assistant response from Layer 2 (simple query)
+
     trace_id VARCHAR(100),
     metadata JSONB DEFAULT '{}',
 

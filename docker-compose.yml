@@ -471,7 +471,7 @@ services:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
     container_name: poliwise-bge-m3
     restart: unless-stopped
-    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 2048 --max-client-batch-size 8 --payload-limit 512000
+    command: --model-id BAAI/bge-m3 --pooling cls --max-batch-tokens 16384 --max-client-batch-size 32 --payload-limit 512000
     volumes:
       - ./data/hf_cache:/data
     healthcheck:
@@ -484,9 +484,9 @@ services:
       resources:
         limits:
           cpus: "1.5"
-          memory: 3G
+          memory: 12G
         reservations:
-          memory: 1.5G
+          memory: 8G
     networks:
       - poliwise
 
