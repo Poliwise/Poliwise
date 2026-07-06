@@ -4,6 +4,7 @@ import com.poliwise.feedback.dto.request.ReviewViolationRequest;
 import com.poliwise.feedback.dto.response.ApiResponse;
 import com.poliwise.feedback.entity.Violation;
 import com.poliwise.feedback.entity.Warning;
+import com.poliwise.feedback.enums.AppealStatus;
 import com.poliwise.feedback.enums.ViolationAction;
 import com.poliwise.feedback.security.JwtAuthenticationToken;
 import com.poliwise.feedback.security.UserPrincipal;
@@ -149,6 +150,32 @@ public class ViolationController {
             @PageableDefault(size = 20) Pageable pageable) {
         Page<Violation> violations = violationService.getActionedViolations(action, pageable);
         return ResponseEntity.ok(ApiResponse.success(violations));
+    }
+
+    /**
+     * Get violations with appeals (filter by appeal status).
+     */
+    @GetMapping("/appeals")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Page<Violation>>> getAppeals(
+            @RequestParam(required = false) AppealStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<Violation> violations = violationService.getPendingAppeals(status, pageable);
+        return ResponseEntity.ok(ApiResponse.success(violations));
+    }
+
+    /**
+     * Review an appeal (approve or reject).
+     */
+    @PostMapping("/{id}/appeal-review")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Violation>> reviewAppeal(
+            @PathVariable UUID id,
+            @RequestParam boolean approved,
+            Authentication authentication) {
+        UUID adminId = getUserId(authentication);
+        Violation violation = violationService.reviewAppeal(id, approved, adminId);
+        return ResponseEntity.ok(ApiResponse.success(violation, "Appeal reviewed successfully"));
     }
 
     private UUID getUserId(Authentication authentication) {

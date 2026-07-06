@@ -2904,6 +2904,42 @@ class ApiClient {
       }>("/api/v1/violations/stats");
       return res.data;
     },
+
+    // Appeals endpoints
+    getAppeals: async (params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+    }): Promise<{
+      data: unknown[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    }> => {
+      const mappedParams: Record<string, any> = {};
+      if (params) {
+        if (params.page !== undefined) mappedParams.page = params.page - 1;
+        if (params.limit !== undefined) mappedParams.size = params.limit;
+        if (params.status !== undefined) mappedParams.status = params.status;
+      }
+      const res = await this.client.get<{ success: boolean; data?: unknown }>(
+        "/api/v1/violations/appeals",
+        { params: mappedParams },
+      );
+      return coercePaginated<unknown>(
+        res.data as unknown as Record<string, unknown>,
+        "data",
+      );
+    },
+
+    reviewAppeal: async (violationId: string, approved: boolean): Promise<void> => {
+      await this.client.post(`/api/v1/violations/${violationId}/appeal-review`, null, {
+        params: { approved },
+      });
+    },
   };
 }
 

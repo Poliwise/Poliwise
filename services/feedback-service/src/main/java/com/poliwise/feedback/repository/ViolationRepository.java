@@ -1,6 +1,7 @@
 package com.poliwise.feedback.repository;
 
 import com.poliwise.feedback.entity.Violation;
+import com.poliwise.feedback.enums.AppealStatus;
 import com.poliwise.feedback.enums.ViolationStatus;
 import com.poliwise.feedback.enums.ViolationAction;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,8 @@ public interface ViolationRepository extends JpaRepository<Violation, UUID> {
     Page<Violation> findByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
 
     Page<Violation> findByStatusAndDeletedAtIsNull(ViolationStatus status, Pageable pageable);
+
+    Page<Violation> findByAppealStatusAndDeletedAtIsNull(AppealStatus appealStatus, Pageable pageable);
 
     Page<Violation> findByActionTakenAndDeletedAtIsNull(ViolationAction actionTaken, Pageable pageable);
 

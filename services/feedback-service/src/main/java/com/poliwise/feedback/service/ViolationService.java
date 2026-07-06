@@ -156,4 +156,39 @@ public class ViolationService {
             throw new RuntimeException("Failed to reset strikes", e);
         }
     }
+
+    public Page<Violation> getPendingAppeals(AppealStatus appealStatus, Pageable pageable) {
+        if (appealStatus != null) {
+            return violationRepository.findByAppealStatusAndDeletedAtIsNull(appealStatus, pageable);
+        }
+        return violationRepository.findByAppealStatusAndDeletedAtIsNull(AppealStatus.PENDING, pageable);
+    }
+
+    @Transactional
+    public Violation reviewAppeal(UUID violationId, boolean approved, UUID reviewedBy) {
+        Violation violation = violationRepository.findByIdAndDeletedAtIsNull(violationId)
+                .orElseThrow(() -> new IllegalArgumentException("Violation not found: " + violationId));
+
+        violation.setAppealStatus(approved ? AppealStatus.APPROVED : AppealStatus.REJECTED);
+        violation.setAppealReviewedAt(Instant.now());
+        violation.setAppealReviewedBy(reviewedBy);
+
+        if (approved) {
+            // Appeal approved: dismiss the violation and decrement strike
+            violation.setStatus(ViolationStatus.ACTIONED);
+            violation.setActionTaken(ViolationAction.DISMISSED);
+            violation.setReviewedAt(Instant.now());
+            violation.setReviewedBy(reviewedBy);
+            try {
+                userServiceClient.decrementStrikeCount(violation.getUserId().toString(), 1);
+            } catch (Exception e) {
+                log.error("Failed to decrement strike count for appeal approval", e);
+            }
+        } else {
+            // Appeal rejected: no change to violation status, keep the action taken
+            log.info("Appeal rejected for violation {}", violationId);
+        }
+
+        return violationRepository.save(violation);
+    }
 }
