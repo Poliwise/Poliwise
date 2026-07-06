@@ -19,6 +19,18 @@ public class RabbitMQConfig {
     public static final String USER_ROUTING_KEY_REVOKED = "user.revoked";
     public static final String USER_ROUTING_KEY_PROFILE = "user.profile.updated";
 
+    // Department events
+    public static final String DEPARTMENT_CREATED_QUEUE = "poliwise.department.created";
+    public static final String DEPARTMENT_UPDATED_QUEUE = "poliwise.department.updated";
+    public static final String DEPARTMENT_DELETED_QUEUE = "poliwise.department.deleted";
+    public static final String USER_ASSIGNED_TO_DEPT_QUEUE = "poliwise.user.assigned.dept";
+    public static final String USER_REMOVED_FROM_DEPT_QUEUE = "poliwise.user.removed.dept";
+    public static final String USER_ROUTING_KEY_DEPT_CREATED = "department.created";
+    public static final String USER_ROUTING_KEY_DEPT_UPDATED = "department.updated";
+    public static final String USER_ROUTING_KEY_DEPT_DELETED = "department.deleted";
+    public static final String USER_ROUTING_KEY_USER_ASSIGNED = "user.assigned.dept";
+    public static final String USER_ROUTING_KEY_USER_REMOVED = "user.removed.dept";
+
     @Bean
     public TopicExchange userExchange() {
         return new TopicExchange(USER_EXCHANGE, true, false);
@@ -40,6 +52,31 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue departmentCreatedQueue() {
+        return QueueBuilder.durable(DEPARTMENT_CREATED_QUEUE).build();
+    }
+
+    @Bean
+    public Queue departmentUpdatedQueue() {
+        return QueueBuilder.durable(DEPARTMENT_UPDATED_QUEUE).build();
+    }
+
+    @Bean
+    public Queue departmentDeletedQueue() {
+        return QueueBuilder.durable(DEPARTMENT_DELETED_QUEUE).build();
+    }
+
+    @Bean
+    public Queue userAssignedToDeptQueue() {
+        return QueueBuilder.durable(USER_ASSIGNED_TO_DEPT_QUEUE).build();
+    }
+
+    @Bean
+    public Queue userRemovedFromDeptQueue() {
+        return QueueBuilder.durable(USER_REMOVED_FROM_DEPT_QUEUE).build();
+    }
+
+    @Bean
     public Binding statusChangedBinding(Queue userStatusChangedQueue, TopicExchange userExchange) {
         return BindingBuilder.bind(userStatusChangedQueue)
                 .to(userExchange)
@@ -58,6 +95,41 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(userProfileUpdatedQueue)
                 .to(userExchange)
                 .with(USER_ROUTING_KEY_PROFILE);
+    }
+
+    @Bean
+    public Binding deptCreatedBinding(Queue departmentCreatedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(departmentCreatedQueue)
+                .to(userExchange)
+                .with(USER_ROUTING_KEY_DEPT_CREATED);
+    }
+
+    @Bean
+    public Binding deptUpdatedBinding(Queue departmentUpdatedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(departmentUpdatedQueue)
+                .to(userExchange)
+                .with(USER_ROUTING_KEY_DEPT_UPDATED);
+    }
+
+    @Bean
+    public Binding deptDeletedBinding(Queue departmentDeletedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(departmentDeletedQueue)
+                .to(userExchange)
+                .with(USER_ROUTING_KEY_DEPT_DELETED);
+    }
+
+    @Bean
+    public Binding userAssignedBinding(Queue userAssignedToDeptQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(userAssignedToDeptQueue)
+                .to(userExchange)
+                .with(USER_ROUTING_KEY_USER_ASSIGNED);
+    }
+
+    @Bean
+    public Binding userRemovedBinding(Queue userRemovedFromDeptQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(userRemovedFromDeptQueue)
+                .to(userExchange)
+                .with(USER_ROUTING_KEY_USER_REMOVED);
     }
 
     @Bean

@@ -20,6 +20,7 @@ public class InternalStatsTokenFilter extends OncePerRequestFilter {
 
     static final String HEADER_NAME = "X-Service-Token";
     private static final String STATS_PATH = "/api/v1/users/stats";
+    private static final String DEPARTMENTS_PATH = "/api/v1/departments";
 
     private final byte[] expectedToken;
 
@@ -29,7 +30,10 @@ public class InternalStatsTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !STATS_PATH.equals(request.getServletPath());
+        String path = request.getServletPath();
+        // Only apply to internal stats endpoint, NOT to user-accessible endpoints like departments
+        // The departments endpoint should use JWT authentication from the user
+        return !STATS_PATH.equals(path);
     }
 
     @Override

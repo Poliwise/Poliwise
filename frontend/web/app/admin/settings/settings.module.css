@@ -10,12 +10,13 @@
 }
 
 .headerContent {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 0 2rem;
   display: flex;
   align-items: center;
   gap: 1rem;
+  box-sizing: border-box;
 }
 
 .headerIcon {
@@ -43,7 +44,7 @@
 }
 
 .pageBody {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 2rem;
   width: 100%;
@@ -236,6 +237,13 @@
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1023px) {
+  .headerContent {
+    max-width: calc(100vw - 2rem);
+    padding: 0 1rem;
+  }
 }
 
 @media (max-width: 768px) {

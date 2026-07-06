@@ -44,6 +44,28 @@ public class UserEventConsumer {
         }
     }
 
+    @RabbitListener(queues = RabbitMQConfig.QUEUE_USER_REGISTERED)
+    public void handleUserRegistered(Map<String, Object> message) {
+        try {
+            UUID actorId = parseUUID(message.get("registeredBy"));
+            String actorName = actorId != null ? "Admin" : "Self-registered";
+            UUID userId = parseUUID(message.get("userId"));
+            String username = (String) message.get("username");
+            String email = (String) message.get("email");
+            String role = (String) message.get("role");
+
+            auditLogService.logAction(actorId, actorName, null,
+                    AuditAction.USER_CREATE, ResourceType.USER, userId,
+                    username, null, null, null, "feedback-service",
+                    Map.of("email", email != null ? email : "",
+                           "role", role != null ? role : ""));
+
+            log.info("User registered event processed: userId={}, username={}", userId, username);
+        } catch (Exception e) {
+            log.error("Failed to handle user registered event", e);
+        }
+    }
+
     private UUID parseUUID(Object value) {
         if (value == null) return null;
         if (value instanceof UUID) return (UUID) value;

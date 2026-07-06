@@ -29,6 +29,8 @@ server:
 spring:
   application:
     name: feedback-service
+  main:
+    allow-bean-definition-overriding: true
   cloud:
     compatibility-verifier:
       enabled: false

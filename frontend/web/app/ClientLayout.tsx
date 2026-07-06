@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ToastProvider, ToastContainer } from '@/components/ui/toast';
+import { ToastProvider } from '@/components/ui/toast/ToastProvider';
 
 export default function ClientLayout({
   children,
@@ -11,7 +11,6 @@ export default function ClientLayout({
   return (
     <ToastProvider>
       {children}
-      <ToastContainer />
     </ToastProvider>
   );
 }

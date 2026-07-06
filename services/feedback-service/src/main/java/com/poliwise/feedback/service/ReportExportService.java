@@ -12,6 +12,10 @@ import com.poliwise.feedback.enums.ExportStatus;
 import com.poliwise.feedback.enums.FeedbackType;
 import com.poliwise.feedback.exception.ReportNotFoundException;
 import com.poliwise.feedback.exception.UnauthorizedFeedbackAccessException;
+import com.poliwise.feedback.feign.UserServiceClient;
+import com.poliwise.feedback.feign.UserServiceReportClient;
+import com.poliwise.feedback.feign.dto.DepartmentListResponse;
+import com.poliwise.feedback.feign.dto.UserStatsResponse;
 import com.poliwise.feedback.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +63,8 @@ public class ReportExportService {
     private final DocumentPopularityRepository documentPopularityRepository;
     private final DepartmentDailyStatRepository departmentDailyStatRepository;
     private final UnansweredQuestionRepository unansweredQuestionRepository;
+    private final UserServiceClient userServiceClient;
+    private final UserServiceReportClient userServiceReportClient;
     private final ObjectMapper objectMapper;
     private final RabbitTemplate rabbitTemplate;
     private final MinioClient minioClient;
@@ -78,6 +84,8 @@ public class ReportExportService {
             DocumentPopularityRepository documentPopularityRepository,
             DepartmentDailyStatRepository departmentDailyStatRepository,
             UnansweredQuestionRepository unansweredQuestionRepository,
+            UserServiceClient userServiceClient,
+            UserServiceReportClient userServiceReportClient,
             RabbitTemplate rabbitTemplate,
             MinioClient minioClient) {
         this.reportExportRepository = reportExportRepository;
@@ -88,6 +96,8 @@ public class ReportExportService {
         this.documentPopularityRepository = documentPopularityRepository;
         this.departmentDailyStatRepository = departmentDailyStatRepository;
         this.unansweredQuestionRepository = unansweredQuestionRepository;
+        this.userServiceClient = userServiceClient;
+        this.userServiceReportClient = userServiceReportClient;
         this.objectMapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -214,13 +224,8 @@ public class ReportExportService {
         if (dateFrom == null) dateFrom = dateTo.minusDays(30);
 
         Map<String, Object> data = switch (report.getReportType()) {
-            case USAGE_SUMMARY -> buildUsageSummary(dateFrom, dateTo);
-            case QUESTION_ANALYTICS -> buildQuestionAnalytics(dateFrom, dateTo);
-            case FEEDBACK_ANALYSIS -> buildFeedbackAnalysis(dateFrom, dateTo);
-            case USER_ENGAGEMENT -> buildUserEngagement(dateFrom, dateTo);
-            case DOCUMENT_POPULARITY -> buildDocumentPopularity(dateFrom, dateTo);
-            case UNANSWERED_QUESTIONS -> buildUnansweredQuestions(dateFrom, dateTo);
-            case DEPARTMENT_BREAKDOWN -> buildDepartmentBreakdown(dateFrom, dateTo, report.getDepartmentId());
+            case USER_REPORT -> buildUserReport();
+            case DEPARTMENT_REPORT -> buildDepartmentReport();
         };
 
         ExportFormat format = report.getFormat();
@@ -616,6 +621,65 @@ public class ReportExportService {
 
         meta.put("departmentsIncluded", deptRows.size());
         meta.put("departments", deptRows);
+        return meta;
+    }
+
+    // ------------------------------------------------------------------------
+    // USER_REPORT — user statistics summary
+    // ------------------------------------------------------------------------
+    private Map<String, Object> buildUserReport() {
+        Map<String, Object> meta = reportMeta(LocalDate.now().minusYears(10), LocalDate.now());
+        meta.remove("periodFrom");
+        meta.remove("periodTo");
+
+        try {
+            UserStatsResponse userStats = userServiceClient.getStats();
+            meta.put("totalUsers", userStats.totalUsers());
+            meta.put("activeUsers", userStats.activeUsers());
+            meta.put("inactiveUsers", userStats.totalUsers() - userStats.activeUsers());
+        } catch (Exception e) {
+            log.warn("Failed to fetch user stats from user-service: {}", e.getMessage());
+            meta.put("totalUsers", 0L);
+            meta.put("activeUsers", 0L);
+            meta.put("inactiveUsers", 0L);
+        }
+
+        return meta;
+    }
+
+    // ------------------------------------------------------------------------
+    // DEPARTMENT_REPORT — department listing with member counts
+    // ------------------------------------------------------------------------
+    private Map<String, Object> buildDepartmentReport() {
+        Map<String, Object> meta = reportMeta(LocalDate.now().minusYears(10), LocalDate.now());
+        meta.remove("periodFrom");
+        meta.remove("periodTo");
+
+        List<Map<String, Object>> departmentRows = new ArrayList<>();
+
+        try {
+            // Fetch all departments (no pagination for report)
+            List<DepartmentListResponse> allDepts = userServiceReportClient.getAllDepartments();
+            meta.put("totalDepartments", allDepts.size());
+
+            for (DepartmentListResponse dept : allDepts) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("departmentId", dept.id());
+                row.put("name", dept.name());
+                row.put("code", dept.code());
+                row.put("description", dept.description() != null ? dept.description() : "");
+                row.put("memberCount", dept.memberCount() != null ? dept.memberCount() : 0);
+                row.put("isActive", dept.isActive() != null ? dept.isActive() : false);
+                row.put("createdAt", dept.createdAt() != null ? DT.format(dept.createdAt().toInstant()) : "");
+                row.put("updatedAt", dept.updatedAt() != null ? DT.format(dept.updatedAt().toInstant()) : "");
+                departmentRows.add(row);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch departments from user-service: {}", e.getMessage());
+            meta.put("totalDepartments", 0);
+        }
+
+        meta.put("departments", departmentRows);
         return meta;
     }
 

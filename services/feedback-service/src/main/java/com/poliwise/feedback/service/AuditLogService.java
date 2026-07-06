@@ -57,7 +57,9 @@ public class AuditLogService {
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> searchLogs(AuditLogSearchRequest request, Pageable pageable) {
         Page<AuditLog> logs;
-        if (request.action() != null) {
+        if (request.resourceType() != null && request.resourceId() != null) {
+            logs = auditLogRepository.findByResourceTypeAndResourceId(request.resourceType(), request.resourceId(), pageable);
+        } else if (request.action() != null) {
             logs = auditLogRepository.findByAction(request.action(), pageable);
         } else if (request.userId() != null) {
             logs = auditLogRepository.findByUserId(request.userId(), pageable);

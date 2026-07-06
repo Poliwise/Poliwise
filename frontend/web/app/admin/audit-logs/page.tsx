@@ -162,6 +162,9 @@ export default function AuditLogsPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [detailPage, setDetailPage] = useState(1);
   const [detailTotalPages, setDetailTotalPages] = useState(1);
+  
+  // Pagination state per action group
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
 
   const ITEMS_PER_GROUP = 10;
 
@@ -235,14 +238,28 @@ export default function AuditLogsPage() {
         next.delete(action);
       } else {
         next.add(action);
+        // Reset to page 1 when expanding
+        setGroupPages(prev => ({ ...prev, [action]: 1 }));
       }
       return next;
     });
   };
 
+  const getGroupPage = (action: string): number => {
+    return groupPages[action] || 1;
+  };
+
+  const setGroupPage = (action: string, page: number) => {
+    setGroupPages(prev => ({ ...prev, [action]: page }));
+  };
+
   const getPaginatedLogs = (group: GroupedLogs, pageNum: number) => {
     const start = (pageNum - 1) * ITEMS_PER_GROUP;
     return group.logs.slice(start, start + ITEMS_PER_GROUP);
+  };
+
+  const getGroupTotalPages = (count: number): number => {
+    return Math.ceil(count / ITEMS_PER_GROUP);
   };
 
   const actionOptions = [
@@ -375,14 +392,14 @@ export default function AuditLogsPage() {
                 {expandedActions.has(group.action) && (
                   <div className={styles.groupContent}>
                     <div className={styles.logList}>
-                      {getPaginatedLogs(group, 1).map((log, idx) => (
+                      {getPaginatedLogs(group, getGroupPage(group.action)).map((log, idx) => (
                         <div
                           key={log.id}
                           className={styles.logItem}
                           onClick={() => {
                             setSelectedLog(log);
                             setDetailPage(1);
-                            setDetailTotalPages(Math.ceil(group.logs.length / ITEMS_PER_GROUP));
+                            setDetailTotalPages(getGroupTotalPages(group.logs.length));
                           }}
                         >
                           <div className={styles.logItemMain}>
@@ -419,41 +436,31 @@ export default function AuditLogsPage() {
                         </div>
                       ))}
                     </div>
-                    {Math.ceil(group.logs.length / ITEMS_PER_GROUP) > 1 && (
+                    {getGroupTotalPages(group.logs.length) > 1 && (
                       <div className={styles.groupPagination}>
+                        <button
+                          className={styles.pageBtn}
+                          disabled={getGroupPage(group.action) === 1}
+                          onClick={() => setGroupPage(group.action, getGroupPage(group.action) - 1)}
+                        >
+                          <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} />
+                        </button>
                         <span className={styles.pageInfo}>
-                          Trang 1 / {Math.ceil(group.logs.length / ITEMS_PER_GROUP)}
+                          Trang {getGroupPage(group.action)} / {getGroupTotalPages(group.logs.length)}
                         </span>
+                        <button
+                          className={styles.pageBtn}
+                          disabled={getGroupPage(group.action) === getGroupTotalPages(group.logs.length)}
+                          onClick={() => setGroupPage(group.action, getGroupPage(group.action) + 1)}
+                        >
+                          <ChevronRight size={14} />
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
               </div>
             ))}
-
-            {totalPages > 1 && (
-              <div className={styles.paginationWrapper}>
-                <button
-                  className={styles.pageBtn}
-                  disabled={page === 1}
-                  onClick={() => setPage(p => p - 1)}
-                >
-                  <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
-                  Trước
-                </button>
-                <span className={styles.pageIndicator}>
-                  Trang {page} / {totalPages}
-                </span>
-                <button
-                  className={styles.pageBtn}
-                  disabled={page === totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                >
-                  Sau
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>

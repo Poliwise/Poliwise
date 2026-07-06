@@ -62,15 +62,11 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public RefreshTokenResult rotate(String rawRefreshToken, UUID userId, ClientMetadata metadata) {
+    public RefreshTokenResult rotate(String rawRefreshToken, ClientMetadata metadata) {
         String hashed = hashRefreshToken(rawRefreshToken);
 
         RefreshToken existing = refreshTokenRepository.findByTokenHashForUpdate(hashed)
                 .orElseThrow(() -> new JwtException("Invalid refresh token"));
-
-        if (!existing.getUserId().equals(userId)) {
-            throw new JwtException("Token does not belong to user");
-        }
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         if (isExpired(existing, now)) {

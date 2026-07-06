@@ -35,6 +35,7 @@ import { Translator } from '@/lib/i18n';
 import { UserRole, AccountStatus } from '@/types';
 import type { User, Department } from '@/types';
 import styles from './admin-users.module.css';
+import toast from 'react-hot-toast';
 
 export default function AdminUsersPage() {
   const isAdmin = useIsAdmin();
@@ -112,18 +113,25 @@ export default function AdminUsersPage() {
     loadUsers();
   }, [isAdmin, router, loadUsers, loadDepartments]);
 
-  const handleStatusChange = async (userId: string, status: AccountStatus) => {
+  const handleStatusChange = async (userId: string, status: AccountStatus, closeModal?: () => void) => {
     try {
       if (status === AccountStatus.DEACTIVATED) {
         await api.users.deactivate(userId);
+        toast.success('Đã vô hiệu hóa tài khoản thành công');
       } else if (status === AccountStatus.ACTIVE) {
         await api.users.reactivate(userId);
+        toast.success('Đã kích hoạt lại tài khoản thành công');
       } else if (status === AccountStatus.REVOKED) {
         await api.users.revoke(userId);
+        toast.success('Đã thu hồi tài khoản thành công');
       }
+      closeModal?.();
+      setShowDetailModal(false);
+      setSelectedUser(null);
       loadUsers();
     } catch (err) {
       console.error('Failed to update status:', err);
+      toast.error('Không thể cập nhật trạng thái. Vui lòng thử lại.');
     }
   };
 
@@ -131,9 +139,11 @@ export default function AdminUsersPage() {
     if (!confirm(t('admin.users.delete.confirm').replace('{username}', selectedUser?.username || ''))) return;
     try {
       await api.users.delete(userId);
+      toast.success('Đã xóa tài khoản thành công');
       loadUsers();
     } catch (err) {
       console.error('Failed to delete user:', err);
+      toast.error('Không thể xóa tài khoản. Vui lòng thử lại.');
     }
   };
 
@@ -550,7 +560,7 @@ interface UserDetailModalProps {
   user: User;
   departments: Department[];
   onClose: () => void;
-  onStatusChange: (userId: string, status: AccountStatus) => void;
+  onStatusChange: (userId: string, status: AccountStatus, closeModal?: () => void) => void;
   roleLabels: Record<UserRole, string>;
   statusLabels: Record<AccountStatus, string>;
   statusBadgeClass: Record<AccountStatus, string>;
@@ -634,14 +644,14 @@ function UserDetailModal({ user, departments, onClose, onStatusChange, roleLabel
             <>
               <button
                 className={styles.warningButton}
-                onClick={() => onStatusChange(user.id, AccountStatus.DEACTIVATED)}
+            onClick={() => onStatusChange(user.id, AccountStatus.DEACTIVATED, onClose)}
               >
                 <UserX size={16} />
                 {t('admin.users.deactivate')}
               </button>
               <button
                 className={styles.dangerButton}
-                onClick={() => onStatusChange(user.id, AccountStatus.REVOKED)}
+                onClick={() => onStatusChange(user.id, AccountStatus.REVOKED, onClose)}
               >
                 <Shield size={16} />
                 {t('admin.users.revoke')}
@@ -651,7 +661,7 @@ function UserDetailModal({ user, departments, onClose, onStatusChange, roleLabel
           {(user.status === AccountStatus.DEACTIVATED || user.status === AccountStatus.REVOKED) && (
             <button
               className={styles.successButton}
-              onClick={() => onStatusChange(user.id, AccountStatus.ACTIVE)}
+              onClick={() => onStatusChange(user.id, AccountStatus.ACTIVE, onClose)}
             >
               <UserCheck size={16} />
               {t('admin.users.reactivate')}
@@ -855,6 +865,7 @@ function CreateUserModal({ departments, onClose, onSuccess, roleLabels, t }: Cre
         role: form.role,
         departmentId: form.departmentId || undefined,
       });
+      toast.success(`Đã tạo tài khoản "${form.username}" thành công. Mật khẩu đã được gửi qua email.`);
       onSuccess();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message :
@@ -1046,8 +1057,10 @@ function BulkCreateModal({ departments, onClose, onSuccess, roleLabels, t }: Bul
         role: u.role,
         departmentId: u.departmentId || undefined,
       })));
-      setSuccessCount(result.successCount || 0);
-      if (result.successCount > 0) onSuccess();
+      const successCount = result.successCount || 0;
+      const failCount = validUsers.length - successCount;
+      toast.success(`Đã tạo ${successCount} tài khoản thành công${failCount > 0 ? `. ${failCount} tài khoản thất bại.` : '.'}`);
+      if (successCount > 0) onSuccess();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message :
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message || t('admin.users.bulk.failed');

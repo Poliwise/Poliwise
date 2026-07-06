@@ -5,7 +5,7 @@ import {
   Building2, Plus, Search, Edit2, Trash2, X, Loader2,
   ChevronLeft, ChevronRight, AlertCircle, CheckCircle,
   ToggleLeft, ToggleRight, Users, LayoutGrid, TreeDeciduous,
-  UserPlus, ArrowRight, UserCheck2,
+  UserPlus, ArrowRight, UserCheck2, UserMinus,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/store';
@@ -94,7 +94,7 @@ export default function DepartmentsPage() {
   const [assignedUser, setAssignedUser] = useState<DeptUser | null>(null);
   const [assignError, setAssignError] = useState('');
   const [assignLoadingSubmit, setAssignLoadingSubmit] = useState(false);
-  const assignSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [unassignedUsers, setUnassignedUsers] = useState<DeptUser[]>([]);
 
   // ============================================================================
   // Load Data
@@ -342,32 +342,57 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
     setAssignResults([]);
     setAssignedUser(null);
     setAssignError('');
+    
+    // Load unassigned users immediately when modal opens
+    await loadUnassignedUsers();
+  };
+
+  const loadUnassignedUsers = async () => {
+    setAssignLoading(true);
+    try {
+      // Get all users and filter by unassigned (no departmentId)
+      const result = await api.users.search({ keyword: '', limit: 100 });
+      const users: DeptUser[] = result.data.map(u => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        fullName: u.fullName,
+        departmentId: u.departmentId,
+        department: u.department?.name ?? null,
+      }));
+      // Filter to only unassigned users
+      const unassigned = users.filter(u => !u.departmentId);
+      setUnassignedUsers(unassigned);
+      setAssignResults(unassigned); // Initialize results with unassigned users
+    } catch {
+      setUnassignedUsers([]);
+      setAssignResults([]);
+    } finally {
+      setAssignLoading(false);
+    }
   };
 
   const handleAssignUserSearch = useCallback((value: string) => {
     setAssignSearch(value);
     setAssignError('');
-    if (assignSearchRef.current) clearTimeout(assignSearchRef.current);
-    if (!value.trim()) { setAssignResults([]); return; }
-    assignSearchRef.current = setTimeout(async () => {
-      setAssignLoading(true);
-      try {
-        const result = await api.users.search({ keyword: value, limit: 10 });
-        const users: DeptUser[] = result.data.map(u => ({
-          id: u.id,
-          username: u.username,
-          email: u.email,
-          role: u.role,
-          status: u.status,
-          fullName: u.fullName,
-          departmentId: u.departmentId,
-          department: u.department?.name ?? null,
-        }));
-        setAssignResults(users.filter(u => !u.departmentId || u.departmentId === selectedDept?.id));
-      } catch { setAssignResults([]); }
-      finally { setAssignLoading(false); }
-    }, 350);
-  }, [selectedDept]);
+    
+    if (!value.trim()) {
+      // Show all unassigned users when search is empty
+      setAssignResults(unassignedUsers);
+      return;
+    }
+    
+    // Search through unassigned users locally
+    const searchLower = value.toLowerCase();
+    const filtered = unassignedUsers.filter(u => 
+      (u.fullName?.toLowerCase() || '').includes(searchLower) ||
+      u.username.toLowerCase().includes(searchLower) ||
+      u.email.toLowerCase().includes(searchLower)
+    );
+    setAssignResults(filtered);
+  }, [unassignedUsers]);
 
   const handleAssignUser = async () => {
     if (!assignedUser || !selectedDept) return;
@@ -378,6 +403,9 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         userId: assignedUser.id,
         departmentId: selectedDept.id,
       } as AssignUserDepartmentRequest);
+      
+      // Remove assigned user from unassigned list
+      setUnassignedUsers(prev => prev.filter(u => u.id !== assignedUser.id));
       setAssignedUser(null);
       setAssignResults([]);
       setAssignSearch('');
@@ -392,6 +420,28 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
       setAssignError(msg);
     } finally {
       setAssignLoadingSubmit(false);
+    }
+  };
+
+  const handleRemoveUserFromDept = async (userId: string) => {
+    if (!selectedDept) return;
+    
+    // Remove user from department (set departmentId to null)
+    try {
+      await api.departments.assignUser({
+        userId: userId,
+        departmentId: null as unknown as string, // null to remove from department
+      } as AssignUserDepartmentRequest);
+      
+      // Reload the user list
+      await loadDeptUsers(selectedDept.id, usersPage);
+      loadDepartments();
+      loadTree();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message
+        : (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || 'Không thể xóa nhân viên khỏi phòng ban';
+      alert(msg);
     }
   };
 
@@ -888,6 +938,13 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                               {user.status}
                             </span>
                           </div>
+                          <button
+                            className={styles.removeUserBtn}
+                            onClick={() => handleRemoveUserFromDept(user.id)}
+                            title="Xóa khỏi phòng ban"
+                          >
+                            <UserMinus size={14} />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -931,7 +988,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
         {/* ================================================================ */}
         {modalMode === 'assign' && (
           <div className={styles.modalOverlay} onClick={() => setModalMode(null)}>
-            <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={`${styles.modal} ${styles.large}`} onClick={e => e.stopPropagation()}>
               <div className={styles.modalHeader}>
                 <div className={styles.modalTitleGroup}>
                   <div className={styles.modalTitleIcon}>
@@ -948,7 +1005,7 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                   <X size={18} />
                 </button>
               </div>
-              <div className={styles.modalBody}>
+              <div className={`${styles.modalBody} ${styles.assignModalBody}`}>
                 {assignError && (
                   <div className={styles.errorBanner}>
                     <AlertCircle size={16} />
@@ -976,7 +1033,8 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                     </div>
                   </div>
                 ) : (
-                  <div style={{ marginBottom: '0.5rem', position: 'relative' }}>
+                  <>
+                    {/* Search Input */}
                     <div className={styles.usersSearchWrapper}>
                       <Search size={15} className={styles.usersSearchIcon} />
                       <input
@@ -994,37 +1052,48 @@ function collectAllIds(nodes: DepartmentTreeNode[], ids = new Set<string>()): Se
                           style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
                         />
                       )}
-                      {assignSearch.trim() && assignResults.length > 0 && !assignLoading && (
-                        <div className={styles.searchDropdown}>
-                          {assignResults.map(user => (
-                            <div
-                              key={user.id}
-                              className={styles.searchDropdownItem}
-                              onClick={() => {
-                                setAssignedUser(user);
-                                setAssignResults([]);
-                                setAssignSearch(user.fullName || user.username || '');
-                              }}
-                            >
-                              <div className={styles.userAvatar}>{getUserInitial(user)}</div>
-                              <div className={styles.userInfo}>
-                                <div className={styles.userName}>{user.fullName || user.username}</div>
-                                <div className={styles.userEmail}>{user.email}</div>
-                              </div>
-                              <ArrowRight size={14} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {assignSearch.trim() && assignResults.length === 0 && !assignLoading && (
-                        <div className={styles.searchDropdown}>
-                          <div className={styles.searchDropdownEmpty}>
-                            {t('admin.depts.users.noResults')}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
+
+                    {/* User List */}
+                    {assignLoading ? (
+                      <div className={styles.loading} style={{ padding: '2rem' }}>
+                        <Loader2 size={24} className={styles.spinner} />
+                        <span>Đang tải...</span>
+                      </div>
+                    ) : unassignedUsers.length === 0 ? (
+                      <div className={styles.empty} style={{ padding: '2rem' }}>
+                        <Users size={32} />
+                        <p>Không có nhân viên nào chưa có phòng ban</p>
+                      </div>
+                    ) : (
+                      <div className={styles.userListContainer}>
+                        <div className={styles.userListHeader}>
+                          {!assignSearch.trim() 
+                            ? `${unassignedUsers.length} nhân viên chưa có phòng ban`
+                            : `${assignResults.length} kết quả tìm kiếm`}
+                        </div>
+                        {(assignSearch.trim() ? assignResults : unassignedUsers).map(user => (
+                          <div
+                            key={user.id}
+                            className={styles.searchDropdownItem}
+                            onClick={() => {
+                              setAssignedUser(user);
+                              setAssignSearch(user.fullName || user.username || '');
+                            }}
+                          >
+                            <div className={styles.userAvatar}>{getUserInitial(user)}</div>
+                            <div className={styles.userInfo}>
+                              <div className={styles.userName}>{user.fullName || user.username}</div>
+                              <div className={styles.userEmail}>{user.email}</div>
+                            </div>
+                            <span className={`${styles.userRoleBadge} ${getRoleClass(user.role)}`} style={{ fontSize: '0.6875rem' }}>
+                              {user.role}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {assignedUser && (

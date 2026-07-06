@@ -1,11 +1,6 @@
 package com.poliwise.feedback.enums;
 
 public enum ReportType {
-    USAGE_SUMMARY,
-    QUESTION_ANALYTICS,
-    FEEDBACK_ANALYSIS,
-    USER_ENGAGEMENT,
-    DOCUMENT_POPULARITY,
-    UNANSWERED_QUESTIONS,
-    DEPARTMENT_BREAKDOWN
+    USER_REPORT,
+    DEPARTMENT_REPORT
 }

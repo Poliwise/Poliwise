@@ -95,48 +95,41 @@ export const useIsAdmin = () => {
   const user = useAuthStore((state) => state.user);
   const isHydrated = useAuthStore((state) => state._hasHydrated);
 
-  // If store not hydrated yet, check localStorage directly to prevent redirect
-  if (!isHydrated) {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('auth-storage');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const storedUser = parsed.state?.user;
-          if (storedUser?.role === UserRole.ADMIN) {
-            return true;
-          }
-        }
-      } catch {
-        // ignore parse errors
+  let adminStatus = user?.role === UserRole.ADMIN;
+
+  if (!isHydrated && typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('auth-storage');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const storedUser = parsed.state?.user;
+        adminStatus = storedUser?.role === UserRole.ADMIN;
       }
+    } catch {
+      // ignore parse errors
     }
-    return false;
   }
 
-  return user?.role === UserRole.ADMIN;
+  return adminStatus;
 };
 export const useIsManager = () => {
   const user = useAuthStore((state) => state.user);
   const isHydrated = useAuthStore((state) => state._hasHydrated);
 
-  if (!isHydrated) {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('auth-storage');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const storedUser = parsed.state?.user;
-          if (storedUser?.role === UserRole.ADMIN || storedUser?.role === UserRole.MANAGER) {
-            return true;
-          }
-        }
-      } catch {
-        // ignore parse errors
+  let managerStatus = user?.role === UserRole.ADMIN || user?.role === UserRole.MANAGER;
+
+  if (!isHydrated && typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('auth-storage');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const storedUser = parsed.state?.user;
+        managerStatus = storedUser?.role === UserRole.ADMIN || storedUser?.role === UserRole.MANAGER;
       }
+    } catch {
+      // ignore parse errors
     }
-    return false;
   }
 
-  return user?.role === UserRole.ADMIN || user?.role === UserRole.MANAGER;
+  return managerStatus;
 };
