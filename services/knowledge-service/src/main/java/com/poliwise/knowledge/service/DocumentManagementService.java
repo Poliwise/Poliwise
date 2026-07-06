@@ -159,6 +159,17 @@ public class DocumentManagementService {
                 "changelog", changelog
         ), uploadedBy, ipAddress, userAgent);
 
+        // 8. Publish event
+        eventPublisher.publishDocumentVersionCreated(
+                com.poliwise.knowledge.dto.event.DocumentVersionCreatedEvent.create(
+                        documentId,
+                        document.getOriginalFilename(),
+                        newVersionNumber,
+                        changelog,
+                        uploadedBy
+                )
+        );
+
         log.info("New version created: documentId={}, version={}", documentId, newVersionNumber);
         return document;
     }
@@ -351,6 +362,20 @@ public class DocumentManagementService {
             return is.readAllBytes();
         } catch (Exception e) {
             throw new RuntimeException("Failed to read document bytes: " + e.getMessage(), e);
+        }
+    }
+
+    public byte[] getDocumentVersionBytes(UUID documentId, Integer versionNumber) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
+
+        DocumentVersion version = versionRepository.findByDocumentIdAndVersionNumber(documentId, versionNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionNumber));
+
+        try (InputStream is = storageService.downloadFile(version.getFileKey())) {
+            return is.readAllBytes();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read version bytes: " + e.getMessage(), e);
         }
     }
 

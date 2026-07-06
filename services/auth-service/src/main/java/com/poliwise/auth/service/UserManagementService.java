@@ -8,6 +8,7 @@ import com.poliwise.auth.entity.User;
 import com.poliwise.auth.enums.AccountStatus;
 import com.poliwise.auth.enums.LoginStatus;
 import com.poliwise.auth.enums.UserRole;
+import com.poliwise.auth.feign.FeedbackServiceClient;
 import com.poliwise.auth.repository.LoginHistoryRepository;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
@@ -22,6 +23,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -35,6 +37,7 @@ public class UserManagementService {
     private final PasswordService passwordService;
     private final EmailService emailService;
     private final EmailProperties emailProperties;
+    private final FeedbackServiceClient feedbackServiceClient;
 
     public UserManagementService(
             UserRepository userRepository,
@@ -42,7 +45,8 @@ public class UserManagementService {
             RefreshTokenRepository refreshTokenRepository,
             PasswordService passwordService,
             EmailService emailService,
-            EmailProperties emailProperties
+            EmailProperties emailProperties,
+            FeedbackServiceClient feedbackServiceClient
     ) {
         this.userRepository = userRepository;
         this.loginHistoryRepository = loginHistoryRepository;
@@ -50,6 +54,7 @@ public class UserManagementService {
         this.passwordService = passwordService;
         this.emailService = emailService;
         this.emailProperties = emailProperties;
+        this.feedbackServiceClient = feedbackServiceClient;
     }
 
     @Transactional
@@ -99,6 +104,22 @@ public class UserManagementService {
                     throw new IllegalStateException("Tạo người dùng thành công nhưng gửi email thất bại. Vui lòng thông báo cho người dùng về mật khẩu tạm thời.");
                 }
                 log.info("[USER CREATE] User {} created, email sent successfully to {}", savedUser.getUsername(), maskEmail(savedUser.getEmail()));
+                
+                // Call feedback service to log audit
+                try {
+                    Map<String, Object> payload = Map.of(
+                            "actorId", createdBy != null ? createdBy.toString() : "",
+                            "actorName", getAdminName(createdBy),
+                            "userId", savedUser.getId().toString(),
+                            "username", savedUser.getUsername(),
+                            "email", savedUser.getEmail(),
+                            "role", savedUser.getRole().name()
+                    );
+                    feedbackServiceClient.logUserCreated(payload);
+                    log.info("[USER CREATE] Audit logged to feedback-service for user {}", savedUser.getUsername());
+                } catch (Exception e) {
+                    log.warn("[USER CREATE] Failed to call feedback-service for audit: {}", e.getMessage());
+                }
             } catch (java.util.concurrent.ExecutionException e) {
                 log.error("[USER CREATE] User {} created, but email threw exception: {}", savedUser.getUsername(), e.getMessage());
                 throw new IllegalStateException("Tạo người dùng thành công nhưng gửi email thất bại. Vui lòng thông báo cho người dùng về mật khẩu tạm thời.");

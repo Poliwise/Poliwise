@@ -39,6 +39,7 @@ import type {
   AuditLog,
   DocumentMetadata,
 } from '@/types/document';
+import type { LockInfo } from '@/services/onlyoffice.service';
 import {
   formatFileSize,
   formatDate,
@@ -103,7 +104,7 @@ export default function DocumentDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('detail');
   const [extractedContent, setExtractedContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
-  const [auditPage, setAuditPage] = useState(1);
+  const [auditPage, setAuditPage] = useState(0);
   const [auditTotalPages, setAuditTotalPages] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -114,11 +115,12 @@ export default function DocumentDetailPage() {
   const [editorTargetVersion, setEditorTargetVersion] = useState<number | undefined>(undefined);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [conflictData, setConflictData] = useState<{
-    lock: import('@/services/onlyoffice.service').LockInfo;
+    lock: LockInfo;
     currentVersion: number;
   } | null>(null);
   const [editOldVersionOpen, setEditOldVersionOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<import('@/types/document').DocumentVersion | null>(null);
+  const [versionUploadOpen, setVersionUploadOpen] = useState(false);
   const [mergeDiffData, setMergeDiffData] = useState<{
     diffLines: Array<{ type: 'UNCHANGED' | 'ADDED' | 'DELETED'; lineNumber: number; content: string }>;
     baseVersion: number;
@@ -237,7 +239,7 @@ export default function DocumentDetailPage() {
     }
   };
 
-  const loadAuditLogs = async (page = 1) => {
+  const loadAuditLogs = async (page = 0) => {
     try {
       const response = await documentService.getAuditLogs(documentId, { page, limit: 20 });
       setAuditLogs(response.data || []);
@@ -305,7 +307,7 @@ export default function DocumentDetailPage() {
   const handleDownload = async () => {
     if (!document) return;
     try {
-      await documentService.downloadDocument(documentId, document.originalFilename);
+      await documentService.downloadDocument(documentId, document.originalFilename, document.currentVersion);
     } catch (err: any) {
       alert(err.message || 'Tải xuống thất bại');
     }
@@ -319,7 +321,7 @@ export default function DocumentDetailPage() {
   };
 
   const handleEditorConflict = (data: {
-    lock: import('@/services/onlyoffice.service').LockInfo;
+    lock: LockInfo;
     currentVersion: number;
     currentFile: File | null;
   }) => {
@@ -1114,18 +1116,18 @@ export default function DocumentDetailPage() {
                 ))}
                 {auditTotalPages > 1 && (
                   <div className={styles.pagination}>
-                    <span className={styles.paginationInfo}>Trang {auditPage} / {auditTotalPages}</span>
+                    <span className={styles.paginationInfo}>Trang {auditPage + 1} / {auditTotalPages}</span>
                     <div className={styles.paginationBtns}>
                       <button
                         onClick={() => loadAuditLogs(auditPage - 1)}
-                        disabled={auditPage === 1}
+                        disabled={auditPage === 0}
                         className={styles.pageBtn}
                       >
                         Trước
                       </button>
                       <button
                         onClick={() => loadAuditLogs(auditPage + 1)}
-                        disabled={auditPage === auditTotalPages}
+                        disabled={auditPage >= auditTotalPages - 1}
                         className={styles.pageBtn}
                       >
                         Sau
@@ -1153,9 +1155,10 @@ export default function DocumentDetailPage() {
           isOpen={previewOpen}
           onClose={() => setPreviewOpen(false)}
           documentId={documentId}
+          version={document.currentVersion}
           filename={document.originalFilename || document.fileName || 'document'}
           fileType={(document.fileType as unknown as string) || 'UNKNOWN'}
-          getPreviewUrl={documentService.getPreviewUrl}
+          getPreviewUrl={(id, ver) => documentService.getPreviewUrl(id, ver)}
         />
       )}
 

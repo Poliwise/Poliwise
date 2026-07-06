@@ -187,6 +187,18 @@ public class UserService {
 
         user.setStatus(newStatus);
 
+        if (newStatus == AccountStatus.REVOKED) {
+            user.setRevokedAt(OffsetDateTime.now());
+            user.setDeactivatedAt(null);
+        } else if (newStatus == AccountStatus.DEACTIVATED) {
+            user.setDeactivatedAt(OffsetDateTime.now());
+            user.setRevokedAt(null);
+        } else if (previousStatus == AccountStatus.REVOKED) {
+            user.setRevokedAt(null);
+        } else if (previousStatus == AccountStatus.DEACTIVATED) {
+            user.setDeactivatedAt(null);
+        }
+
         if (request.newRole() != null) {
             user.setRole(request.newRole());
         }

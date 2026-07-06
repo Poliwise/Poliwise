@@ -3,6 +3,7 @@ package com.poliwise.user.service;
 import com.poliwise.user.dto.*;
 import com.poliwise.user.entity.Department;
 import com.poliwise.user.entity.User;
+import com.poliwise.user.event.UserEventPublisher;
 import com.poliwise.user.exception.DepartmentNotFoundException;
 import com.poliwise.user.exception.InvalidDepartmentOperationException;
 import com.poliwise.user.repository.DepartmentRepository;
@@ -27,10 +28,13 @@ public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
+    private final UserEventPublisher eventPublisher;
 
-    public DepartmentService(DepartmentRepository departmentRepository, UserRepository userRepository) {
+    public DepartmentService(DepartmentRepository departmentRepository, UserRepository userRepository,
+                             UserEventPublisher eventPublisher) {
         this.departmentRepository = departmentRepository;
         this.userRepository = userRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     // ==================== CRUD Operations ====================
@@ -39,7 +43,7 @@ public class DepartmentService {
      * Tạo mới phòng ban.
      */
     @Transactional
-    public DepartmentResponse createDepartment(CreateDepartmentRequest request) {
+    public DepartmentResponse createDepartment(CreateDepartmentRequest request, UUID createdBy) {
         // Check unique code
         if (departmentRepository.existsByCodeIgnoreCase(request.code())) {
             throw new InvalidDepartmentOperationException("Mã phòng ban đã tồn tại: " + request.code());
@@ -55,15 +59,25 @@ public class DepartmentService {
         department.setUpdatedAt(OffsetDateTime.now());
 
         // Set parent if provided
+        UUID parentId = null;
         if (request.parentId() != null) {
             Department parent = departmentRepository.findById(request.parentId())
                     .orElseThrow(() -> new DepartmentNotFoundException(
                             "Phòng ban cha không tồn tại: " + request.parentId()));
             department.setParent(parent);
+            parentId = parent.getId();
         }
 
         Department saved = departmentRepository.save(department);
         log.info("Created department: id={}, name={}, code={}", saved.getId(), saved.getName(), saved.getCode());
+
+        // Publish audit event
+        eventPublisher.publishDepartmentCreated(
+                com.poliwise.user.dto.event.DepartmentCreatedEvent.create(
+                        saved.getId(), saved.getName(), saved.getCode(), parentId, createdBy
+                )
+        );
+
         return toResponse(saved, 0);
     }
 
@@ -71,7 +85,7 @@ public class DepartmentService {
      * Cập nhật phòng ban.
      */
     @Transactional
-    public DepartmentResponse updateDepartment(UUID departmentId, UpdateDepartmentRequest request) {
+    public DepartmentResponse updateDepartment(UUID departmentId, UpdateDepartmentRequest request, UUID updatedBy) {
         Department department = departmentRepository.findByIdForUpdate(departmentId)
                 .orElseThrow(() -> new DepartmentNotFoundException("Phòng ban không tồn tại: " + departmentId));
 
@@ -101,6 +115,14 @@ public class DepartmentService {
         department.setUpdatedAt(OffsetDateTime.now());
         Department saved = departmentRepository.save(department);
         log.info("Updated department: id={}, name={}", saved.getId(), saved.getName());
+
+        // Publish audit event
+        eventPublisher.publishDepartmentUpdated(
+                com.poliwise.user.dto.event.DepartmentUpdatedEvent.create(
+                        saved.getId(), saved.getName(), saved.getCode(), updatedBy
+                )
+        );
+
         return toResponse(saved, getUserCount(departmentId));
     }
 
@@ -167,7 +189,7 @@ public class DepartmentService {
      * Xóa phòng ban (soft delete - chỉ deactivate).
      */
     @Transactional
-    public void deleteDepartment(UUID departmentId) {
+    public void deleteDepartment(UUID departmentId, UUID deletedBy) {
         Department department = departmentRepository.findByIdForUpdate(departmentId)
                 .orElseThrow(() -> new DepartmentNotFoundException("Phòng ban không tồn tại: " + departmentId));
 
@@ -178,10 +200,19 @@ public class DepartmentService {
                     "Không thể xóa phòng ban đang có " + userCount + " người dùng. Vui lòng chuyển người dùng sang phòng ban khác trước.");
         }
 
+        String deptName = department.getName();
+        String deptCode = department.getCode();
         department.setIsActive(false);
         department.setUpdatedAt(OffsetDateTime.now());
         departmentRepository.save(department);
         log.info("Deactivated department: id={}, name={}", department.getId(), department.getName());
+
+        // Publish audit event
+        eventPublisher.publishDepartmentDeleted(
+                com.poliwise.user.dto.event.DepartmentDeletedEvent.create(
+                        departmentId, deptName, deptCode, deletedBy
+                )
+        );
     }
 
     // ==================== User-Department Assignment ====================
@@ -190,7 +221,7 @@ public class DepartmentService {
      * Gán người dùng vào phòng ban (Admin).
      */
     @Transactional
-    public UserResponse assignUserToDepartment(UUID userId, UUID departmentId) {
+    public UserResponse assignUserToDepartment(UUID userId, UUID departmentId, UUID assignedBy) {
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new com.poliwise.user.exception.UserNotFoundException(
                         "Người dùng không tồn tại: " + userId));
@@ -207,6 +238,45 @@ public class DepartmentService {
         user.setDepartment(department);
         User saved = userRepository.save(user);
         log.info("Assigned user {} to department {} ({})", userId, departmentId, department.getName());
+
+        // Publish audit event
+        eventPublisher.publishUserAssignedToDepartment(
+                com.poliwise.user.dto.event.UserAssignedToDepartmentEvent.create(
+                        userId, user.getUsername(), departmentId, department.getName(), assignedBy
+                )
+        );
+
+        return toUserResponse(saved);
+    }
+
+    /**
+     * Xóa người dùng khỏi phòng ban.
+     */
+    @Transactional
+    public UserResponse removeUserFromDepartment(UUID userId, UUID removedBy) {
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new com.poliwise.user.exception.UserNotFoundException(
+                        "Người dùng không tồn tại: " + userId));
+
+        Department department = user.getDepartment();
+        if (department == null) {
+            throw new InvalidDepartmentOperationException("Người dùng không thuộc phòng ban nào");
+        }
+
+        String deptName = department.getName();
+        UUID deptId = department.getId();
+
+        user.setDepartment(null);
+        User saved = userRepository.save(user);
+        log.info("Removed user {} from department {} ({})", userId, deptId, deptName);
+
+        // Publish audit event
+        eventPublisher.publishUserRemovedFromDepartment(
+                com.poliwise.user.dto.event.UserRemovedFromDepartmentEvent.create(
+                        userId, user.getUsername(), deptId, deptName, removedBy
+                )
+        );
+
         return toUserResponse(saved);
     }
 

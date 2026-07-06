@@ -523,8 +523,20 @@ export class ProxyController {
   @All('metadata/*path')
   @Roles(UserRole.ADMIN)
   handleMetadata(@Req() request: Request) {
-    const relative = request.path.replace(/^\/api\/v1\/metadata/, '') || '/';
-    const downstream = `/api/v1/metadata${relative === '/' ? '' : relative}`;
+    const path = request.path;
+    let downstream: string;
+
+    if (path.startsWith('/api/v1/metadata/categories')) {
+      const relative = path.replace(/^\/api\/v1\/metadata\/categories/, '') || '/';
+      downstream = `/api/v1/categories${relative === '/' ? '' : relative}`;
+    } else if (path.startsWith('/api/v1/metadata/tags')) {
+      const relative = path.replace(/^\/api\/v1\/metadata\/tags/, '') || '/';
+      downstream = `/api/v1/tags${relative === '/' ? '' : relative}`;
+    } else {
+      const relative = path.replace(/^\/api\/v1\/metadata/, '') || '/';
+      downstream = `/api/v1/metadata${relative === '/' ? '' : relative}`;
+    }
+
     return this.proxyService.forward(
       ServiceName.METADATA,
       request,

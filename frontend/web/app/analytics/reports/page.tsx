@@ -38,9 +38,9 @@ function formatDate(dateStr: string): string {
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
 
-type ReportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-type ReportType = 'USAGE_SUMMARY' | 'QUESTION_ANALYTICS' | 'FEEDBACK_ANALYSIS' | 'USER_ENGAGEMENT' | 'DOCUMENT_POPULARITY' | 'UNANSWERED_QUESTIONS' | 'DEPARTMENT_BREAKDOWN';
+type ReportType = 'USER_REPORT' | 'DEPARTMENT_REPORT';
 type ReportFormat = 'CSV' | 'JSON';
+type ReportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
 interface Report {
   id: string;
@@ -55,13 +55,8 @@ interface Report {
 }
 
 const REPORT_TYPES: Record<ReportType, string> = {
-  USAGE_SUMMARY: 'Tổng quan sử dụng',
-  QUESTION_ANALYTICS: 'Phân tích câu hỏi',
-  FEEDBACK_ANALYSIS: 'Phân tích phản hồi',
-  USER_ENGAGEMENT: 'Engagement người dùng',
-  DOCUMENT_POPULARITY: 'Tài liệu phổ biến',
-  UNANSWERED_QUESTIONS: 'Câu hỏi chưa trả lời',
-  DEPARTMENT_BREAKDOWN: 'Phân tích theo phòng ban',
+  USER_REPORT: 'Báo cáo người dùng',
+  DEPARTMENT_REPORT: 'Báo cáo phòng ban',
 };
 
 const STATUS_CONFIG: Record<ReportStatus, { label: string; variant: 'warning' | 'neutral' | 'success' | 'destructive' }> = {
@@ -85,7 +80,7 @@ function ReportsPage() {
 
   // Create modal
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<ReportType>('USAGE_SUMMARY');
+  const [selectedType, setSelectedType] = useState<ReportType>('USER_REPORT');
   const [selectedFormat, setSelectedFormat] = useState<ReportFormat>('CSV');
   const [reportName, setReportName] = useState('');
   const [creating, setCreating] = useState(false);

@@ -74,10 +74,9 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(
             @Valid @RequestBody RefreshTokenRequest request,
-            @RequestHeader("X-User-Id") UUID userId,
             HttpServletRequest httpRequest) {
         ClientMetadata metadata = extractMetadata(httpRequest);
-        TokenResponse response = authService.refresh(request.refreshToken(), userId, metadata);
+        TokenResponse response = authService.refresh(request.refreshToken(), metadata);
         return ResponseEntity.ok(response);
     }
 

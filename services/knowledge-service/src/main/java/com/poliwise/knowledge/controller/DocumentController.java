@@ -243,6 +243,28 @@ public class DocumentController {
                 .body(content);
     }
 
+    // ===== 6c. Preview Specific Version =====
+    @GetMapping("/{documentId}/versions/{versionNumber}/preview")
+    @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<byte[]> getVersionPreview(
+            @PathVariable UUID documentId,
+            @PathVariable Integer versionNumber,
+            HttpServletRequest httpRequest) {
+        documentManagementService.checkDocumentAccessOrThrow(documentId);
+        DocumentDetailResponse detail = documentManagementService.getDocumentDetail(documentId);
+        detail.versions().stream()
+                .filter(v -> v.versionNumber().equals(versionNumber))
+                .findFirst()
+                .orElseThrow(() -> new com.poliwise.knowledge.exception.ResourceNotFoundException("Version not found: " + versionNumber));
+        byte[] content = documentManagementService.getDocumentVersionBytes(documentId, versionNumber);
+
+        String contentType = detail.mimeType() != null ? detail.mimeType() : "application/octet-stream";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .body(content);
+    }
+
     // ===== 7. Download Specific Version =====
     @GetMapping("/{documentId}/versions/{versionNumber}/download")
     @PreAuthorize("hasAnyRole('USER', 'MANAGER', 'ADMIN')")

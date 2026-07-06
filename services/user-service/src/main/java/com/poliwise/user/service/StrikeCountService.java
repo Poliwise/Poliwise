@@ -3,19 +3,23 @@ package com.poliwise.user.service;
 import com.poliwise.user.entity.User;
 import com.poliwise.user.enums.AccountStatus;
 import com.poliwise.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class StrikeCountService {
 
+    private static final Logger log = LoggerFactory.getLogger(StrikeCountService.class);
+
     private final UserRepository userRepository;
+
+    public StrikeCountService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Transactional
     public void incrementStrikeCount(String userIdStr) {

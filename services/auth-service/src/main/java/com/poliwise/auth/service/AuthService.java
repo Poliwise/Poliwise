@@ -14,6 +14,7 @@ import com.poliwise.auth.enums.AccountStatus;
 import com.poliwise.auth.enums.LoginStatus;
 import com.poliwise.auth.enums.UserRole;
 import com.poliwise.auth.event.AuthEventPublisher;
+import com.poliwise.auth.feign.FeedbackServiceClient;
 import com.poliwise.auth.repository.LoginHistoryRepository;
 import com.poliwise.auth.repository.RefreshTokenRepository;
 import com.poliwise.auth.repository.UserRepository;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +51,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final AuthEventPublisher authEventPublisher;
+    private final FeedbackServiceClient feedbackServiceClient;
 
     @Transactional
     public AuthUserView register(RegisterRequest request, UUID registeredBy) {
@@ -87,6 +90,7 @@ public class AuthService {
 
     private void publishUserRegisteredEvent(User user, UUID registeredBy) {
         try {
+            // Publish to RabbitMQ
             UserRegisteredEvent event;
             if (registeredBy != null) {
                 event = UserRegisteredEvent.create(
@@ -105,6 +109,22 @@ public class AuthService {
                 );
             }
             authEventPublisher.publishUserRegistered(event);
+            
+            // Also call feedback service directly via REST to ensure audit is logged
+            try {
+                Map<String, Object> payload = Map.of(
+                        "actorId", registeredBy != null ? registeredBy.toString() : "",
+                        "actorName", registeredBy != null ? "Admin" : "Self-registered",
+                        "userId", user.getId().toString(),
+                        "username", user.getUsername(),
+                        "email", user.getEmail(),
+                        "role", user.getRole().name()
+                );
+                feedbackServiceClient.logUserCreated(payload);
+                log.info("Called feedback-service to log user creation: {}", user.getUsername());
+            } catch (Exception e) {
+                log.warn("Failed to call feedback-service for user creation audit: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.error("Failed to publish UserRegisteredEvent for user {}: {}", user.getId(), e.getMessage(), e);
         }
@@ -160,8 +180,8 @@ public class AuthService {
     }
 
     @Transactional
-    public TokenResponse refresh(String rawRefreshToken, UUID userId, ClientMetadata metadata) {
-        RefreshTokenService.RefreshTokenResult result = refreshTokenService.rotate(rawRefreshToken, userId, metadata);
+    public TokenResponse refresh(String rawRefreshToken, ClientMetadata metadata) {
+        RefreshTokenService.RefreshTokenResult result = refreshTokenService.rotate(rawRefreshToken, metadata);
 
         String newAccessToken = jwtTokenProvider.createAccessToken(result.user());
 

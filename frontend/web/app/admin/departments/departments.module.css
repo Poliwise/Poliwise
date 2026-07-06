@@ -1247,6 +1247,41 @@
     font-size: 0.875rem;
   }
 
+  /* ====== User List Container ====== */
+  .userListContainer {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .userListHeader {
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .searchDropdownItem {
+    padding: 1rem;
+  }
+
+  /* ====== Assign Modal Body ====== */
+  .assignModalBody {
+    padding: 1.25rem;
+  }
+
+  /* Make search dropdown taller when showing full list */
+
   /* ====== Pagination Buttons ====== */
   .pageBtn {
     display: flex;
@@ -1367,5 +1402,28 @@
   .required {
     color: #dc2626;
     margin-left: 0.125rem;
+  }
+
+  /* ====== Remove User Button ====== */
+  .removeUserBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .removeUserBtn:hover {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #dc2626;
   }
 }

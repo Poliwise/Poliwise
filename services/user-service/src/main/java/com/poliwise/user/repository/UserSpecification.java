@@ -3,6 +3,8 @@ package com.poliwise.user.repository;
 import com.poliwise.user.entity.User;
 import com.poliwise.user.enums.AccountStatus;
 import com.poliwise.user.enums.UserRole;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
@@ -26,15 +28,20 @@ public class UserSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             if (excludeDeleted != null && excludeDeleted) {
-                predicates.add(cb.equal(root.get("status"), AccountStatus.ACTIVE));
+                predicates.add(cb.notEqual(root.get("status"), AccountStatus.REVOKED));
             }
 
             if (StringUtils.hasText(keyword)) {
                 String pattern = "%" + keyword.toLowerCase() + "%";
                 Predicate byUsername = cb.like(cb.lower(root.get("username")), pattern);
                 Predicate byEmail = cb.like(cb.lower(root.get("email")), pattern);
-                Predicate byFullName = cb.like(
-                        cb.lower(root.get("profile").get("fullName")), pattern);
+
+                // Explicitly join profile with LEFT join to safely access fullName
+                Join<Object, Object> profileJoin = root.join("profile", JoinType.LEFT);
+                Predicate byFullName = cb.and(
+                        cb.isNotNull(profileJoin.get("fullName")),
+                        cb.like(cb.lower(profileJoin.get("fullName")), pattern));
+
                 predicates.add(cb.or(byUsername, byEmail, byFullName));
             }
 
